@@ -421,7 +421,12 @@ class Endpoint:
 
     def _descend(self, now, why):
         if self.mode == self.base:
-            return []
+            if self.state == BASE:
+                return []
+            # no modo base mas ainda em DATA/RECUPERACAO (a escada desceu para o próprio base, ou a âncora é o
+            # base): sem esta transição o prazo de silêncio vencia de novo no mesmo instante (laço sem avanço)
+            self.stats["quedas_base"] += 1
+            return self._set_mode(self.base, BASE, now, why)
         nxt = self._step_down(self.mode)
         if nxt is not None and nxt != self.mode:
             self.stats["degradacoes"] += 1

@@ -7,3 +7,4 @@ data/raw/
 *.key
 secrets/
 core/build/
+simsuite/results_full/

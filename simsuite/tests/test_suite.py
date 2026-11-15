@@ -107,3 +107,15 @@ def test_fade_k_desligado_por_padrao_e_soma_variabilidade():
     ep2 = Endpoint(0, 1, modes, base, rec, Config(fade_k=2.0), rng)
     ep2.snr_hist = [0.0, 6.0] * 15                     # desvio = 3 dB
     assert abs(ep2._need_up() - (Config().margin_up + 6.0)) < 1e-9
+
+
+def test_descida_no_modo_base_nao_trava_em_recuperacao():
+    """Regressão: RECUPERACAO no próprio modo base com par em silêncio devia ir a BASE, não repetir o prazo."""
+    from simsuite.protocol.endpoint import Config, Endpoint, RECOV, BASE
+    modes, base, rec = table()
+    ep = Endpoint(0, 1, modes, base, rec, Config(), np.random.default_rng(1))
+    ep.mode, ep.state, ep.peer_heard = base, RECOV, 0.0
+    ep.on_timer(1000.0)
+    assert ep.state == BASE
+    d = ep.next_deadline()
+    assert d is None or d > 1000.0          # o próximo prazo está no futuro (antes ficava no passado)

@@ -43,7 +43,7 @@ MAPA = [
 ]
 
 
-def job(name, escala):
+def job(name, escala, outdir=RES):
     t0 = time.time()
     try:
         if name == "modos":
@@ -90,14 +90,14 @@ def job(name, escala):
             from .scenarios.topology import mesh
             r = mesh(escala)
         elif name == "fase7":
-            r = fase7_demo()
+            r = fase7_demo(outdir)
         else:
             raise KeyError(name)
         r = {"cenario": name, "escala": escala, "segundos": round(time.time() - t0, 1), "resultado": r}
     except Exception as e:  # noqa
         r = {"cenario": name, "erro": repr(e), "trace": traceback.format_exc()}
-    os.makedirs(RES, exist_ok=True)
-    with open(os.path.join(RES, f"{name.replace(':', '_')}.json"), "w") as fh:
+    os.makedirs(outdir, exist_ok=True)
+    with open(os.path.join(outdir, f"{name.replace(':', '_')}.json"), "w") as fh:
         json.dump(r, fh, ensure_ascii=False, indent=1, default=lambda o: list(o) if isinstance(o, tuple) else str(o))
     return name, r
 
@@ -133,14 +133,14 @@ def b6_trace_replay(escala):
     return out
 
 
-def fase7_demo():
+def fase7_demo(outdir=RES):
     import numpy as np
     from .core.channel_static import ENVS
     from .core.links import FixedLink
     from .scenarios.common import make_pair, summarize
     from .analysis.telemetry import load, analyze
-    path = os.path.join(RES, "exemplo_telemetria.jsonl")
-    os.makedirs(RES, exist_ok=True)
+    path = os.path.join(outdir, "exemplo_telemetria.jsonl")
+    os.makedirs(outdir, exist_ok=True)
     env = ENVS["urbano_residencial"]
     sim = make_pair("urbano_residencial", FixedLink(env, 1.2, np.random.default_rng(3), 6 * 3600),
                     6 * 3600, 5, log_path=path, app_interval=30.0)
@@ -164,17 +164,19 @@ def main():
     ap.add_argument("--escala", default="quick", choices=["quick", "full"])
     ap.add_argument("--so", nargs="*", default=None)
     ap.add_argument("--procs", type=int, default=os.cpu_count() or 2)
+    ap.add_argument("--saida", default=None, help="diretório de saída (padrão: results/ no quick, results_full/ no full)")
     a = ap.parse_args()
     names = a.so or ALL
+    outdir = a.saida or os.path.join(HERE, "results" if a.escala == "quick" else "results_full")
     t0 = time.time()
     results = {}
     with ProcessPoolExecutor(max_workers=a.procs) as ex:
-        for name, r in ex.map(job, names, [a.escala] * len(names)):
+        for name, r in ex.map(job, names, [a.escala] * len(names), [outdir] * len(names)):
             results[name] = r
             print(f"{name:8s} {'ERRO' if 'erro' in r else 'ok'}  {r.get('segundos', '')} s", flush=True)
     from .analysis.report import write_report
-    write_report(RES, MAPA, a.escala)
-    print("relatório:", os.path.join(RES, "relatorio.md"), round(time.time() - t0), "s")
+    write_report(outdir, MAPA, a.escala)
+    print("relatório:", os.path.join(outdir, "relatorio.md"), round(time.time() - t0), "s")
 
 
 if __name__ == "__main__":
