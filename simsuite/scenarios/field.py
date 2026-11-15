@@ -119,8 +119,10 @@ def field_campaign(escala="quick", which=None):
 
 
 def f6_long_duration(escala="quick"):
+    """Longa duração: 1 dia (quick) ou 7 dias (full) por semente de canal, várias sementes."""
     days = 1 if escala == "quick" else 7
     T = days * 86400
+    seeds = [21, 22, 23]
     out = {}
     for name, (env_id, d, off) in {"urbano denso 1 km": ("urbano_denso", 1.0, 0.0),
                                    "rural aberto 8 km": ("rural_aberto", 8.0, 8.5)}.items():
@@ -128,9 +130,44 @@ def f6_long_duration(escala="quick"):
         row = {}
         for cname in ("Fixo SF10/125 salto (base)", "AdaptLoRa perfil fixo"):
             ckw = configs()[cname]
-            mk = lambda s: OffsetLink(FixedLink(env, d, np.random.default_rng(77), T + 10), off)
-            row[cname] = _run_cell(env_id, mk, ckw, T, [21], app=60.0)
+            mk = lambda s, env=env, d=d, off=off: OffsetLink(
+                FixedLink(env, d, np.random.default_rng(77 + s), T + 10), off)
+            row[cname] = _run_cell(env_id, mk, ckw, T, seeds, app=60.0)
         out[name] = row
+    return out
+
+
+# ------------------------------------------------------------------ F7: sintonia da aceleração
+F7_VARIANTES = {
+    "Fixo SF10/125 salto (base)": None,
+    "Légua atual (margem 8 dB)": {},
+    "Légua margem 14 dB": dict(margin_up=14.0),
+    "Légua fade_k 1": dict(fade_k=1.0),
+    "Légua fade_k 2": dict(fade_k=2.0),
+    "Légua fade_k 3": dict(fade_k=3.0),
+}
+F7_ENLACES = {"urbano denso 1 km": ("urbano_denso", 1.0, 0.0),
+              "urbano residencial 3 km": ("urbano_residencial", 3.0, 0.0)}
+
+
+def f7_tuning(escala="quick"):
+    """Efeito da margem de aceleração (fixa ou proporcional à variabilidade do SNR) em enlace marginal.
+
+    Pergunta (achado do F6): a oscilação (quedas ao base, desacordo) se reduz com margem maior? A que custo
+    de energia? Mesmas sementes de canal para todas as variantes."""
+    days, seeds = (1, [21, 22]) if escala == "quick" else (7, [21, 22, 23, 24, 25])
+    T = days * 86400
+    modes, base, rec = table()
+    out = {}
+    for lname, (env_id, d, off) in F7_ENLACES.items():
+        env = ENVS[env_id]
+        mk = lambda s, env=env, d=d, off=off: OffsetLink(
+            FixedLink(env, d, np.random.default_rng(77 + s), T + 10), off)
+        row = {}
+        for vname, kw in F7_VARIANTES.items():
+            ckw = dict(factory=locked_factory(base)) if kw is None else dict(cfg=Config(**kw))
+            row[vname] = _run_cell(env_id, mk, ckw, T, seeds, app=60.0)
+        out[lname] = row
     return out
 
 

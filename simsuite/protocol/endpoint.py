@@ -68,6 +68,8 @@ class Config:
     v_freeze: float = 2.0            # m/s: congela aceleração acima disso
     snr_std_freeze: float = 3.0      # dB
     rollback_alarm: int = 3          # rollbacks/h sem queda de SNR -> alarme
+    fade_k: float = 0.0              # margem de aceleração += fade_k x desvio do SNR (0 = desligado)
+    fade_window: int = 30            # amostras de SNR para o desvio
     power_control: bool = True
 
 
@@ -171,8 +173,14 @@ class Endpoint:
         c = self.cfg
         return c.mobile and (max(self.speed, self.peer_speed) > c.v_freeze or self._snr_std() > c.snr_std_freeze)
 
-    def _snr_std(self):
-        h = self.snr_hist[-10:]
+    def _need_up(self, delta=0.0):
+        """Margem exigida para acelerar: fixa + fade_k x variabilidade medida do SNR."""
+        c = self.cfg
+        extra = c.fade_k * self._snr_std(c.fade_window) if c.fade_k else 0.0
+        return c.margin_up + delta + extra
+
+    def _snr_std(self, n=10):
+        h = self.snr_hist[-n:]
         if len(h) < 4:
             return 0.0
         mu = sum(h) / len(h)
@@ -299,7 +307,7 @@ class Endpoint:
                 continue
             if self.bad.get(m.name, -1) > self._now:
                 continue
-            if self._margin(m) >= self.cfg.margin_up:
+            if self._margin(m) >= self._need_up():
                 best = m
                 break                       # tabela ordenada do mais rápido
         return best
@@ -319,7 +327,7 @@ class Endpoint:
 
     def _on_propose(self, f, now):
         cand = next((m for m in self.modes if m.name == f.body["cand"]), None)
-        ok = cand is not None and (self._margin(cand) >= self.cfg.margin_up - 2 or self.state == BASE
+        ok = cand is not None and (self._margin(cand) >= self._need_up(-2.0) or self.state == BASE
                                    or self.g_me is None or cand == self.rec)
         if self._frozen():
             ok = False
@@ -503,7 +511,7 @@ class Endpoint:
                 and self.degraded and anc is not None and anc != self.mode
                 and self.consec_ok >= 10 and now - self.entered >= c.cooldown_back
                 and now >= self.neg_block and now >= self.freeze_until and not self._frozen()
-                and self._margin(anc) >= c.margin_up - 2 and self.bad.get(anc.name, -1) <= now):
+                and self._margin(anc) >= self._need_up(-2.0) and self.bad.get(anc.name, -1) <= now):
             acts += self._propose(now, target=anc)
         # aceleração
         elif (self.state == DATA and self.role_a and self.pending is None and self.out is None

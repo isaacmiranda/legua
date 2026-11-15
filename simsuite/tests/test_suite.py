@@ -96,3 +96,14 @@ def test_b9_sem_linhas_duplicadas():
     r = b9_drift()
     chaves = [(x["modo"], x["cristal"], x["p_dbm"], x["ldro"]) for x in r["linhas"]]
     assert len(chaves) == len(set(chaves))
+
+
+def test_fade_k_desligado_por_padrao_e_soma_variabilidade():
+    from simsuite.protocol.endpoint import Config, Endpoint
+    modes, base, rec = table()
+    rng = np.random.default_rng(1)
+    ep = Endpoint(0, 1, modes, base, rec, Config(), rng)
+    assert Config().fade_k == 0.0 and ep._need_up() == Config().margin_up
+    ep2 = Endpoint(0, 1, modes, base, rec, Config(fade_k=2.0), rng)
+    ep2.snr_hist = [0.0, 6.0] * 15                     # desvio = 3 dB
+    assert abs(ep2._need_up() - (Config().margin_up + 6.0)) < 1e-9

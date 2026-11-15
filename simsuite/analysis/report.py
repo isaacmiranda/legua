@@ -134,6 +134,13 @@ def write_report(res, mapa, escala):
                                                v["mj_por_pacote_mediana"]) for k, row in get("F6").items()
                                               for c, v in row.items()],
                                              ["Enlace", "Configuração", "PDR", "Trocas/h", "Rollbacks/h", "mJ/pacote"]), ""]
+    if get("F7"):
+        L += ["## F7: sintonia da aceleração (enlace marginal)", "",
+              "Variantes da margem exigida para acelerar. `fade_k` soma k × desvio do SNR (últimas 30 amostras) à margem de 8 dB.", ""]
+        for enlace, row in get("F7").items():
+            L += [f"### {enlace}", "", _t([(c, v["pdr"], v["mj_por_pacote_mediana"], v["trocas_por_hora"], v["rollbacks_por_hora"],
+                                             v["quedas_base"], v["desacordo_s_por_hora"]) for c, v in row.items()],
+                                           ["Variante", "PDR", "mJ/pacote", "Trocas/h", "Rollbacks/h", "Quedas ao base", "Desacordo (s/h)"]), ""]
     if get("M"):
         m = dict(get("M"))
         dop = m.pop("_doppler", None)
