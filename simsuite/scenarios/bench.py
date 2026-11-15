@@ -140,6 +140,7 @@ def _neg_runs(n_target, p_loss_ctrl, p_loss_data, seed, reboot_rate_h=0.0, persi
     tv = agg["tempo_validar_s"]
     return {"execucoes": run, "negociacoes": agg["negociacoes"], "rollbacks": agg["rollbacks"],
             "falhas_de_negociacao": agg["falhas_neg"], "reboots": agg["reboots"],
+            "rollbacks_por_100_trocas": round(100.0 * agg["rollbacks"] / n, 1),
             "episodios_desacordo": agg["desacordos"],
             "desacordo_permanente": agg["abertos_ao_fim"],
             "limite_sup_95_desacordo_permanente": rule_of_three(n) if agg["abertos_ao_fim"] == 0 else None,
@@ -158,7 +159,10 @@ def b3_control_cost(escala="quick", seed=2):
         r["perda"] = p
         rows.append(r)
     return {"por_perda": rows, "nota": "Par na bancada (SF7/500 <-> SF8/500, 10 dBm), negociação "
-                                       "forçada a cada 30 s; perda injetada em todos os quadros."}
+                                       "forçada a cada 30 s; perda injetada em todos os quadros. "
+                                       "Atenção: poucos rollbacks por corrida e o alarme anti-jamming "
+                                       "congela negociações por 1 h; a contagem varia muito entre sementes "
+                                       "(ex.: 8 a 31 com perda 0,3), então não é monotônica em n pequeno."}
 
 
 def b4_fault_injection(escala="quick", seed=3):
@@ -269,7 +273,7 @@ def b8_energy_table(escala="quick"):
 def b9_drift(escala="quick"):
     modes, base, rec = table()
     rows = []
-    for m in modes + [base]:
+    for m in modes + ([base] if base not in modes else []):
         toa = m.toa(DATA_BYTES)
         for xtal, rate in (("tcxo", 5.0), ("xtal", 400.0)):
             for p in (14, 22, 28):

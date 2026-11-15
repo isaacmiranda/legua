@@ -89,3 +89,10 @@ def test_pair_converges_on_bench():
     assert s["pdr"] > 0.97
     assert s["modo_final"][0] == s["modo_final"][1]
     assert s["acordo"]["em_aberto_s"] == 0.0
+
+
+def test_b9_sem_linhas_duplicadas():
+    from simsuite.scenarios.bench import b9_drift
+    r = b9_drift()
+    chaves = [(x["modo"], x["cristal"], x["p_dbm"], x["ldro"]) for x in r["linhas"]]
+    assert len(chaves) == len(set(chaves))
