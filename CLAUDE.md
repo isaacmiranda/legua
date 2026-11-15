@@ -7,20 +7,28 @@ Referência de hardware: Heltec WiFi LoRa 32 V4 (ESP32-S3 + SX1262, até 28 dBm)
 Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
 
 ## Estado atual
-- Existe só a suíte de simulação em `simsuite/` (Python). Ela é a referência executável do protocolo.
-- **Não existem ainda:** núcleo C99, driver SX1262, camada de porte, exemplos Arduino/ESP-IDF.
-- Próximo passo: Fase 0 do `docs/03-parecer-multidisciplinar-e-plano-de-implementacao.md` (especificação do
-  pacote, orçamento dos 24 bytes, interface de rádio e de porte, simulador mínimo).
+- `simsuite/` (Python): suíte de simulação, referência executável do protocolo.
+- `core/` (C99): **Fase 0** pronta: codec do pacote v0, tempo no ar, DATA/ACK com retransmissão, simulador de dois
+  nós, contratos de rádio e de porte. **Ainda não existem:** negociação PROPOSE/VOTE/COMMIT, driver SX1262, porte
+  ESP32, exemplos Arduino/ESP-IDF, cripto real (só MIC de teste).
+- Formato do pacote: `docs/07`; interfaces: `docs/08`. `simsuite/protocol/wire.py` e `core/src/frame.c` devem
+  concordar (vetores em `core/tests/vectors/`; `make -C core vectors` regenera).
+- Próximo passo: Fase 1 (driver SX1262, porte ESP32, cripto, contador do par em NVM) ou Fase 2 (negociação no C).
 
 ## Comandos
 ```bash
-python3 -m pip install -r requirements.txt
-PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 11 testes, ~5 s
+python3 -m venv ~/.venvs/legua && ~/.venvs/legua/bin/pip install -r requirements.txt   # o pip do sistema é bloqueado (PEP 668)
+PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 19 testes (inclui núcleo C), ~20 s
+make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós
+tools/ci_local.sh [--suite]                                         # tudo, em 1 job e baixa prioridade
 PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s, gera simsuite/results/
 PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 8  # horas; só na máquina local
 ```
 
-## Mapa do código (`simsuite/`)
+## Mapa do código
+`core/`: `include/legua/{legua,port,radio}.h`, `src/{frame,toa,endpoint}.c`, `tests/` (codec, simulador, tabela de ToA).
+
+### `simsuite/`
 - `core/` rádio (ToA, sensibilidade, LDRO, Doppler), canais, mobilidade, regulação BR-2026, simulador de eventos (DES).
 - `protocol/endpoint.py` máquina de estados do protocolo (BASE/DATA/NEGOCIANDO/AGUARDA_COMMIT/VALIDANDO/RECUPERACAO).
   É o modelo do que o núcleo C99 deve fazer. `protocol/modes.py` tem a tabela de modos.

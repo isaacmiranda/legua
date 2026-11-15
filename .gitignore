@@ -6,3 +6,4 @@ simsuite/results/
 data/raw/
 *.key
 secrets/
+core/build/

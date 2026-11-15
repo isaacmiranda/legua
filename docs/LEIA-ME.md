@@ -11,5 +11,7 @@ Coloque aqui os documentos do projeto, baixados do claude.ai (projeto "AdaptLora
 | 04-simulacao-ambientes-urbanos-e-rurais.md | Simulação comparativa (campanhas 1 e 2) |
 | 05-viabilidade-inovacao-e-plano-de-testes.md | Viabilidade, regulação 2026, plano de testes |
 | 06-suite-de-simulacao.md | Suíte de simulação (já neste repositório) |
+| 07-especificacao-do-pacote-v0.md | Formato do pacote, orçamento dos 24 B, contador e anti-replay |
+| 08-interface-de-radio-e-de-porte.md | Contratos do núcleo, do porte e do driver de rádio |
 
 Os docs 01 a 05 ainda dizem "AdaptLoRa"; leia como "Légua" (ver 00).
