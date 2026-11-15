@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+title: "Légua: mode agreement, validation and rollback for peer-to-peer LoRa links"
+message: "If you use this software, please cite it."
+type: software
+authors:
+  - family-names: "Miranda"
+    given-names: "Isaac"
+    affiliation: "INSTITUIÇÃO"
+license: Apache-2.0
+repository-code: "https://github.com/isaacmiranda/legua"
+version: "0.0.1"
+date-released: "2026-11-15"
+keywords: [LoRa, SX1262, peer-to-peer, adaptive link, rollback, Anatel]

@@ -1,0 +1,91 @@
+"""Testes da suíte: rodar com  python3 -m pytest -q simsuite/tests  (a partir de /home/claude)."""
+import numpy as np
+import pytest
+from simsuite.core.radio import toa_s, drift_tolerance_hz
+from simsuite.core.regulatory import BR2026, check_compliance, HopSequence, channel_plan
+from simsuite.protocol.modes import table, DATA_BYTES, CTRL_BYTES
+from simsuite.formal.checker import analyze, Params, negotiation_round
+from simsuite.analysis.stats import n_for_halfwidth, wilson, rule_of_three
+from simsuite.core.bench import AttenLink, constant
+from simsuite.scenarios.common import make_pair, summarize
+
+
+def test_toa_matches_spec_table():
+    # tabela de RF-05d do documento 01 (ms)
+    assert round(1000 * toa_s(10, 125, 16)) == 330
+    assert round(1000 * toa_s(10, 125, 24)) == 371
+    assert round(1000 * toa_s(10, 125, 32)) == 453
+    assert round(1000 * toa_s(11, 125, 24)) == 823
+    assert round(1000 * toa_s(11, 250, 24)) == 371
+    assert round(1000 * toa_s(12, 500, 24)) == 330
+
+
+def test_24_byte_wall():
+    assert toa_s(10, 125, 24) <= 0.4 < toa_s(10, 125, 25)
+
+
+def test_mode_table_respects_dwell():
+    modes, base, rec = table()
+    for m in modes + [base, rec]:
+        if m.fhss:
+            assert m.toa(DATA_BYTES) <= 0.4
+            assert m.toa(CTRL_BYTES) <= 0.4
+    assert not any(m.sf >= 11 and m.bw == 125 for m in modes)
+
+
+def test_ldro_tolerance():
+    assert round(drift_tolerance_hz(12, 125)) == 163
+
+
+def test_hop_sequence_occupancy():
+    hs = HopSequence("x", 35, plan_size=92)
+    t, log = 0.0, []
+    while t < 300:
+        t = hs.fit_start(t, 0.371)
+        log.append({"t": t, "dur": 0.371, "bw": 125, "freq": hs.channel(t), "p_dbm": 28, "fhss": True,
+                    "n_hop": 35, "node": 0})
+        t += 0.371
+    rep = check_compliance(log, BR2026)
+    assert rep["conforme"], rep
+
+
+def test_compliance_flags_long_packet_and_power():
+    bad = [{"t": 0, "dur": 0.82, "bw": 125, "freq": 1, "p_dbm": 28, "fhss": True, "n_hop": 35, "node": 0},
+           {"t": 1, "dur": 0.1, "bw": 125, "freq": 2, "p_dbm": 22, "fhss": False, "n_hop": 0, "node": 0}]
+    rep = check_compliance(bad, BR2026)
+    assert rep["violacoes"]["dwell_pacote"] == 1 and rep["violacoes"]["potencia"] == 1
+
+
+def test_channel_plan_excludes_forbidden_band():
+    for f in channel_plan(BR2026, 125):
+        assert not (907.5e6 < f < 915e6)
+
+
+def test_formal_reference_and_ablation():
+    ref = analyze(Params())
+    assert ref["P1_sem_desacordo_permanente"] and ref["P3_recuperacao_sempre_possivel"]
+    abl = analyze(Params(silence_descent=False))
+    assert not abl["P1_sem_desacordo_permanente"]
+
+
+def test_markov_no_loss_always_succeeds():
+    r = negotiation_round(0.0)
+    assert r["P_F"] == pytest.approx(1.0)
+
+
+def test_stats():
+    assert n_for_halfwidth(0.9, 0.02) == 865
+    lo, hi = wilson(90, 100)
+    assert lo < 0.9 < hi
+    assert rule_of_three(3000) == pytest.approx(0.001)
+
+
+def test_pair_converges_on_bench():
+    sim = make_pair("rural_aberto", AttenLink(constant(70.0), np.random.default_rng(1)), 1800, 3,
+                    cap=10.0, app_interval=10.0, ext_scale=0.0)
+    sim.start()
+    sim.run()
+    s = summarize(sim)
+    assert s["pdr"] > 0.97
+    assert s["modo_final"][0] == s["modo_final"][1]
+    assert s["acordo"]["em_aberto_s"] == 0.0
