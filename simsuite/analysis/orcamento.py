@@ -65,6 +65,26 @@ def orcamento(quick_dir, full_dir):
             "procs": 1}
 
 
+def estimar_execucao(quick_dir, full_dir, nomes):
+    """Estimativa (central, baixo, alto, em segundos) de uma rodada full só dos cenários `nomes`.
+    Ignora tempos full já medidos dos próprios cenários (a rodada os refaz), mas usa-os para calibrar a contenção.
+    Devolve None se não houver resultado quick para estimar."""
+    o = orcamento(quick_dir, full_dir)
+    if not o["linhas"]:
+        return None
+    c = o["contencao"]
+    tot = dict(central=0.0, baixo=0.0, alto=0.0)
+    for n in nomes:
+        base = o["linhas"].get(n)
+        if base is None:
+            continue
+        w = base["quick_s"] * base["fator"]
+        tot["central"] += w * c["mediana"]
+        tot["baixo"] += w * c["min"]
+        tot["alto"] += w * c["max"]
+    return {k: round(v) for k, v in tot.items()}
+
+
 def fmt(s):
     s = int(round(s))
     h, m = divmod(s // 60, 60)

@@ -164,10 +164,24 @@ def main():
     ap.add_argument("--escala", default="quick", choices=["quick", "full"])
     ap.add_argument("--so", nargs="*", default=None)
     ap.add_argument("--procs", type=int, default=os.cpu_count() or 2)
+    ap.add_argument("--limite-horas", type=float, default=8.0,
+                    help="na escala full, recusa rodar se a estimativa passar disso (padrão 8 h); veja --forcar")
+    ap.add_argument("--forcar", action="store_true", help="ignora o limite de horas da escala full")
     ap.add_argument("--saida", default=None, help="diretório de saída (padrão: results/ no quick, results_full/ no full)")
     a = ap.parse_args()
     names = a.so or ALL
     outdir = a.saida or os.path.join(HERE, "results" if a.escala == "quick" else "results_full")
+    if a.escala == "full" and not a.forcar:
+        from .analysis.orcamento import estimar_execucao, fmt
+        est = estimar_execucao(os.path.join(HERE, "results"), outdir, names)
+        if est is None:
+            print("aviso: sem resultados quick em results/, não foi possível estimar o tempo da escala full.")
+        else:
+            print(f"estimativa da escala full ({len(names)} cenários, --procs 1): {fmt(est['central'])} "
+                  f"(faixa {fmt(est['baixo'])} a {fmt(est['alto'])}); limite {a.limite_horas:g} h")
+            if est["central"] > a.limite_horas * 3600:
+                print("acima do limite: rodada adiada. Use --so para um subconjunto ou --forcar para rodar assim mesmo.")
+                raise SystemExit(2)
     t0 = time.time()
     results = {}
     with ProcessPoolExecutor(max_workers=a.procs) as ex:

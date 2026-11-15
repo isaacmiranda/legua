@@ -29,11 +29,11 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
 ## Comandos
 ```bash
 python3 -m venv ~/.venvs/legua && ~/.venvs/legua/bin/pip install -r requirements.txt   # o pip do sistema é bloqueado (PEP 668)
-PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 26 testes (inclui núcleo C e site), ~20 s
+PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 28 testes (inclui núcleo C e site), ~20 s
 make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós
 ~/.venvs/legua/bin/python tools/build_site.py                       # atualiza site/data.js (após rodar a suíte)
 PYTHONPATH=. python3 -m simsuite.analysis.orcamento                 # orçamento de tempo da escala full
-PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 1  # escala longa em results_full/; veja docs/09 para o tempo
+PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 1  # escala longa em results_full/ (~66 min); recusa se a estimativa passar de 8 h (--limite-horas, --forcar)
 tools/ci_local.sh [--suite]                                         # tudo, em 1 job e baixa prioridade
 PYTHONPATH=. ~/.venvs/legua/bin/python tools/validar_estimador.py   # estimador x simulador (~3 min)
 PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s, gera simsuite/results/

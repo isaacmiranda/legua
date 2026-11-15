@@ -119,3 +119,30 @@ def test_descida_no_modo_base_nao_trava_em_recuperacao():
     assert ep.state == BASE
     d = ep.next_deadline()
     assert d is None or d > 1000.0          # o próximo prazo está no futuro (antes ficava no passado)
+
+
+def test_orcamento_estima_e_recusa_acima_do_limite(tmp_path):
+    import json
+    from simsuite.analysis.orcamento import estimar_execucao, FATORES
+    q = tmp_path / "q"
+    q.mkdir()
+    for n in ("F7", "M"):
+        (q / f"{n}.json").write_text(json.dumps({"cenario": n, "escala": "quick", "segundos": 100.0, "resultado": {}}))
+    e = estimar_execucao(str(q), str(tmp_path / "inexistente"), ["F7", "M"])
+    assert e["central"] == round(100 * FATORES["F7"][0] + 100 * FATORES["M"][0])     # sem calibração: contenção 1
+    assert e["baixo"] <= e["central"] <= e["alto"]
+    assert estimar_execucao(str(tmp_path / "vazio"), None, ["F7"]) is None
+
+
+def test_run_suite_full_recusa_quando_passa_do_limite(tmp_path, monkeypatch):
+    import sys
+    import json
+    from simsuite import run_suite
+    q = tmp_path / "results"
+    q.mkdir()
+    (q / "F7.json").write_text(json.dumps({"cenario": "F7", "escala": "quick", "segundos": 1000.0, "resultado": {}}))
+    monkeypatch.setattr(run_suite, "HERE", str(tmp_path))
+    monkeypatch.setattr(sys, "argv", ["run_suite", "--escala", "full", "--so", "F7", "--limite-horas", "1"])
+    with pytest.raises(SystemExit) as exc:
+        run_suite.main()
+    assert exc.value.code == 2          # 1000 s x 17,5 = 4,9 h > 1 h: adiada, sem rodar nada

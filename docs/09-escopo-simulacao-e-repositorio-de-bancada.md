@@ -112,6 +112,11 @@ medido:
 | demais (B5, B6, B11, T23, amostras, fase7, tabelas) | | 28 | 28 | 0,99 | |
 | **Total** | **569** | **4100** | **3956** | **0,96** | relógio de parede: 3965 s |
 
+**Limite de 8 horas.** Combinado com o autor: se a estimativa de uma rodada da escala longa passar de 8 h, ela fica
+para depois. O `run_suite` aplica isso sozinho: na escala `full` ele calcula o orçamento dos cenários pedidos antes de
+começar e recusa (código de saída 2) se passar de `--limite-horas` (padrão 8). `--so` roda um subconjunto e `--forcar`
+ignora o limite. A rodada completa de 15/11/2026 (66 min) ficou muito abaixo.
+
 Duas ressalvas. (1) O tempo depende da trajetória simulada, não só da duração: antes do conserto do laço em
 `_descend` (`docs/06`, item 10) um caso de 2 dias levou 33 s contra 5 s depois. Orçamentos futuros assumem que não
 há outro laço desse tipo; se o tempo medido de um cenário passar de 1,5× o previsto, investigue. (2) O orçamento vale
@@ -131,7 +136,10 @@ do enlace fixado em 0 e em +1σ (a simulação normal sorteia esse valor por sem
 percentuais** na entrega do receptor, máximo de 4,9, viés de −0,7 (o estimador é levemente pessimista). Só a entrega foi
 validada; energia e latência seguem a mesma conta, mas não foram comparadas ponto a ponto. O seletor **Rápida / Longa** troca a
 escala de todas as abas; seções sem resultado na escala escolhida mostram o que falta e o tempo para gerar. A aba
-**Escalas e orçamento** compara as duas escalas célula a célula.
+**Escalas e orçamento** compara as duas escalas célula a célula. Cada aba termina com uma **Discussão dos resultados**
+(características principais, vantagens, desvantagens, aplicações práticas, críticas e limitações); os números citados
+vêm dos dados da escala escolhida e as críticas apontam o que o modelo não cobre (por exemplo, que os baselines de
+terceiros são modelos nossos e que o BR-2026 está nao_verificado).
 
 ## 8. Próximos passos de simulação
 
