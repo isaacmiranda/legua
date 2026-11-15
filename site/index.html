@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Légua · Resultados</title>
+<meta name="description" content="Resultados da suíte de simulação da Légua, biblioteca LoRa P2P com adaptação negociada de modo.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Légua · resultados da simulação</h1>
+      <p class="sub" id="meta"></p>
+    </div>
+    <button class="btn" id="theme" type="button" aria-label="Alternar tema claro e escuro">Tema</button>
+  </header>
+  <div class="notice">
+    <b>Como ler.</b> Todos os números saem de modelos com parâmetros <b>estimados</b> (canal, corrente do PA, deriva,
+    interferência). Servem para <b>comparar e dimensionar</b>, não para prever o campo. O perfil regulatório BR-2026
+    vem de fonte secundária e está <b>nao_verificado</b>; nada aqui afirma conformidade ou homologação.
+  </div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Seções"></nav>
+  <main id="panel" role="tabpanel" tabindex="-1"></main>
+  <footer>
+    Gerado por <code>tools/build_site.py</code> a partir de <code>simsuite/results/</code>. Para atualizar:
+    <code>python3 -m simsuite.run_suite --escala quick &amp;&amp; python3 tools/build_site.py</code>.
+    Nos gráficos, passe o mouse ou use as setas para ler os valores; o botão “Tabela” mostra os mesmos dados em texto.
+  </footer>
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -13,13 +13,19 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   ESP32, exemplos Arduino/ESP-IDF, cripto real (só MIC de teste).
 - Formato do pacote: `docs/07`; interfaces: `docs/08`. `simsuite/protocol/wire.py` e `core/src/frame.c` devem
   concordar (vetores em `core/tests/vectors/`; `make -C core vectors` regenera).
+- **Firmware em outro repositório:** drivers (SX1262), portes (ESP32-S3), exemplos e bancada vão para um repositório
+  separado, a criar depois com `/anthropic-skills:aiclp-kit-bancada-vm`. Aqui ficam protocolo, `simsuite/`, `docs/` e a
+  referência do núcleo `core/` (onde o `core/` mora no fim é decisão pendente). Não criar drivers/portes neste repo.
+- **Site de resultados** (`site/`, GitHub Pages): `python3 tools/build_site.py` gera `site/data.js` a partir de
+  `simsuite/results/`; abrir `site/index.html` direto ou publicar com `.github/workflows/pages.yml`.
 - Próximo passo: Fase 1 (driver SX1262, porte ESP32, cripto, contador do par em NVM) ou Fase 2 (negociação no C).
 
 ## Comandos
 ```bash
 python3 -m venv ~/.venvs/legua && ~/.venvs/legua/bin/pip install -r requirements.txt   # o pip do sistema é bloqueado (PEP 668)
-PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 19 testes (inclui núcleo C), ~20 s
+PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 20 testes (inclui núcleo C), ~20 s
 make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós
+python3 tools/build_site.py                                         # atualiza site/data.js (após rodar a suíte)
 tools/ci_local.sh [--suite]                                         # tudo, em 1 job e baixa prioridade
 PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s, gera simsuite/results/
 PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 8  # horas; só na máquina local

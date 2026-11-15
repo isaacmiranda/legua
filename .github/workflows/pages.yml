@@ -1,0 +1,30 @@
+# Publica site/ no GitHub Pages. Só roda em push na main que mexa no site (ou manualmente).
+# Em Settings > Pages, escolha "Source: GitHub Actions". Os dados (site/data.js) são commitados:
+# gere com  python3 tools/build_site.py  depois de rodar a suíte.
+name: Pages
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
