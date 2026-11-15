@@ -261,7 +261,11 @@
     var m = { l: lw, r: 18, t: 8, b: 30 };
     var iw = W - m.l - m.r, H = m.t + m.b + rows * rowH;
     var flat = [].concat.apply([], o.vals);
-    var dm = o.xmin != null ? [o.xmin, o.xmax] : domain(flat, o.xlog, false);
+    var dm = domain(flat, o.xlog, false);
+    if (o.xmin != null) {
+      var mx = Math.max.apply(null, flat.filter(function (x) { return x != null; }));
+      dm = [o.xmin, o.xmax != null ? o.xmax : (mx > 0 ? mx * 1.1 : 1)];
+    }
     var X = makeScale(dm[0], dm[1], m.l, m.l + iw, o.xlog);
     var svg = sv("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": o.aria || "Gráfico de pontos" });
     host.appendChild(svg);
@@ -526,7 +530,7 @@
       keys(b5).map(function (k) { var r = b5[k]; return [k.replace(/_/g, " "), nf(r.media_s, 1), nf(r.p95_s, 1), nf(r.max_s, 1), nf(r["duty_beacon_%"], 1) + "%"]; }), [false, true, true, true, true]);
     var f6 = d.F6, f6rows = [];
     keys(f6).forEach(function (en) { keys(f6[en]).forEach(function (cf) { var r = f6[en][cf]; f6rows.push([en, (CFG[cf] || { label: cf }).label, fmtPdr(r.pdr), nf(r.trocas_por_hora, 2), nf(r.rollbacks_por_hora, 2), r.quedas_base, nf(r.desacordo_s_por_hora, 1), fmtMj(r.mj_por_pacote_mediana)]); }); });
-    var t6 = tableCard("F6 · longa duração", "Atenção: em enlace marginal (urbano denso) a adaptação oscila, com muitas quedas ao modo base e energia acima da configuração fixa. Poucos blocos: sem intervalo de confiança.",
+    var t6 = tableCard("F6 · longa duração", "Em enlace marginal (urbano denso) a adaptação oscila, com muitas quedas ao modo base e PDR abaixo do modo fixo; a aba Sintonia (F7) testa como reduzir isso. Poucas sementes: sem intervalo de confiança útil.",
       ["Enlace", "Configuração", "PDR", "Trocas/h", "Rollbacks/h", "Quedas ao base", "Desacordo (s/h)", "mJ/pacote"], f6rows, [false, false, true, true, true, true, true, true]);
     var b6 = d.B6, b6k = keys(b6).filter(function (k) { return k !== "nota"; });
     var t6b = tableCard("B6 · traço de campo reproduzido na bancada", b6.nota, ["Execução", "PDR", "Trocas", "Rollbacks", "Quedas ao base"],
@@ -605,10 +609,37 @@
     mount(panel, [t23, ctl, tmal]);
   }
 
+  function panelSintonia(panel) {
+    var F7 = d.F7, links = keys(F7), variants = keys(F7[links[0]]);
+    var S = ordSeries(links.map(function (l, i) { return { id: l, label: l.charAt(0).toUpperCase() + l.slice(1), short: l }; }));
+    function mk(title, note, f, fmt, xmin, xmax) {
+      var v = variants.map(function (vn) { return links.map(function (l) { var r = F7[l][vn]; return r ? r[f] : null; }); });
+      return card({
+        title: title, note: note, legend: function () { return legend(S); },
+        build: function (host) {
+          dotPlot(host, { cats: variants, series: S, vals: v, xFmt: fmt, xmin: xmin, xmax: xmax, aria: title, rowLabelW: 190,
+            xTick: f === "pdr" ? function (x) { return nf(x, 2); } : fmt });
+        },
+        table: function () { return { head: ["Variante"].concat(S.map(function (s) { return s.label; })), num: [false].concat(S.map(function () { return true; })),
+          rows: variants.map(function (vn, i) { return [vn].concat(S.map(function (s, j) { return fmt(v[i][j]); })); }) }; }
+      });
+    }
+    var trows = [];
+    links.forEach(function (l) { variants.forEach(function (vn) { var r = F7[l][vn];
+      trows.push([l, vn, fmtPdr(r.pdr), fmtMj(r.mj_por_pacote_mediana), nf(r.trocas_por_hora, 2), nf(r.rollbacks_por_hora, 2), r.quedas_base, nf(r.desacordo_s_por_hora, 1)]); }); });
+    var intro = el("p", { class: "sub", text: "Achado do F6: em enlace marginal a Légua oscila (muitas quedas ao modo base). Aqui varia-se a margem exigida para acelerar: fixa (8 ou 14 dB) ou somada a k vezes o desvio do SNR (fade_k). A melhora de estabilidade custa energia; não há ganho gratuito." });
+    mount(panel, [intro,
+      mk("Quedas ao modo base", "Menos é melhor. Soma das sementes simuladas; 0 para o modo fixo.", "quedas_base", function (x) { return x == null ? "–" : nf(x, 0); }, 0, null),
+      mk("Desacordo entre os nós (s por hora)", "Menos é melhor.", "desacordo_s_por_hora", function (x) { return x == null ? "–" : nf(x, 1); }, 0, null),
+      mk("Energia por pacote entregue", "Menos é melhor. O modo fixo SF10 é a referência.", "mj_por_pacote_mediana", fmtMj),
+      tableCard("Todas as métricas", "Escala quick: 1 dia por semente de canal, 2 sementes. Mesmas sementes para todas as variantes.",
+        ["Enlace", "Variante", "PDR", "mJ/pacote", "Trocas/h", "Rollbacks/h", "Quedas ao base", "Desacordo (s/h)"], trows, [false, false, true, true, true, true, true, true])]);
+  }
+
   // ------------------------------------------------------------------ navegação
   var TABS = [
     { id: "campo", t: "Campo fixo", f: panelCampo }, { id: "mob", t: "Mobilidade", f: panelMob },
-    { id: "alcance", t: "Alcance e deriva", f: panelAlcance }, { id: "acordo", t: "Acordo e falhas", f: panelAcordo },
+    { id: "alcance", t: "Alcance e deriva", f: panelAlcance }, { id: "acordo", t: "Acordo e falhas", f: panelAcordo }, { id: "sintonia", t: "Sintonia (F7)", f: panelSintonia },
     { id: "formal", t: "Verificação formal", f: panelFormal }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca },
     { id: "modos", t: "Modos", f: panelModos }, { id: "malha", t: "Grupos e malha", f: panelMalha }
   ];
