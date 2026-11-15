@@ -127,6 +127,10 @@ Entram como **cenário de avaliação, com implementação mínima**: grupos em 
 
 ## Plano de testes em sete fases
 
+> **Escopo (15/11/2026).** Neste repositório ficam os itens simulados do plano (`docs/06`). Os itens que exigem as
+> placas Heltec (B1, medições reais de B2, B8, B9, B10, a bancada T2 e o campo T3) ficam para o repositório de
+> bancada. O mapa item a item está em `docs/09`.
+
 ### Princípios transversais
 
 Toda comparação é **pareada e intercalada**: configurações A/B/C alternam em rodízio no mesmo enlace, para que a variação temporal afete todas por igual, e o conjunto é repetido em **≥3 dias distintos**. Cada pacote leva número de sequência e é registrado em TX e em RX, em JSON lines. Os campos são: timestamp GNSS disciplinado por PPS, posição, velocidade, modo (SF/BW/CR/potência/canal), RSSI, SNR, FEI quando disponível, estado da máquina (BASE/NEGOTIATING/SWITCHING/VALIDATING/ANCHOR/DATA), temperatura e hash git do firmware. Isso torna o PDR exato, ao contrário do estudo de Bonn, em que as perdas eram invisíveis ([arXiv 2109.07768](https://arxiv.org/pdf/2109.07768)). O CRC fica sempre ligado, e os pacotes com CRC inválido são registrados.

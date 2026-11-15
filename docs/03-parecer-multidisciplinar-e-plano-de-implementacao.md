@@ -264,18 +264,24 @@ Estrutura de repositório sugerida:
 
 ## 8. Roteiro por fases
 
+> **Atualização de 15/11/2026 (escopo dos repositórios).** Os experimentos práticos com as placas Heltec e o firmware
+> (driver SX1262, porte ESP32-S3, exemplos, bancada) passam para um **repositório separado**, criado depois com
+> `/anthropic-skills:aiclp-kit-bancada-vm`. Este repositório fica com protocolo, especificação, simulação e a
+> referência do núcleo C99. A coluna "Onde" abaixo marca cada fase; detalhes e o contrato entre os repositórios em
+> `docs/09`. As seções 8 (partes de hardware) e 9 deste documento valem agora para o repositório de bancada.
+
 Cada fase só fecha quando o critério de saída é medido.
 
-| Fase | Entrega | Critério de saída |
-|---|---|---|
-| **0. Fundação** | Especificação do pacote (v0), interface de rádio e de porte, repositório com licença e integração contínua, simulador mínimo | Dois nós virtuais trocam DATA/ACK no PC; orçamento dos 24 bytes fechado |
-| **1. Enlace fixo** | Driver SX1262, porte ESP32, cripto, contador, fragmentação, telemetria, calculadora de ToA | Par de Heltec V4 por cabo e atenuadores; taxa de entrega e ToA medidos batem com o cálculo |
-| **2. Acordo e rollback** | PROPOSE/VOTE/COMMIT, instante combinado, validação, âncora em NVM, retorno ao modo base | No simulador, com perda de 0 a 50% em cada mensagem, **nenhum cenário termina com os nós em modos diferentes sem recuperação**. Na bancada, o mesmo com atenuador variável e reinício forçado no meio da troca |
-| **3. Adaptação** | Tabela SNR→SF, média móvel, histerese assimétrica, sondagem, potência; depois BW e CR | Com atenuação variando em degraus, o par converge sem oscilar e degrada em poucos pacotes; limite de trocas respeitado |
-| **4. Salto e perfil Brasil** | Tabela de canais BR, sequência derivada da chave, sincronismo por beacon, entrada de nó novo, teto de potência | Tempo de entrada e taxa de perda de sincronismo medidos; nenhum pacote excede a ocupação por canal; sequência conferida com receptor SDR |
-| **5. Energia e agenda** | Perfis de energia, janelas de encontro, sono profundo, CAD com preâmbulo longo | Consumo por ciclo medido no SX1262 e no ESP32-S3; nó que dorme reencontra o par pela ordem dados → âncora → base |
-| **6. Grupos e multi-salto** | Grupo de até 4, subgrupos por canal, inundação controlada com jitter e contenção | Três e quatro nós em bancada; taxa de sucesso do acordo medida contra a prevista; relay ligado e desligado em uso |
-| **7. Versão 1.0** | SX127x, porte nRF52, pacotes, documentação bilíngue, tabela de RAM/flash | Exemplo "olá mundo" funcionando em três plataformas; protocolo congelado |
+| Fase | Onde | Entrega | Critério de saída |
+|---|---|---|---|
+| **0. Fundação** | aqui (feita, falta só a licença) | Especificação do pacote (v0), interface de rádio e de porte, repositório com licença e integração contínua, simulador mínimo | Dois nós virtuais trocam DATA/ACK no PC; orçamento dos 24 bytes fechado |
+| **1. Enlace fixo** | bancada (repo novo); codec e contador de referência aqui | Driver SX1262, porte ESP32, cripto, contador, fragmentação, telemetria, calculadora de ToA | Par de Heltec V4 por cabo e atenuadores; taxa de entrega e ToA medidos batem com o cálculo |
+| **2. Acordo e rollback** | simulador e núcleo C aqui; bancada para o reinício forçado | PROPOSE/VOTE/COMMIT, instante combinado, validação, âncora em NVM, retorno ao modo base | No simulador, com perda de 0 a 50% em cada mensagem, **nenhum cenário termina com os nós em modos diferentes sem recuperação**. Na bancada, o mesmo com atenuador variável e reinício forçado no meio da troca |
+| **3. Adaptação** | simulação aqui (F7 sintonia); confirmação na bancada | Tabela SNR→SF, média móvel, histerese assimétrica, sondagem, potência; depois BW e CR | Com atenuação variando em degraus, o par converge sem oscilar e degrada em poucos pacotes; limite de trocas respeitado |
+| **4. Salto e perfil Brasil** | tabela, sequência e verificador aqui; SDR e tempos reais na bancada | Tabela de canais BR, sequência derivada da chave, sincronismo por beacon, entrada de nó novo, teto de potência | Tempo de entrada e taxa de perda de sincronismo medidos; nenhum pacote excede a ocupação por canal; sequência conferida com receptor SDR |
+| **5. Energia e agenda** | modelo aqui; medição de consumo na bancada | Perfis de energia, janelas de encontro, sono profundo, CAD com preâmbulo longo | Consumo por ciclo medido no SX1262 e no ESP32-S3; nó que dorme reencontra o par pela ordem dados → âncora → base |
+| **6. Grupos e multi-salto** | modelos T2–T6 aqui; 3 e 4 placas na bancada | Grupo de até 4, subgrupos por canal, inundação controlada com jitter e contenção | Três e quatro nós em bancada; taxa de sucesso do acordo medida contra a prevista; relay ligado e desligado em uso |
+| **7. Versão 1.0** | repositório de firmware (portes, pacotes, exemplos); protocolo congelado aqui | SX127x, porte nRF52, pacotes, documentação bilíngue, tabela de RAM/flash | Exemplo "olá mundo" funcionando em três plataformas; protocolo congelado |
 
 Trilhas paralelas, do início ao fim: pendências regulatórias (seção 3.4), campanha de campo em 915 MHz (resultado científico mais original, segundo o documento 02) e correções nos documentos 01 e 02 (seção 10).
 

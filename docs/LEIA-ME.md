@@ -13,5 +13,6 @@ Coloque aqui os documentos do projeto, baixados do claude.ai (projeto "AdaptLora
 | 06-suite-de-simulacao.md | Suíte de simulação (já neste repositório) |
 | 07-especificacao-do-pacote-v0.md | Formato do pacote, orçamento dos 24 B, contador e anti-replay |
 | 08-interface-de-radio-e-de-porte.md | Contratos do núcleo, do porte e do driver de rádio |
+| 09-escopo-simulacao-e-repositorio-de-bancada.md | O que fica neste repositório, o que vai para a bancada, contrato e calibração |
 
 Os docs 01 a 05 ainda dizem "AdaptLoRa"; leia como "Légua" (ver 00).

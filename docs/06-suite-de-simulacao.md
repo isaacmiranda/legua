@@ -3,7 +3,9 @@
 > Nome do projeto: **Légua** (antes "AdaptLoRa"; ver decisão de nome na conversa de 15/11/2026). Os docs 01–05 ainda usam o nome antigo.
 
 Data: 15/11/2026. Base: plano de testes do doc 05 (Fases 0–7, B1–B11, F1–F6, M1–M7, T1–T6).
-Código: pacote `simsuite` (Python + numpy/matplotlib), 19 cenários, 11 testes automatizados; escala rápida roda em ~40 s.
+Código: pacote `simsuite` (Python + numpy/scipy/matplotlib), 20 cenários, testes automatizados (Python e núcleo C); a escala rápida leva ~4 min na máquina de 4 GB.
+
+> **Escopo (15/11/2026).** Só simulação. Os experimentos com as placas Heltec e o firmware ficam em outro repositório (`docs/09`), que devolverá a calibração dos parâmetros estimados.
 
 ## 1. O que do plano é simulável
 
@@ -17,6 +19,7 @@ Código: pacote `simsuite` (Python + numpy/matplotlib), 19 cenários, 11 testes 
 | B3, B4, B5, B6, B7 | Sim | Custo de controle, injeção de falhas, rendezvous, reprodução de traço, segurança |
 | B8 energia, B9 deriva/LDRO, B10 CAD | Parcial | Tolerâncias exatas; correntes e taxas de deriva são estimativas a medir |
 | B11 conformidade | Sim | Verificador sobre o log de TX (o mesmo roda nos logs reais) |
+| F7 sintonia da aceleração | Sim | Variantes de margem de aceleração em enlace marginal: estabilidade × energia |
 | F1–F6, M1–M7 | Parcial | Canal estatístico (LoS/NLoS, sombreamento correlacionado, Rice, Doppler) — dimensiona e pré-registra hipóteses |
 | T1 | Sim | Mesmas sementes de canal para todas as configurações |
 | T2/T3, T4–T6 | Parcial | Modelos nível-2 de Meshtastic, MeshCore, Reticulum, LoRaMesher |
@@ -64,11 +67,31 @@ Código: pacote `simsuite` (Python + numpy/matplotlib), 19 cenários, 11 testes 
 7. Perfil móvel com t_silence ≥ 3× intervalo da aplicação e congelamento por velocidade do par.
 8. Fila esvaziada na troca de modo; heartbeat só ocioso; LBT/CAD antes de transmitir.
 
+9. **Margem de aceleração com desvanecimento (F7, opcional, desligada por padrão).** O F6 urbano mostrou a Légua oscilando
+   em enlace marginal (132 quedas ao modo base por 2 dias simulados, 84 s/h de desacordo). A causa: a margem fixa de 8 dB
+   ignora a variabilidade do SNR, então acelera e cai logo em seguida por falhas seguidas. `Config.fade_k` soma
+   k × desvio do SNR (30 amostras) à margem. Resultado (quick, 2 sementes de 1 dia, mesmas para todas as variantes):
+
+   | Enlace | Variante | Quedas ao base | Desacordo (s/h) | mJ/pacote | PDR |
+   |---|---|---|---|---|---|
+   | urbano denso 1 km | margem 8 dB (atual) | 132 | 83,6 | 4861 | 0,956 |
+   | urbano denso 1 km | fade_k 1 | 46 | 19,9 | 5722 | 0,973 |
+   | urbano denso 1 km | fade_k 3 | 24 | 7,0 | 6620 | 0,970 |
+   | urbano residencial 3 km | margem 8 dB (atual) | 20 | 12,2 | 6927 | 0,954 |
+   | urbano residencial 3 km | fade_k 3 | 2 | 1,3 | 7837 | 0,961 |
+   | (referência) SF10/125 fixo, urbano denso | — | 0 | 0 | 5157 | 0,974 |
+
+   Conclusão: a margem proporcional reduz as quedas e o desacordo em 3 a 10 vezes e recupera o PDR do modo fixo, mas
+   **custa energia** (de +18% a +36% sobre a margem fixa). Em enlace marginal a Légua fica no nível do SF10 fixo em PDR e
+   energia, sem vantagem; o ganho grande aparece em enlace folgado (F6 rural a 8 km: 144 mJ/pacote contra 3840 do fixo).
+   O padrão continua `fade_k = 0`; um perfil "estável" pode usar `fade_k` de 1 a 3. A confirmação exige escala `full`
+   (7 dias, 5 sementes) e, depois, a bancada.
+
 ## 5. Recomendações para o plano de testes
 
 - Fixar TCXO no hardware de referência (ou LDRO forçado) antes de B9/F.
 - Definir o intervalo de beacon pelo compromisso rendezvous × ocupação (B5).
-- Rodar F1 urbano na faixa 0,6–1,5 km como caso crítico, com histerese e escada como variáveis.
+- Rodar F1 urbano na faixa 0,6–1,5 km como caso crítico, com histerese, escada e `fade_k` (F7) como variáveis.
 - Escolher perfil móvel por padrão em nós com velocidade > 2 m/s.
 - Em estrela, usar relay em vez de unanimidade; em malha, manter fallback por inundação no modo base.
 - Usar o mesmo verificador de conformidade e analisador JSONL nos logs reais (Fase 7).
@@ -83,4 +106,5 @@ Canal estatístico com parâmetros estimados; PER por curva logística; malhas d
 PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s
 PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 8  # amostras do plano
 PYTHONPATH=. python3 -m pytest -q simsuite/tests
+python3 tools/build_site.py                                         # atualiza o site de resultados
 ```

@@ -13,17 +13,20 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   ESP32, exemplos Arduino/ESP-IDF, cripto real (só MIC de teste).
 - Formato do pacote: `docs/07`; interfaces: `docs/08`. `simsuite/protocol/wire.py` e `core/src/frame.c` devem
   concordar (vetores em `core/tests/vectors/`; `make -C core vectors` regenera).
-- **Firmware em outro repositório:** drivers (SX1262), portes (ESP32-S3), exemplos e bancada vão para um repositório
-  separado, a criar depois com `/anthropic-skills:aiclp-kit-bancada-vm`. Aqui ficam protocolo, `simsuite/`, `docs/` e a
-  referência do núcleo `core/` (onde o `core/` mora no fim é decisão pendente). Não criar drivers/portes neste repo.
+- **Escopo (docs/09):** este repositório é só **simulação, protocolo e especificação**. Os experimentos práticos com as
+  Heltec e o firmware (drivers SX1262, portes ESP32-S3, exemplos, bancada) vão para um repositório separado, a criar
+  depois com `/anthropic-skills:aiclp-kit-bancada-vm`. Não criar drivers, portes nem scripts de bancada aqui. Os
+  resultados daqui valem só para comparar e dimensionar até a bancada devolver a calibração (docs/09, §4).
+  Onde o `core/` mora no fim é decisão pendente.
 - **Site de resultados** (`site/`, GitHub Pages): `python3 tools/build_site.py` gera `site/data.js` a partir de
   `simsuite/results/`; abrir `site/index.html` direto ou publicar com `.github/workflows/pages.yml`.
-- Próximo passo: Fase 1 (driver SX1262, porte ESP32, cripto, contador do par em NVM) ou Fase 2 (negociação no C).
+- Próximo passo (simulação): Fase 2 no núcleo C com teste de equivalência contra `endpoint.py`; escala `full` na máquina
+  local; validação sim×sim (docs/09, §6).
 
 ## Comandos
 ```bash
 python3 -m venv ~/.venvs/legua && ~/.venvs/legua/bin/pip install -r requirements.txt   # o pip do sistema é bloqueado (PEP 668)
-PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 20 testes (inclui núcleo C), ~20 s
+PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 21 testes (inclui núcleo C), ~20 s
 make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós
 python3 tools/build_site.py                                         # atualiza site/data.js (após rodar a suíte)
 tools/ci_local.sh [--suite]                                         # tudo, em 1 job e baixa prioridade
