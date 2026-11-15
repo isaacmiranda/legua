@@ -132,3 +132,10 @@ code { background: var(--grid); padding: 1px 5px; border-radius: 4px; font-size:
 .field input[type=range] { width: 100%; accent-color: var(--accent); }
 .field input[type=number], .field select { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; color: var(--text); }
 .warn-card { border-left: 3px solid var(--s4); }
+
+.disc h2 { font-size: 16px; }
+.dgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px 22px; }
+.dblock h3 { font-size: 13px; margin: 0 0 4px; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.dblock ul { margin: 0; padding-left: 18px; font-size: 13.5px; }
+.dblock li { margin: 0 0 6px; }
+.dblock.crit { border-left: 3px solid var(--s4); padding-left: 12px; }

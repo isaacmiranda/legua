@@ -348,6 +348,7 @@
     nodes.forEach(function (n) { if (n) panel.appendChild(n); });
     // desenha depois de inserir no DOM, para ter largura
     panel.querySelectorAll(".card").forEach(function (c) { if (c._render) c._render(); });
+    appendDiscussion(panel);
   }
   function plainTable(head, rows, num) {
     var t = el("table"), th = el("thead"), hr = el("tr");
@@ -494,6 +495,7 @@
     var cad = d.B10.varredura_ms || {};
     panel.appendChild(tableCard("B10 · tempo de CAD (varredura SF7–12)", d.B10.nota, ["Largura de banda", "Varredura completa"],
       keys(cad).map(function (k) { return [k.replace("varredura SF7-12 @", "") + " kHz", nf(cad[k], 1) + " ms"]; }), [false, true]));
+    appendDiscussion(panel);
   }
 
   function panelAcordo(panel) {
@@ -570,7 +572,7 @@
     var b7 = d.B7, k7 = keys(b7).filter(function (k) { return k !== "nota"; });
     var t7 = tableCard("B7 · segurança", "Replay e quadros forjados são rejeitados sem efeito; o jammer reativo é o caso caro em energia, e o alarme limita os rollbacks.",
       ["Caso", "PDR", "Rollbacks", "Alarmes", "Rejeitados", "mJ/pacote"],
-      k7.map(function (k) { var r = b7[k]; return [k.replace(/_/g, " "), fmtPdr(r.pdr), r.rollbacks, r.alarmes, r.rejeitados, nf(r.mj_por_pacote, 1)]; }), [false, true, true, true, true, true]);
+      k7.map(function (k) { var r = b7[k]; return [k.replace(/_/g, " "), fmtPdr(r.pdr), r.rollbacks, r.alarmes, r.rejeitados, nf(r.energia_por_pacote_mj, 1)]; }), [false, true, true, true, true, true]);
     var b11 = d.B11, k11 = keys(b11).filter(function (k) { return k !== "nota"; });
     var t11 = tableCard("B11 · registros de TX contra o perfil BR-2026 (nao_verificado)",
       "O verificador roda sobre o registro de transmissões (o mesmo vale para logs reais). O perfil vem de fonte secundária; isto não é prova de conformidade nem de homologação.",
@@ -834,8 +836,278 @@
           rng(0.5, 0.999, 0.005, "target", function (v) { return fmtPct(v); }, redraw), sgF])]);
       panel.textContent = ""; live = [];
       panel.appendChild(form); panel.appendChild(host); draw();
+      appendDiscussion(panel);
     }
     build();
+  }
+
+  // ------------------------------------------------------------------ discussão dos resultados
+  // Cada aba tem uma leitura: características, vantagens, desvantagens, aplicações e críticas. Os números citados
+  // são lidos dos dados da escala escolhida (mudam com ela); o texto interpretativo vale para as duas escalas.
+  var LG = "AdaptLoRa perfil fixo", LM = "AdaptLoRa perfil móvel", SB = "Fixo SF10/125 salto (base)", S7 = "Fixo SF7/125 salto (rápido)";
+  function pp(a, b) { return nf(100 * Math.abs(a - b), 1); }              // diferença em pontos percentuais
+  function rel(a, b) { return nf(100 * Math.abs(a / b - 1), 0) + "%"; }   // diferença relativa
+  var DISC = {
+    campo: function () {
+      function c(sc, dist, cf) { return d.F[sc][dist][cf]; }
+      var F1 = "F1 urbano denso", F4 = "F4 rural aberto (mastro 8 m)", F2 = "F2 urbano residencial";
+      var a = c(F1, "0.3 km", LG), b = c(F1, "0.3 km", SB), a1 = c(F1, "1.0 km", LG), b1 = c(F1, "1.0 km", SB), s1 = c(F1, "1.0 km", S7);
+      var a15 = c(F1, "1.5 km", LG), b15 = c(F1, "1.5 km", SB), r = c(F4, "14 km", LG), rb = c(F4, "14 km", SB), r20 = c(F4, "20 km", LG), rb20 = c(F4, "20 km", SB);
+      var a23 = c(F2, "3.0 km", LG), b23 = c(F2, "3.0 km", SB);
+      return {
+        car: ["A Légua parte do modo base e acelera quando a margem permite; com enlace folgado ela termina em modos rápidos e de baixa potência, com enlace no limite ela volta ao modo robusto.",
+          "No F1 a 0,3 km a Légua gasta " + fmtMj(a.mj_por_pacote_mediana) + " por pacote contra " + fmtMj(b.mj_por_pacote_mediana) + " do SF10 fixo (" + nf(b.mj_por_pacote_mediana / a.mj_por_pacote_mediana, 0) + "× menos), com " + pp(a.pdr, b.pdr) + " ponto percentual de diferença no PDR.",
+          "No rural aberto (F4) a 14 km a economia é de " + rel(r.mj_por_pacote_mediana, rb.mj_por_pacote_mediana) + " com PDR " + fmtPdr(r.pdr) + "; a 20 km os dois empatam em energia (" + fmtMj(r20.mj_por_pacote_mediana) + " contra " + fmtMj(rb20.mj_por_pacote_mediana) + ")."],
+        van: ["Grande economia de energia em enlaces folgados, comuns em instalações rurais, sem perda relevante de entrega.",
+          "Evita o colapso do modo rápido fixo: no F1 a 1 km o SF7 entrega " + fmtPdr(s1.pdr) + ", a Légua " + fmtPdr(a1.pdr) + " (SF10 fixo: " + fmtPdr(b1.pdr) + ").",
+          "Não exige o integrador escolher o modo na instalação: a escolha acompanha o enlace."],
+        des: ["Perto do limite de alcance a Légua gasta mais que o SF10 fixo: F1 a 1,5 km " + fmtMj(a15.mj_por_pacote_mediana) + " contra " + fmtMj(b15.mj_por_pacote_mediana) + " (+" + rel(a15.mj_por_pacote_mediana, b15.mj_por_pacote_mediana) + "); F2 a 3 km " + fmtMj(a23.mj_por_pacote_mediana) + " contra " + fmtMj(b23.mj_por_pacote_mediana) + ". A explicação provável é o custo de controle e as trocas desfeitas (não isolada nestes resultados).",
+          "No meio da faixa urbana perde entre 1 e 2 pontos percentuais de PDR contra o modo robusto fixo (F1 a 1 km: " + pp(a1.pdr, b1.pdr) + " pontos).",
+          "Oscila em enlace marginal: no F1 são " + a.quedas_base + " quedas ao modo base a 0,3 km e " + a15.quedas_base + " a 1,5 km (soma das sementes; aba Sintonia)."],
+        apl: ["Sensores fixos com enlace folgado (agro, medição de água e energia, telemetria rural), onde a energia por pacote decide a vida útil da bateria.",
+          "Em enlace no limite do alcance (borda urbana, rural distante), prefira um modo robusto fixo ou o perfil estável da aba Sintonia.",
+          "Use a tabela como ponto de partida para escolher o perfil por tipo de instalação, não como garantia por enlace."],
+        cri: ["O canal é um modelo com parâmetros estimados (perda de percurso, sombreamento, desvanecimento); não houve medição em hardware.",
+          "Cada ponto vale por poucos enlaces: o sombreamento estático é sorteado por semente (2 na rápida, 5 na longa), então ordens de grandeza são confiáveis e diferenças de 1 ponto percentual não são.",
+          "Energia conta só a transmissão: sem recepção, sono e CAD, o ganho real em bateria é menor que o mostrado.",
+          "Os baselines são modos fixos; não há comparação com outros algoritmos de adaptação (por exemplo o ADR de terceiros)."]
+      };
+    },
+    mob: function () {
+      var M = d.M, dp = M._doppler || {};
+      function c(k, cf) { return M[k].configs[cf]; }
+      var u = "M1 pedestre urbano", u3 = "M3 carro urbano NLoS", h = "M4 carro rodovia", dr = "M6 drone rural 60m", g = "M7 gado";
+      return {
+        car: ["Dois perfis da Légua: o fixo e o móvel, que congela a aceleração quando alguma ponta passa de 2 m/s ou o SNR oscila.",
+          "Doppler máximo de " + nf(dp.doppler_max_hz, 0) + " Hz, longe da tolerância estática de ±" + nf(dp.tolerancia_estatica_125k_hz, 0) + " Hz; a variação máxima de " + nf(dp.variacao_max_hz_s, 0) + " Hz/s equivale a ~" + nf(dp.variacao_max_hz_s * 0.3707, 0) + " Hz ao longo de um DATA de 371 ms, abaixo da tolerância dinâmica de " + nf(dp.tolerancia_dinamica_sf10_125_hz, 1) + " Hz do SF10/125 sem LDRO.",
+          "No M1 urbano o PDR é " + fmtPdr(c(u, SB).pdr) + " (SF10 fixo), " + fmtPdr(c(u, LM).pdr) + " (Légua móvel) e " + fmtPdr(c(u, LG).pdr) + " (Légua fixa)."],
+        van: ["Em rural, rodovia e drone o perfil fixo economiza muito: drone rural a 60 m gasta " + fmtMj(c(dr, LG).mj_por_pacote_mediana) + " contra " + fmtMj(c(dr, SB).mj_por_pacote_mediana) + ", com PDR " + fmtPdr(c(dr, LG).pdr) + ".",
+          "O perfil móvel mantém o PDR próximo do modo base na maioria dos cenários, com exceção do M1 urbano (M4 rodovia: " + fmtPdr(c(h, LM).pdr) + " contra " + fmtPdr(c(h, SB).pdr) + ").",
+          "A separação entre perfis é simples de explicar e de testar."],
+        des: ["O perfil fixo perde muito PDR em ambiente urbano em movimento (M3 carro: " + fmtPdr(c(u3, LG).pdr) + " contra " + fmtPdr(c(u3, SB).pdr) + " do SF10 fixo).",
+          "O perfil móvel recupera o PDR mas **não economiza energia** onde congela: M4 rodovia " + fmtMj(c(h, LM).mj_por_pacote_mediana) + " contra " + fmtMj(c(h, SB).mj_por_pacote_mediana) + ". Na prática vira o modo base.",
+          "No M7 (gado) o perfil móvel entrega menos que o fixo (" + fmtPdr(c(g, LM).pdr) + " contra " + fmtPdr(c(g, LG).pdr) + "): não é uniformemente melhor."],
+        apl: ["Rastreamento de gado e ativos lentos: o perfil fixo entrega " + fmtPdr(c(g, LG).pdr) + " com " + rel(c(g, LG).mj_por_pacote_mediana, c(g, SB).mj_por_pacote_mediana) + " menos energia que o SF10 base (M7).",
+          "Drones e veículos em rodovia: perfil móvel por padrão acima de 2 m/s; a economia vem de outras fontes (sono, intervalo), não do modo.",
+          "Pedestres e veículos em área urbana densa: o SF10 base fixo é a escolha segura."],
+        cri: ["O modelo de mobilidade (LoS/NLoS de Markov, sombreamento de Gudmundson, trajetórias sintéticas) é estimado; o campo T3 é que valida.",
+          "A margem entre a variação de frequência dentro do pacote (~" + nf(dp.variacao_max_hz_s * 0.3707, 0) + " Hz) e a tolerância dinâmica (" + nf(dp.tolerancia_dinamica_sf10_125_hz, 1) + " Hz) é curta (" + nf(dp.tolerancia_dinamica_sf10_125_hz / (dp.variacao_max_hz_s * 0.3707), 1) + "×). O simulador aplica esse limite, mas a deriva real do cristal e o Doppler dinâmico dependem de medição (B9).",
+          "O limiar de 2 m/s do perfil móvel é heurístico, sem otimização."]
+      };
+    },
+    alcance: function () {
+      var B2 = d.B2, m = B2.modos, s7 = m["SF7/125/FH"], s10 = m["SF10/125/FH"], s12 = m["SF12/500"];
+      return {
+        car: ["A curva de entrega × atenuação é um degrau estreito: no SF7/125 o PDR vai de 90% a 50% em " + nf(s7.perda_max_50_db - s7.perda_max_90_db, 1) + " dB.",
+          "Alcance (perda máxima com 90% de entrega): SF7/125 " + nf(s7.perda_max_90_db, 1) + " dB, SF10/125 " + nf(s10.perda_max_90_db, 1) + " dB, SF12/500 " + nf(s12.perda_max_90_db, 1) + " dB; o salto de SF7 a SF10 vale " + nf(s10.perda_max_90_db - s7.perda_max_90_db, 1) + " dB.",
+          "O CR 4/8 rende cerca de " + nf(B2.ganho_cr48_sf9_db, 1) + " dB no SF9 ao custo de ~36% a mais de tempo no ar. B9: " + d.B9.falhas_com_ldro_auto.length + " combinações excedem a tolerância de deriva com LDRO automático."],
+        van: ["Previsível: cada passo de SF dá ordem de 2 a 2,5 dB, o que permite dimensionar margem com a tabela de orçamento.",
+          "O SF12/500 digital chega perto do SF10/125 com salto (diferença de " + nf(s10.perda_max_90_db - s12.perda_max_90_db, 1) + " dB) sem a regra de salto.",
+          "Mostra onde medir: passos de 1 dB em torno do limiar bastam."],
+        des: ["Quase não há aviso antes da queda: a margem útil entre 'tudo chega' e 'nada chega' é de poucos dB, o que torna a adaptação por degraus delicada.",
+          "Sem TCXO, as combinações de B9 (todas com cristal comum, 22 a 28 dBm, SF9 a SF12) perdem o sincronismo por deriva térmica dentro do pacote.",
+          "O CAD varre SF7–12 em ~129 ms a 125 kHz: caro para detecção multi-SF em dispositivos que dormem."],
+        apl: ["Escolher TCXO ou forçar LDRO antes de qualquer campanha de campo (recomendação já no doc 06).",
+          "Planejar o teste de bancada B2 com passos de 1 dB em torno do limiar previsto.",
+          "Dimensionar margem de enlace por ambiente com a aba Estimativas."],
+        cri: ["A curva de PER é logística com centro 2,5 dB acima do limiar do datasheet e inclinação de 0,6 dB: parâmetros estimados que a bancada B2 substitui.",
+          "O ganho do CR 4/8 (1 dB) e as taxas de deriva térmica (TCXO ~5 Hz/s, cristal ~400 Hz/s) não foram medidos.",
+          "O B10 só modela o tempo de CAD; detecção e falso alarme no SX1262 não têm dado publicado."]
+      };
+    },
+    acordo: function () {
+      var rows = d.B3.por_perda, b4 = d.B4, k4 = keys(b4), b5 = d.B5.resultados;
+      var r0 = rows[0], r2 = rows[2], mxEp = Math.max.apply(null, k4.map(function (k) { return b4[k].max_episodio_s; }));
+      var n4 = b4[k4[0]].negociacoes, lim = b4[k4[0]].limite_sup_95_desacordo_permanente;
+      var q = b5["beacon_10.0s_perda_0%"], f = b5["beacon_0.4s_perda_0%"];
+      return {
+        car: ["Em " + k4.length + " casos de falha (perdas de controle, reboots, salto de relógio, âncora no COMMIT) com cerca de " + nf(Math.round(n4 / 100) * 100, 0) + " negociações cada, nenhum terminou em desacordo permanente (limite superior de 95%: " + fmtPct(lim) + ").",
+          "A validação leva ~" + nf(r0.tempo_ate_validar_med_s, 0) + " s (p95 " + nf(r0.tempo_ate_validar_p95_s, 0) + " s); o controle custa " + nf(r0.energia_ctrl_por_neg_mj, 1) + " a " + nf(r2.energia_ctrl_por_neg_mj, 1) + " mJ por negociação a 10 dBm.",
+          "O desacordo transitório mais longo chega a " + nf(mxEp, 0) + " s (com reboots); o rendezvous de um nó novo vai de " + nf(f.media_s, 0) + " s (beacon de 0,4 s, " + nf(f["duty_beacon_%"], 0) + "% de ocupação) a " + nf(q.media_s / 60, 1) + " min (beacon de 10 s)."],
+        van: ["Convergência empírica robusta mesmo com 20 a 30% de perda de quadros de controle e reinícios no meio da troca.",
+          "Custo de controle da ordem de miliJoules por negociação, desprezível perto do pacote de dados.",
+          "O compromisso do rendezvous é explícito e dimensionável: menos beacon, menos ocupação, mais espera."],
+        des: ["A convergência é lenta: dezenas de segundos para validar e, com reboots, episódios de desacordo de minutos.",
+          "Os rollbacks por 100 trocas variam entre sementes e não crescem de forma monótona com a perda (B3), o que dificulta prever o custo real.",
+          "No F6 urbano a oscilação em enlace marginal aparece como quedas ao modo base e segundos por hora de desacordo."],
+        apl: ["Redes em que a troca de modo é rara (de hora em hora) e um desacordo de minutos é tolerável.",
+          "Nós que dormem: escolher o intervalo de beacon pelo compromisso do B5 e agendar janelas de encontro.",
+          "Serve de critério de aceite da Fase 2 no núcleo C: zero desacordo permanente nos mesmos casos."],
+        cri: ["Zero eventos em N negociações dá só um limite estatístico (regra dos três), não uma prova.",
+          "Reboots, relógio e flash são modelados, não reais; a bancada precisa repetir B4 com reinício forçado.",
+          "O resultado depende da descida por silêncio: sem ela o verificador formal acha desacordo permanente (aba Verificação formal).",
+          "O alarme anti-jamming congela as negociações por 1 h, o que distorce as contagens do B3 em corridas curtas."]
+      };
+    },
+    sintonia: function () {
+      var F7 = d.F7, lk = keys(F7), A = F7[lk[0]], R = F7[lk[1]], ks = keys(A);
+      var at = ks[1], f3 = ks[ks.length - 1], m14 = ks[2], fx = ks[0];
+      return {
+        car: ["Compara a margem fixa de 8 dB (atual), a de 14 dB e a margem proporcional ao desvio do SNR (fade_k de 1 a 3) em dois enlaces marginais.",
+          "Urbano denso 1 km: a Légua atual gasta " + fmtMj(A[at].mj_por_pacote_mediana) + " contra " + fmtMj(A[fx].mj_por_pacote_mediana) + " do SF10 fixo; com fade_k 3 gasta " + fmtMj(A[f3].mj_por_pacote_mediana) + ".",
+          "As quedas ao modo base caem de " + A[at].quedas_base + " para " + A[f3].quedas_base + " e o desacordo de " + nf(A[at].desacordo_s_por_hora, 1) + " para " + nf(A[f3].desacordo_s_por_hora, 1) + " s/h (urbano denso)."],
+        van: ["A margem proporcional é um único parâmetro e deixa o padrão intocado (fade_k = 0).",
+          "Reduz de forma consistente as quedas, os rollbacks e o desacordo, recuperando o PDR do modo fixo.",
+          "Torna explícito o compromisso estabilidade × energia, em vez de escondê-lo."],
+        des: ["Estabilidade custa energia: no residencial 3 km, fade_k 3 gasta " + fmtMj(R[f3].mj_por_pacote_mediana) + " contra " + fmtMj(R[at].mj_por_pacote_mediana) + " da Légua atual e " + fmtMj(R[fx].mj_por_pacote_mediana) + " do SF10 fixo.",
+          "Com margem alta a Légua passa a gastar mais que o modo fixo: a vantagem de energia some.",
+          "A margem de 14 dB (" + fmtMj(A[m14].mj_por_pacote_mediana) + " no urbano denso) é um meio-termo sem justificativa teórica."],
+        apl: ["Perfil estável: aplicações em que oscilar entre modos é inaceitável (ordenação, alarmes, auditoria de comunicação).",
+          "Perfil econômico (fade_k = 0): sensores a bateria em enlaces folgados, aceitando oscilar no limite.",
+          "O integrador escolhe o perfil por instalação; a biblioteca expõe o parâmetro."],
+        cri: ["Só dois enlaces e dois ambientes; não generaliza para outros desvanecimentos.",
+          "fade_k é heurística; controles com histerese temporal ou por estimador de quantil não foram testados.",
+          "Estas diferenças dependem do canal estimado e precisam de confirmação na bancada e no campo."]
+      };
+    },
+    formal: function () {
+      var ab = d.formal.ablacoes, mk = d.formal.rodada_markov, ref = ab.referencia, sd = ab.sem_descida_por_silencio, dr = ab.dois_reboots;
+      var m10 = mk[2], m30 = mk[4];
+      return {
+        car: ["Na referência (" + nf(ref.estados, 0) + " estados), P1 e P3 valem e o maior desacordo transitório é de " + ref.P2_maior_desacordo_ticks + " ticks.",
+          "Sem a descida por silêncio, P1 e P3 são violadas: o verificador acha o ciclo A em DATA no modo 2, B no base, repetido para sempre.",
+          "Com 10% de perda por quadro a rodada de aceleração termina no modo novo em " + fmtPct(m10.P_F) + " dos casos e degrada em " + fmtPct(m10.P_degradou) + "; com 30%, " + fmtPct(m30.P_F) + " e " + fmtPct(m30.P_degradou) + "."],
+        van: ["Dá uma resposta exata (exaustiva) para o modelo abstrato, não uma amostra.",
+          "A ablação identifica o mecanismo indispensável (descida por silêncio) e dá um contraexemplo executável.",
+          "Os cenários de dois reboots e de âncora no COMMIT mantêm P1 (desacordo máximo " + dr.P2_maior_desacordo_ticks + " ticks com dois reboots)."],
+        des: ["O modelo é abstrato (ticks discretos, dois nós, perdas adversárias); não é o código C nem o tempo real.",
+          "Cobre só um adversário de perda; jamming adaptativo e relógio fora de sincronia não entram.",
+          "Com perda de 20 a 30% a rodada de aceleração raramente termina no modo novo e a degradação predomina (Markov)."],
+        apl: ["Especificação executável para a Fase 2 no núcleo C: cada contraexemplo vira teste de regressão.",
+          "Critério de aceite do protocolo: P1 e P3 em todas as variantes de implementação.",
+          "Base para os modelos TLA+/UPPAAL/PRISM do plano, que ainda não existem."],
+        cri: ["Sem validação e com a âncora no COMMIT, P1 continua valendo: o modelo não mostra o que esses mecanismos protegem, então ele não justifica por si só a validação nem a âncora tardia. Falta uma propriedade que as discrimine (por exemplo nunca persistir um modo inutilizável).",
+          "A verificação é em Python, de estados explícitos; não usa TLC, UPPAAL nem PRISM.",
+          "Provar o modelo não prova o código; a equivalência entre o C e o Python é trabalho da Fase 2."]
+      };
+    },
+    seg: function () {
+      var b7 = d.B7, b11 = d.B11, j = b7.jammer_reativo_validacao, jn = b7.jammer_sem_alarme, rp = b7.replay_e_forjado, sa = b7.sem_ataque;
+      var ls = b11["LongFast fixo 22 dBm (estilo Meshtastic)"];
+      return {
+        car: ["Replay e quadros forjados: " + nf(rp.rejeitados, 0) + " quadros rejeitados, PDR " + fmtPdr(rp.pdr) + " e nenhum rollback induzido.",
+          "Jammer reativo na janela de validação: PDR " + fmtPdr(j.pdr) + ", " + j.rollbacks + " rollbacks e " + j.alarmes + " alarmes; sem o alarme, PDR " + fmtPdr(jn.pdr) + " e " + jn.rollbacks + " rollbacks.",
+          "O perfil BR-2026 modelado não tem violações para a Légua nem para os modos fixos; o LongFast fixo a 22 dBm tem " + nf(ls.violacoes.potencia, 0) + " violações de potência."],
+        van: ["A autenticação com contador barra replay e forja sem custo para o enlace.",
+          "O alarme de rollbacks repetidos sem queda de SNR reduz os rollbacks e recupera parte do PDR sob jamming.",
+          "O verificador B11 roda igual sobre logs reais, então o mesmo critério vale na bancada."],
+        des: ["O jammer reativo é caro: " + nf(j.energia_por_pacote_mj, 0) + " mJ por pacote contra " + nf(sa.energia_por_pacote_mj, 1) + " sem ataque, porque cada troca desfeita retransmite no modo robusto.",
+          "O alarme só limita o dano: o enlace continua degradado enquanto o ataque dura.",
+          "O MIC de 4 B dá 2^-32 de chance de forja por tentativa."],
+        apl: ["Lista de verificação para a consulta ao OCD e para o experimento (UTE).",
+          "Usar o B11 em todos os logs de bancada antes de qualquer transmissão em potência plena.",
+          "Dimensionar o limiar do alarme conforme o ambiente (jamming × interferência real)."],
+        cri: ["O perfil BR-2026 vem de fonte secundária e está nao_verificado: 'sem violações' neste modelo **não** é conformidade nem homologação.",
+          "Só um jammer simples foi simulado; ataques ao contador, à âncora ou ao relógio e análise de sigilo não foram feitos.",
+          "A cripto é um MIC de teste no núcleo; a escolha do algoritmo real segue em aberto."]
+      };
+    },
+    modos: function () {
+      var rows = d.modos.modos, toas = rows.map(function (r) { return r.toa_dados_ms; }), orc = rows.map(function (r) { return r.orcamento_db; });
+      var mn = Math.min.apply(null, toas), mx = Math.max.apply(null, toas), omin = Math.min.apply(null, orc), omax = Math.max.apply(null, orc);
+      var nh = rows.filter(function (r) { return r.enquadramento === "salto"; }).length;
+      return {
+        car: [rows.length + " modos de dados: " + nh + " com salto em frequência e " + (rows.length - nh) + " digitais de 500 kHz; tempo no ar de " + nf(mn, 1) + " a " + nf(mx, 1) + " ms para 24 B (" + nf(mx / mn, 0) + "×).",
+          "O orçamento de enlace vai de " + nf(omin, 1) + " a " + nf(omax, 1) + " dB, uma dinâmica de " + nf(omax - omin, 1) + " dB entre o modo mais rápido e o mais robusto.",
+          "Modo base SF10/125 com salto (24 B em 371 ms, perto do limite de 400 ms por canal) e modo de recuperação SF11/250 com salto."],
+        van: ["A restrição de 0,4 s por canal define a tabela de forma objetiva, sem escolhas arbitrárias.",
+          "Há modos digitais de 500 kHz com SF12 quase tão robustos quanto o SF10/125 (aba Alcance) e sem a regra de salto.",
+          "Tempo no ar curto nos modos rápidos reduz energia e ocupação."],
+        des: ["SF11 e SF12 em 125 kHz ficam de fora: o pacote de 24 B passa de 0,4 s, o que corta justamente os modos de maior alcance.",
+          "O limite de 24 B (carga útil de 9 B por DATA) restringe a aplicação e exige fragmentação para mais.",
+          "Muitos modos próximos entre si: a escada de degradação usa degraus de 6 dB e ignora o resto."],
+        apl: ["Tabela de partida para o firmware e para a configuração do integrador.",
+          "Escolha do modo base e de recuperação por região regulatória (a tabela é por perfil).",
+          "Referência para calcular ocupação e vida útil de bateria por tamanho de pacote."],
+        cri: ["O perfil BR-2026 (ocupação por canal, classes de salto, PSD digital) vem de fonte secundária: nao_verificado.",
+          "O teto de 28 dBm é do hardware; a Heltec V4 mediu 25,6 dBm configurada para 27 (fonte secundária).",
+          "O orçamento depende de sensibilidade modelada e da figura de ruído estimada; a bancada B1/B2 é quem fecha."]
+      };
+    },
+    malha: function () {
+      var T23 = d.T23, T = d.T456, w10 = T23["T3 membro fraco -10 dB"], u = T.urbano_residencial, t4 = u["T4 linha 6 nós"], t5 = u["T5 malha 14 nós"], t6 = u["T6 malha com 2 móveis"];
+      var FR = " (sem regra (22 dBm))", BR = " (BR-2026)";
+      return {
+        car: ["Estrela com um membro 10 dB mais fraco: o PDR dele é " + fmtPdr(w10.unanimidade.pdr_membro_fraco) + " na unanimidade, " + fmtPdr(w10.divisao.pdr_membro_fraco) + " dividindo o grupo e " + fmtPdr(w10.relay.pdr_membro_fraco) + " com relay; o relay gasta " + fmtMj(w10.relay.mj_por_pacote) + " contra " + fmtMj(w10.unanimidade.mj_por_pacote) + " e fecha " + nf(w10.relay["negociacoes_ok_%"], 0) + "% das negociações contra " + nf(w10.unanimidade["negociacoes_ok_%"], 0) + "%.",
+          "Malha urbana de 14 nós em regime livre (22 dBm, sem regra): Meshtastic entrega " + fmtPdr(t5["meshtastic" + FR].pdr) + ", Légua " + fmtPdr(t5["adaptlora" + FR].pdr) + " e Légua com inundação " + fmtPdr(t5["adaptlora+ff" + FR].pdr) + "; a Légua gasta " + fmtMj(t5["adaptlora" + FR].mj_por_pacote) + " por pacote contra " + fmtMj(t5["meshtastic" + FR].mj_por_pacote) + " e ocupa " + nf(t5["adaptlora" + FR]["ocupacao_%"], 0) + "% do canal contra " + nf(t5["meshtastic" + FR]["ocupacao_%"], 0) + "%.",
+          "No regime BR-2026 os modelos de terceiros, obrigados a respeitar o envelope sem trocar de preset, entregam no máximo " + fmtPdr(Math.max(t5["meshtastic" + BR].pdr, t5["meshcore" + BR].pdr)) + " na malha de 14 nós; a Légua entrega " + fmtPdr(t5["adaptlora" + BR].pdr) + ". Na linha de 6 nós em regime livre a Légua entrega " + fmtPdr(t4["adaptlora" + FR].pdr) + " contra " + fmtPdr(t4["meshtastic" + FR].pdr) + " do Meshtastic."],
+        van: ["Em estrela, o relay evita que o membro fraco trave o grupo inteiro na pior velocidade e, com membro fraco, é a política mais barata em energia.",
+          "Em malha livre, a Légua (com inundação) entrega próximo dos concorrentes modelados com cerca de um terço da energia por pacote e da ocupação do canal.",
+          "O fallback por inundação no modo base dá robustez a custo baixo, e o mesmo acordo P2P escala para grupos pequenos."],
+        des: ["O relay concentra tráfego e é ponto único de falha; adiciona um salto de latência.",
+          "A unanimidade é a pior política: o membro mais fraco define o modo de todos e a maioria das negociações falha.",
+          "Em malha livre a Légua sem inundação entrega menos que o Meshtastic: " + pp(t5["adaptlora" + FR].pdr, t5["meshtastic" + FR].pdr) + " pontos na malha de 14 nós e " + pp(t6["adaptlora" + FR].pdr, t6["meshtastic" + FR].pdr) + " na malha com 2 nós móveis; a inundação fecha a diferença. A vantagem está em energia e ocupação, não em entrega.",
+          "A inundação eleva a ocupação do canal (até ~15% no regime livre), o que pesa na regra de ocupação do BR-2026."],
+        apl: ["Estrelas com membros em enlaces desiguais (um nó atrás de parede ou em mata): usar relay.",
+          "Malhas pequenas sob a regra BR-2026, onde presets nativos de terceiros não cabem no envelope sem adaptação, e onde ocupação e energia limitam.",
+          "Linhas de vários saltos sob a regra BR-2026: a inundação eleva o PDR de " + fmtPdr(t4["adaptlora" + BR].pdr) + " para " + fmtPdr(t4["adaptlora+ff" + BR].pdr) + " na linha urbana de 6 nós; em regime livre ela é neutra (" + fmtPdr(t4["adaptlora" + FR].pdr) + " e " + fmtPdr(t4["adaptlora+ff" + FR].pdr) + ")."],
+        cri: ["**Os baselines são modelos comportamentais nossos** (nível 2), não as implementações reais do Meshtastic, MeshCore, Reticulum e LoRaMesher. Nenhum resultado aqui é uma afirmação sobre esses produtos.",
+          "A coluna BR-2026 mostra o que acontece ao impor a regra a presets que não foram feitos para ela; isso diz que o preset padrão não cabe no envelope, não que o produto seja ruim. A comparação justa de desempenho é a do regime livre, onde a vantagem da Légua é pequena em entrega e grande em energia e ocupação.",
+          "Os cenários foram dimensionados para o alcance da Légua; falta a validação simulação × simulação (Meshtasticator, LoRaSim) e a bancada com 3 e 4 placas (T2/T3)."]
+      };
+    },
+    escalas: function () {
+      var O = DATA.orcamento, fl = ESC.full;
+      return {
+        car: ["Escala rápida: ~9,5 min com um processo, 2 sementes e 1 a 2 h por ponto. Escala longa: " + fmtDur(O.total.central) + " com um processo, mais sementes e tempo simulado (docs/09).",
+          "A previsão feita antes da rodada foi de 4100 s; o total " + (fl && fl.meta.completa ? "medido" : "orçado") + " é " + nf(O.total.central, 0) + " s. A contenção mediana (medido/extrapolado) é " + nf(O.contencao.mediana, 2) + ".",
+          fl ? "A longa tem " + keys(fl.dados).length + " cenários" + (fl.meta.completa ? ", todos os que o site exibe." : " (parcial).") : "A escala longa ainda não foi gerada."],
+        van: ["Mostra quando uma conclusão da rápida se sustenta: " + (function () {
+          try { var k = "urbano denso 1 km", a = "Légua atual (margem 8 dB)", b = "Fixo SF10/125 salto (base)", q = ESC.quick.dados.F7[k], f = ESC.full.dados.F7[k];
+            return "Légua atual × SF10 fixo no F7 urbano denso vai de " + nf(100 * (q[a].mj_por_pacote_mediana / q[b].mj_por_pacote_mediana - 1), 0) + "% de energia na rápida a " + nf(100 * (f[a].mj_por_pacote_mediana / f[b].mj_por_pacote_mediana - 1), 0) + "% na longa."; }
+          catch (e) { return "compare as duas escalas na tabela acima."; } })(),
+          "O custo é previsível e foi validado, o que permite decidir quando vale rodar a longa.",
+          "Um processo por vez cabe em 4 GB de RAM e disco mecânico."],
+        des: ["Uma hora de CPU a cada mudança de protocolo: não serve como ciclo de desenvolvimento.",
+          "O tempo depende da trajetória simulada; um laço no protocolo já multiplicou o custo por 6 antes de ser corrigido.",
+          "A longa ainda tem 5 sementes: pouco para intervalos de confiança estreitos."],
+        apl: ["Rápida para desenvolver e para regressão (CI); longa antes de fixar parâmetros ou de publicar números.",
+          "Rodar a longa de novo sempre que `protocol/` ou `core/` mudarem o comportamento.",
+          "Usar o orçamento para agendar a rodada fora do expediente."],
+        cri: ["A 'longa' não é o tamanho de amostra completo do plano (≥ 3 dias distintos por enlace, rodízio intercalado); é um ponto intermediário.",
+          "Tempo medido vale para esta máquina; em outra, repita a calibração com `--procs 1`.",
+          "Mesmo na longa, o sombreamento estático é sorteado por semente: poucos enlaces independentes."]
+      };
+    },
+    estimativas: function () {
+      return {
+        car: ["Estimador analítico de um modo fixo com DATA/ACK e retransmissão: calcula, no navegador, entrega, energia, latência, alcance e ranking de modos para o setup escolhido.",
+          "Usa o mesmo canal e a mesma curva de demodulação da simulação, integrados por quadratura em vez de sorteados.",
+          "Contra o simulador de eventos, com o sombreamento estático controlado, a entrega estimada erra 1,1 ponto percentual em média (máximo 4,9; 42 pontos)."],
+        van: ["Resposta instantânea para qualquer combinação de parâmetros, sem rodar a simulação.",
+          "Separa o efeito do sombreamento do enlace (favorável, típico, desfavorável) do efeito do modo e da potência.",
+          "O ranking de modos e a curva por distância orientam onde medir na bancada."],
+        des: ["Só modo fixo: não inclui a negociação, o que a Légua ganha ou perde ao adaptar.",
+          "Não modela colisão entre os nós, CAD/LBT nem o salto sincronizado; a energia é só de transmissão.",
+          "Energia e latência não foram validadas ponto a ponto, só a entrega."],
+        apl: ["Pré-dimensionamento de um enlace: modo, potência e distância máxima para uma meta de entrega.",
+          "Comparar instalações (urbano × rural, com e sem ganho extra) antes de um campo.",
+          "Escolher os pontos da bancada B2 e do campo T3."],
+        cri: ["Validado só contra a simulação, não contra o campo: os parâmetros de ambiente são ordens de grandeza estimadas.",
+          "A fonte regulatória do teto de 0,4 s e da ocupação é secundária (nao_verificado).",
+          "Um resultado 'bom' aqui é condição necessária, não suficiente: ainda falta a medição em hardware."]
+      };
+    }
+  };
+  function appendDiscussion(panel) {
+    var f = curTab && DISC[curTab.id];
+    if (!f) return;
+    var o;
+    try { o = f(); } catch (e) { return; }
+    var sec = el("section", { class: "card disc" }, [el("h2", { text: "Discussão dos resultados" }),
+      el("p", { class: "note", text: "Interpretação dos números desta aba na escala " + (scale === "full" ? "longa" : "rápida") + ". Os valores citados vêm dos dados exibidos e mudam com a escala; as conclusões são leitura do modelo, não medição em hardware." })]);
+    var grid = el("div", { class: "dgrid" });
+    [["car", "Características principais"], ["van", "Vantagens"], ["des", "Desvantagens"], ["apl", "Aplicações práticas"], ["cri", "Críticas e limitações"]].forEach(function (b) {
+      var ul = el("ul");
+      (o[b[0]] || []).forEach(function (t) {
+        var li = el("li"), parts = t.split("**");
+        parts.forEach(function (part, i) { li.appendChild(i % 2 ? el("strong", { text: part }) : document.createTextNode(part)); });
+        ul.appendChild(li);
+      });
+      grid.appendChild(el("div", { class: "dblock" + (b[0] === "cri" ? " crit" : "") }, [el("h3", { text: b[1] }), ul]));
+    });
+    sec.appendChild(grid);
+    panel.appendChild(sec);
   }
 
   // ------------------------------------------------------------------ navegação
