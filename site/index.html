@@ -14,7 +14,10 @@
       <h1>Légua · resultados da simulação</h1>
       <p class="sub" id="meta"></p>
     </div>
-    <button class="btn" id="theme" type="button" aria-label="Alternar tema claro e escuro">Tema</button>
+    <div class="hdr-controls">
+      <div class="seg" id="scale" role="radiogroup" aria-label="Escala dos resultados"></div>
+      <button class="btn" id="theme" type="button" aria-label="Alternar tema claro e escuro">Tema</button>
+    </div>
   </header>
   <div class="notice">
     <b>Como ler.</b> Todos os números saem de modelos com parâmetros <b>estimados</b> (canal, corrente do PA, deriva,
@@ -23,6 +26,7 @@
     Ainda <b>não há medições em hardware</b>: os experimentos com as placas Heltec serão feitos em repositório próprio
     e, quando existirem, calibram estes modelos.
   </div>
+  <p class="scalebar" id="scalebar"></p>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Seções"></nav>
   <main id="panel" role="tabpanel" tabindex="-1"></main>
   <footer>
@@ -32,6 +36,7 @@
   </footer>
 </div>
 <script src="data.js"></script>
+<script src="estimator.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

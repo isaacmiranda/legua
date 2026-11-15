@@ -1,7 +1,8 @@
 (function () {
   "use strict";
   var DATA = window.LEGUA_DATA;
-  var d = DATA.dados;
+  var ESC = DATA.escalas, scale = "quick", d = ESC.quick.dados;
+  var EST = window.LeguaEstimator.make(DATA.constantes);
   var NS = "http://www.w3.org/2000/svg";
 
   // ------------------------------------------------------------------ utilidades
@@ -636,21 +637,265 @@
         ["Enlace", "Variante", "PDR", "mJ/pacote", "Trocas/h", "Rollbacks/h", "Quedas ao base", "Desacordo (s/h)"], trows, [false, false, true, true, true, true, true, true])]);
   }
 
+  // ------------------------------------------------------------------ escalas: orçamento e comparação
+  function fmtDur(sec) {
+    sec = Math.round(sec);
+    var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), r = sec % 60;
+    return h ? h + " h " + (m < 10 ? "0" : "") + m + " min" : m ? m + " min " + (r < 10 ? "0" : "") + r + " s" : r + " s";
+  }
+  var CELL_FIELDS = [
+    { v: "pdr", t: "Taxa de entrega (PDR)", f: fmtPdr, dg: 3 },
+    { v: "mj_por_pacote_mediana", t: "Energia por pacote entregue", f: fmtMj, dg: 0 },
+    { v: "quedas_base", t: "Quedas ao modo base", f: function (x) { return x == null ? "–" : nf(x, 0); }, dg: 0 },
+    { v: "trocas_por_hora", t: "Trocas por hora", f: function (x) { return x == null ? "–" : nf(x, 2); }, dg: 2 },
+    { v: "rollbacks_por_hora", t: "Rollbacks por hora", f: function (x) { return x == null ? "–" : nf(x, 2); }, dg: 2 },
+    { v: "desacordo_s_por_hora", t: "Desacordo (s por hora)", f: function (x) { return x == null ? "–" : nf(x, 1); }, dg: 1 }
+  ];
+  var GROUPS = {
+    F: { t: "Campo fixo (F1–F5)", cells: function (D) { var o = []; keys(D.F).forEach(function (sc) { keys(D.F[sc]).forEach(function (dd) { keys(D.F[sc][dd]).forEach(function (cf) { o.push({ k: sc + " · " + dd, c: cf, r: D.F[sc][dd][cf] }); }); }); }); return o; } },
+    M: { t: "Mobilidade (M1–M7)", cells: function (D) { var o = []; keys(D.M).filter(function (k) { return k.charAt(0) !== "_"; }).forEach(function (sc) { keys(D.M[sc].configs).forEach(function (cf) { o.push({ k: sc, c: cf, r: D.M[sc].configs[cf] }); }); }); return o; } },
+    F6: { t: "Longa duração (F6)", cells: function (D) { var o = []; keys(D.F6).forEach(function (en) { keys(D.F6[en]).forEach(function (cf) { o.push({ k: en, c: cf, r: D.F6[en][cf] }); }); }); return o; } },
+    F7: { t: "Sintonia da aceleração (F7)", cells: function (D) { var o = []; keys(D.F7).forEach(function (en) { keys(D.F7[en]).forEach(function (vn) { o.push({ k: en, c: vn, r: D.F7[en][vn] }); }); }); return o; } }
+  };
+  var cmp = { grp: "F", fld: "pdr", cfg: "AdaptLoRa perfil fixo" };
+
+  function panelEscalas(panel) {
+    var O = DATA.orcamento, nodes = [];
+    var q = ESC.quick, fl = ESC.full;
+    var st = el("div", { class: "stats" }, [
+      stat(fl ? fl.meta.escala ? String(keys(fl.dados).length) + " de " + (keys(fl.dados).length + fl.meta.faltando.length) : "?" : "0", "cenários com resultado na escala longa"),
+      stat(fmtDur(O.total.central), "orçamento sequencial da escala longa (--procs 1)"),
+      stat(fmtDur(O.total.baixo) + " a " + fmtDur(O.total.alto), "faixa estimada")
+    ]);
+    nodes.push(st);
+    var rows = keys(O.linhas).sort(function (a, b) { return O.linhas[b].central_s - O.linhas[a].central_s; }).map(function (n) {
+      var r = O.linhas[n], tem = fl && fl.dados[n] !== undefined;
+      return [n, fmtDur(r.quick_s), nf(r.fator, 1) + "×", r.origem,
+        r.medido_full_s ? { pill: "ok", text: "medido " + fmtDur(r.medido_full_s) } : fmtDur(r.central_s) + " (" + fmtDur(r.baixo_s) + " a " + fmtDur(r.alto_s) + ")",
+        tem ? { pill: "ok", text: "disponível" } : { pill: "warn", text: "não gerado" }];
+    });
+    nodes.push(tableCard("Orçamento de tempo da escala longa (full)",
+      "Tempo ≈ quick × fator de trabalho × contenção, calibrado com cenários da escala longa já medidos (contenção mediana " + nf(O.contencao.mediana, 2) +
+      ", de " + nf(O.contencao.min, 2) + " a " + nf(O.contencao.max, 2) + "; medidos: " + (O.contencao.medidos.join(", ") || "nenhum") + "). Um processo por vez, para caber em 4 GB de RAM e disco mecânico.",
+      ["Cenário", "Rápida", "Fator", "O que muda (rápida → longa)", "Tempo na escala longa", "Resultado"], rows, [false, true, true, false, true, false]));
+    // comparação
+    if (!fl) {
+      nodes.push(el("section", { class: "card warn-card" }, [el("h2", { text: "Comparação rápida × longa" }), el("p", { class: "note", text: "Ainda não há resultados da escala longa. Para gerar: python3 -m simsuite.run_suite --escala full --procs 1 && python3 tools/build_site.py" })]));
+      mount(panel, nodes); return;
+    }
+    var have = keys(GROUPS).filter(function (g) { return q.dados[g] && fl.dados[g]; });
+    if (!have.length) {
+      nodes.push(el("section", { class: "card warn-card" }, [el("h2", { text: "Comparação rápida × longa" }), el("p", { class: "note", text: "A escala longa ainda não tem F, M, F6 ou F7 para comparar com a rápida." })]));
+      mount(panel, nodes); return;
+    }
+    if (have.indexOf(cmp.grp) < 0) cmp.grp = have[0];
+    var G = GROUPS[cmp.grp], fld = CELL_FIELDS.filter(function (x) { return x.v === cmp.fld; })[0] || CELL_FIELDS[0];
+    var cq = G.cells(q.dados), cf = G.cells(fl.dados);
+    var cfgs = []; cq.forEach(function (c) { if (cfgs.indexOf(c.c) < 0) cfgs.push(c.c); });
+    var cfgFilter = cfgs.indexOf(cmp.cfg) >= 0 ? cmp.cfg : "*";
+    var idx = {}; cf.forEach(function (c) { idx[c.k + "|" + c.c] = c; });
+    var pairs = cq.filter(function (c) { return cfgFilter === "*" || c.c === cfgFilter; }).map(function (c) {
+      var o = idx[c.k + "|" + c.c]; return { k: c.k, c: c.c, a: c.r[fld.v], b: o ? o.r[fld.v] : null, ra: c.r, rb: o ? o.r : null };
+    });
+    var ctl = el("div", { class: "controls" }, [
+      select("Grupo", have.map(function (g) { return { v: g, t: GROUPS[g].t }; }), cmp.grp, function (v) { cmp.grp = v; panelEscalas(panel); }),
+      select("Métrica", CELL_FIELDS.map(function (x) { return { v: x.v, t: x.t }; }), cmp.fld, function (v) { cmp.fld = v; panelEscalas(panel); }),
+      select("Configuração", [{ v: "*", t: "Todas" }].concat(cfgs.map(function (c) { return { v: c, t: (CFG[c] || { label: c }).label }; })), cfgFilter, function (v) { cmp.cfg = v; panelEscalas(panel); })
+    ]);
+    var S = ordSeries([{ id: "q", label: "Rápida (quick)" }, { id: "f", label: "Longa (full)" }]);
+    var table = card({
+      title: "Rápida × longa · " + G.t + " · " + fld.t,
+      note: "Pontos iguais nas duas escalas indicam resultado estável; afastamento mostra o efeito de mais tempo simulado e mais sementes. Δ = longa − rápida.",
+      legend: function () { return legend(S); },
+      build: function (host) {
+        var ps = pairs.slice(0, 60);
+        dotPlot(host, { cats: ps.map(function (p) { return (cfgFilter === "*" ? p.k + " · " + ((CFG[p.c] || { short: p.c }).short) : p.k); }), series: S,
+          vals: ps.map(function (p) { return [p.a, p.b]; }), xFmt: fld.f, rowLabelW: 230, aria: "Comparação das escalas",
+          extra: function (ci, si) { var r = si ? ps[ci].rb : ps[ci].ra; return r ? r.pacotes + " pacotes · " + r.blocos + " blocos" : null; } });
+        if (pairs.length > 60) host.appendChild(el("p", { class: "note", text: "Mostrando 60 de " + pairs.length + " linhas; filtre por configuração. A tabela tem todas." }));
+      },
+      table: function () { return { head: ["Item", "Configuração", "Rápida", "Longa", "Δ", "Blocos (rápida/longa)"], num: [false, false, true, true, true, true],
+        rows: pairs.map(function (p) { return [p.k, (CFG[p.c] || { label: p.c }).label, fld.f(p.a), fld.f(p.b), p.a != null && p.b != null ? nf(p.b - p.a, fld.dg + 1) : "–", p.ra.blocos + " / " + (p.rb ? p.rb.blocos : "–")]; }) }; }
+    });
+    nodes.push(ctl, table);
+    mount(panel, nodes);
+  }
+
+  // ------------------------------------------------------------------ estimativas do setup
+  var PRESETS = {
+    custom: { t: "Personalizado", env: "urbano_residencial", d: 2.0, off: 0, sim: null },
+    F1: { t: "F1 urbano denso", env: "urbano_denso", d: 1.0, off: 0, sim: "F1 urbano denso" },
+    F2: { t: "F2 urbano residencial", env: "urbano_residencial", d: 3.0, off: 0, sim: "F2 urbano residencial" },
+    F3: { t: "F3 indoor-outdoor", env: "urbano_residencial", d: 0.5, off: -15, sim: "F3 indoor-outdoor" },
+    F4: { t: "F4 rural aberto (mastro 8 m)", env: "rural_aberto", d: 14, off: 8.5, sim: "F4 rural aberto (mastro 8 m)" },
+    F5: { t: "F5 rural com relevo/mata", env: "rural_serra", d: 4, off: 0, sim: "F5 rural com relevo/mata" }
+  };
+  var SIMCFG = { "10|125|1|1": "Fixo SF10/125 salto (base)", "7|125|1|1": "Fixo SF7/125 salto (rápido)", "12|500|1|0": "Fixo SF12/500 digital" };
+  var plan = { preset: "F1", env: "urbano_denso", d: 1.0, off: 0, sf: 10, bw: 125, cr: 1, p: 28, retries: 3, interval: 60, load: 1, target: 0.95, sig: "0" };
+
+  function fld(label, ctl, valNode) {
+    return el("label", { class: "field" }, [el("span", {}, [document.createTextNode(label + ": "), valNode || null]), ctl]);
+  }
+  function rng(min, max, step, key, fmt, redraw) {
+    var inp = el("input", { type: "range", min: min, max: max, step: step, value: plan[key] }), out = el("span", { class: "val", text: fmt(plan[key]) });
+    inp.addEventListener("input", function () { plan[key] = parseFloat(inp.value); out.textContent = fmt(plan[key]); redraw(); });
+    return fld(label_of[key], inp, out);
+  }
+  var label_of = { d: "Distância", off: "Ganho extra (mastro +, parede −)", p: "Potência de TX", retries: "Retransmissões", interval: "Intervalo entre pacotes", load: "Tráfego de terceiros (× do ambiente)", target: "Entrega confirmada alvo" };
+
+  function panelEstimativas(panel) {
+    var host = el("div");
+    function simFor() {
+      var P = PRESETS[plan.preset]; if (!P || !P.sim || plan.env !== P.env || plan.off !== P.off) return null;
+      var cfg = SIMCFG[[plan.sf, plan.bw, plan.cr, plan.bw < 500 ? 1 : 0].join("|")]; if (!cfg) return null;
+      var sc = ["full", "quick"].filter(function (k) { return ESC[k] && ESC[k].dados.F && ESC[k].dados.F[P.sim]; })[0];
+      if (!sc) return null;
+      var tab = ESC[sc].dados.F[P.sim], pts = keys(tab).map(function (k) { var r = tab[k][cfg]; return r ? { d: parseFloat(k), pdr: r.pdr, mj: r.mj_por_pacote_mediana } : null; }).filter(Boolean);
+      return { scale: sc, cfg: cfg, pts: pts, caveat: plan.p !== 28 };
+    }
+    function draw() {
+      host.textContent = "";
+      var fhss = plan.bw < 500;
+      var o = { env: plan.env, d_km: plan.d, sf: plan.sf, bw: plan.bw, cr: plan.cr, p_dbm: plan.p, fhss: fhss, retries: plan.retries,
+        interval_s: plan.interval, offset_db: plan.off, load: plan.load };
+      var e = EST.estimate(o), ref = e.cenarios[1], sig = parseFloat(plan.sig);
+      var r90 = EST.rangeKm(o, 0.9, 0.0), r90b = EST.rangeKm(o, 0.9, 1.0);
+      var cards = el("div", { class: "stats" }, [
+        stat(nf(e.toa_dados_ms, 1) + " ms", "tempo no ar do DATA (24 B)"),
+        stat(nf(e.margem_db, 1) + " dB", "margem do enlace típico (RX " + nf(e.rx_tipico_dbm, 1) + " dBm, sens. " + nf(e.sens_dbm, 1) + " dBm)"),
+        stat(r90 == null ? "< 0,02 km" : nf(r90, r90 < 10 ? 2 : 1) + " km", "alcance com 90% confirmado (enlace típico)"),
+        stat(r90b == null ? "< 0,02 km" : nf(r90b, r90b < 10 ? 2 : 1) + " km", "idem, enlace com +1σ de perda"),
+        stat(nf(e.duty_pct, 2) + "%", "ocupação de tempo no ar (" + nf(e.airtime_hora_s, 1) + " s/h)"),
+        stat(nf(e.energia_dia_j, 1) + " J", "energia de TX por dia (só transmissão)")
+      ]);
+      var dw = el("p", { class: "sub" }, [e.dwell_ok ? pill("ok", "cabe na ocupação de 0,4 s por canal") : pill("bad", "passa de 0,4 s por canal com salto"),
+        document.createTextNode("  (regra do perfil BR-2026, nao_verificado)")]);
+      var lab = ["Enlace favorável (−1σ de perda)", "Enlace típico (mediana)", "Enlace desfavorável (+1σ)", "Enlace muito desfavorável (+2σ)"];
+      var rows = e.cenarios.map(function (c, i) { return [lab[i], fmtPct(c.entregue), fmtPct(c.confirmado), nf(c.tentativas, 2), fmtMj(c.energia_mj_entregue), fmtS(c.latencia_s)]; });
+      var m = e.media_enlaces; rows.push(["Média entre enlaces", fmtPct(m.entregue), fmtPct(m.confirmado), nf(m.tentativas, 2), fmtMj(m.entregue > 1e-9 ? m.energia_mj_pacote / m.entregue : null), "–"]);
+      var t1 = tableCard("Estimativa para o setup", "Cada linha é um enlace com sombreamento estático diferente (σ = " + nf(K_env().sigma_static, 1) + " dB no ambiente). \"Entregue\": o receptor ouviu o DATA; \"confirmada\": o emissor recebeu o ACK. Retransmissões: " + plan.retries + ".",
+        ["Situação do enlace", "Entregue", "Confirmada", "Tentativas por pacote", "Energia por pacote entregue", "Latência média"], rows, [false, true, true, true, true, true]);
+      // curva distância
+      var sim = simFor();
+      var dmax = Math.max(r90b || 0.1, r90 || 0.1) * 2.2, xs = [], i;
+      if (sim) sim.pts.forEach(function (p) { dmax = Math.max(dmax, p.d * 1.05); });
+      for (i = 0; i < 28; i++) xs.push(0.05 * Math.pow(dmax / 0.05, i / 27));
+      var sims = sim ? sim.pts.map(function (p) { return p.d; }) : [];
+      var allx = xs.concat(sims).sort(function (a, b) { return a - b; });
+      function curve(sg) { return allx.map(function (dd) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); c.d_km = dd; return EST.estimateOne(c, sg).entregue; }); }
+      var S = ordSeries([{ id: "a", label: "Estimativa, enlace típico", short: "típico" }, { id: "b", label: "Estimativa, +1σ de perda", short: "+1σ" }].concat(sim ? [{ id: "s", label: "Simulação (" + (sim.scale === "full" ? "longa" : "rápida") + ")", short: "simulação" }] : []));
+      S[0].vals = curve(0.0); S[1].vals = curve(1.0);
+      if (sim) S[2].vals = allx.map(function (dd) { var p = sim.pts.filter(function (q) { return q.d === dd; })[0]; return p ? p.pdr : null; });
+      if (sim) { S[2].dash = "1 5"; S[2].mk = "diamond"; }
+      var chart = card({
+        title: "Entrega do receptor × distância", note: "Mesmo modo e potência; linhas calculadas ao vivo" + (sim ? ". Pontos: simulação de " + sim.cfg + " em " + PRESETS[plan.preset].t + ", escala " + (sim.scale === "full" ? "longa" : "rápida") + (sim.caveat ? " (a simulação usa 28 dBm; a estimativa usa " + plan.p + " dBm)" : "") + "." : "."),
+        legend: function () { return legend(S); },
+        build: function (h) { lineChart(h, { xs: allx, series: S, yFmt: fmtPdr, ymin: 0, ymax: 1.02, yTick: function (v) { return nf(v, 1); }, xFmt: function (x) { return nf(x, x < 1 ? 2 : 1) + " km"; },
+          xTick: function (x) { return nf(x, x < 10 ? 1 : 0); }, xTitle: "distância (km)", aria: "Entrega estimada × distância", hline: { v: 0.9, label: "90%" }, height: 280 }); },
+        table: function () { return { head: ["Distância (km)", "Típico", "+1σ"].concat(sim ? ["Simulação"] : []), num: [true, true, true, true],
+          rows: allx.map(function (dd, j) { return [nf(dd, 2), fmtPdr(S[0].vals[j]), fmtPdr(S[1].vals[j])].concat(sim ? [fmtPdr(S[2].vals[j])] : []); }) }; }
+      });
+      // ranking de modos
+      var rk = EST.rankModes(o, plan.target, sig), sel = rk.good.slice(0, 6);
+      var rrows = (sel.length ? sel : []).map(function (r, j) { return [j + 1, "SF" + r.sf + "/" + r.bw + (r.cr > 1 ? "/CR4" + (r.cr + 4) : "") + (r.fhss ? "/FH" : ""), fmtPct(r.confirmado), fmtMj(r.energia_mj_entregue), fmtS(r.latencia_s)]; });
+      var t2 = tableCard("Modos que atingem " + fmtPct(plan.target) + " de entrega confirmada neste setup", sel.length ? "Ordenados pela menor energia por pacote entregue (enlace " + ({ "-1": "favorável", "0": "típico", "1": "desfavorável (+1σ)", "2": "muito desfavorável (+2σ)" })[plan.sig] + "; potência de " + plan.p + " dBm). Modos fixos; a Légua negocia entre eles em campo." : "Nenhum modo da tabela BR-2026 atinge o alvo nesta distância e potência: aumente a potência, o ganho, ou reduza a distância.",
+        ["#", "Modo", "Entrega confirmada", "Energia por entregue", "Latência média"], rrows, [true, false, true, true, true]);
+      // comparação com simulação
+      var t3 = null;
+      if (sim) {
+        var cr = sim.pts.map(function (p) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); c.d_km = p.d; var a = EST.estimate(c);
+          return [nf(p.d, p.d < 1 ? 1 : 0) + " km", fmtPdr(p.pdr), fmtPdr(a.cenarios[1].entregue), fmtPdr(a.media_enlaces.entregue), fmtMj(p.mj), fmtMj(a.cenarios[1].energia_mj_entregue)]; });
+        t3 = tableCard("Estimativa × simulação (" + (sim.scale === "full" ? "escala longa" : "escala rápida") + ")", "A simulação usa poucos enlaces (sombreamento estático sorteado por semente), então fica entre o típico e a média; as diferenças maiores aparecem perto do limite de alcance. Não é validação em campo.",
+          ["Distância", "PDR simulado", "PDR estimado (típico)", "PDR estimado (média)", "mJ simulado", "mJ estimado (típico)"], cr, [false, true, true, true, true, true]);
+      }
+      var warn = el("section", { class: "card warn-card" }, [el("p", { class: "note", text: "Isto é um estimador analítico do enlace (um modo fixo, DATA/ACK com retransmissão), calculado no navegador com o mesmo canal e a mesma curva de demodulação da simulação. Não inclui colisão entre os dois nós, CAD/LBT, salto sincronizado nem a negociação de modo; parâmetros estimados, sem medição em hardware. Contra o simulador de eventos, com sombreamento estático controlado, a entrega estimada erra 1,1 ponto percentual em média (máximo 4,9; 42 pontos); energia e latência não foram comparadas ponto a ponto. Serve para comparar setups e dimensionar, não para prever o campo." })]);
+      [warn, cards, dw, chart, t1, t2, t3].forEach(function (n) { if (n) host.appendChild(n); });
+      host.querySelectorAll(".card").forEach(function (c) { if (c._render) c._render(); });
+    }
+    function K_env() { return DATA.constantes.envs[plan.env]; }
+    var tm; function redraw() { clearTimeout(tm); tm = setTimeout(draw, 40); }
+    function build() {
+      var P = PRESETS[plan.preset];
+      var presetSel = select("Cenário", keys(PRESETS).map(function (k) { return { v: k, t: PRESETS[k].t }; }), plan.preset, function (v) {
+        plan.preset = v; plan.env = PRESETS[v].env; plan.d = PRESETS[v].d; plan.off = PRESETS[v].off; panelEstimativas(panel); });
+      var envSel = select("Ambiente", keys(DATA.constantes.envs).map(function (k) { return { v: k, t: DATA.constantes.envs[k].label }; }), plan.env, function (v) { plan.env = v; draw(); });
+      var sfSel = select("SF", [7, 8, 9, 10, 11, 12].map(function (x) { return { v: String(x), t: "SF" + x }; }), String(plan.sf), function (v) { plan.sf = +v; draw(); });
+      var bwSel = select("Largura de banda", [125, 250, 500].map(function (x) { return { v: String(x), t: x + " kHz" + (x < 500 ? " (salto)" : " (digital)") }; }), String(plan.bw), function (v) { plan.bw = +v; draw(); });
+      var crSel = select("Taxa de código", [1, 2, 3, 4].map(function (x) { return { v: String(x), t: "4/" + (x + 4) }; }), String(plan.cr), function (v) { plan.cr = +v; draw(); });
+      var sigSel = select("Enlace para o ranking", [{ v: "-1", t: "Favorável (−1σ)" }, { v: "0", t: "Típico" }, { v: "1", t: "Desfavorável (+1σ)" }, { v: "2", t: "Muito desfavorável (+2σ)" }], plan.sig, function (v) { plan.sig = v; draw(); });
+      var envF = fld("Ambiente", envSel.querySelector("select")), pF = fld("Cenário", presetSel.querySelector("select"));
+      var sfF = fld("Fator de espalhamento", sfSel.querySelector("select")), bwF = fld("Largura de banda", bwSel.querySelector("select")), crF = fld("Taxa de código", crSel.querySelector("select"));
+      var sgF = fld("Enlace para o ranking", sigSel.querySelector("select"));
+      var form = el("section", { class: "card" }, [el("h2", { text: "Parâmetros do setup" }), el("p", { class: "note", text: "Escolha um cenário base e ajuste os parâmetros; os resultados abaixo se atualizam na hora. Os presets F1–F5 liberam a comparação com a simulação." }),
+        el("div", { class: "form" }, [pF, envF,
+          rng(0.05, 40, 0.05, "d", function (v) { return nf(v, 2) + " km"; }, function () { plan.preset = plan.preset; redraw(); }), rng(-25, 15, 0.5, "off", function (v) { return nf(v, 1) + " dB"; }, redraw),
+          sfF, bwF, crF, rng(-9, 28, 1, "p", function (v) { return nf(v, 0) + " dBm"; }, redraw), rng(0, 6, 1, "retries", function (v) { return String(v); }, redraw),
+          rng(1, 600, 1, "interval", function (v) { return nf(v, 0) + " s"; }, redraw), rng(0, 3, 0.1, "load", function (v) { return nf(v, 1) + "×"; }, redraw),
+          rng(0.5, 0.999, 0.005, "target", function (v) { return fmtPct(v); }, redraw), sgF])]);
+      panel.textContent = ""; live = [];
+      panel.appendChild(form); panel.appendChild(host); draw();
+    }
+    build();
+  }
+
   // ------------------------------------------------------------------ navegação
   var TABS = [
-    { id: "campo", t: "Campo fixo", f: panelCampo }, { id: "mob", t: "Mobilidade", f: panelMob },
-    { id: "alcance", t: "Alcance e deriva", f: panelAlcance }, { id: "acordo", t: "Acordo e falhas", f: panelAcordo }, { id: "sintonia", t: "Sintonia (F7)", f: panelSintonia },
-    { id: "formal", t: "Verificação formal", f: panelFormal }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca },
-    { id: "modos", t: "Modos", f: panelModos }, { id: "malha", t: "Grupos e malha", f: panelMalha }
+    { id: "campo", t: "Campo fixo", f: panelCampo, need: ["F"] }, { id: "mob", t: "Mobilidade", f: panelMob, need: ["M"] },
+    { id: "alcance", t: "Alcance e deriva", f: panelAlcance, need: ["B2", "B9", "B10"] }, { id: "acordo", t: "Acordo e falhas", f: panelAcordo, need: ["B3", "B4", "B5", "F6", "B6"] },
+    { id: "sintonia", t: "Sintonia (F7)", f: panelSintonia, need: ["F7"] },
+    { id: "formal", t: "Verificação formal", f: panelFormal, need: ["formal"] }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca, need: ["B7", "B11"] },
+    { id: "modos", t: "Modos", f: panelModos, need: ["modos"] }, { id: "malha", t: "Grupos e malha", f: panelMalha, need: ["T23", "T456"] },
+    { id: "escalas", t: "Escalas e orçamento", f: panelEscalas, need: [], anyScale: true },
+    { id: "estimativas", t: "Estimativas", f: panelEstimativas, need: [], anyScale: true }
   ];
-  var tabsEl = document.getElementById("tabs"), panel = document.getElementById("panel"), current = null;
+  var tabsEl = document.getElementById("tabs"), panel = document.getElementById("panel"), scaleEl = document.getElementById("scale"), bar = document.getElementById("scalebar");
+  var curTab = null;
+
+  function missingCard(t, miss) {
+    var O = DATA.orcamento, tot = 0;
+    miss.forEach(function (m) { if (O.linhas[m]) tot += O.linhas[m].central_s; });
+    return el("section", { class: "card warn-card" }, [el("h2", { text: "Sem resultado da escala longa para esta seção" }),
+      el("p", { class: "note", text: "Falta: " + miss.join(", ") + ". Tempo estimado para gerar (um processo): " + fmtDur(tot) + ". Comando: python3 -m simsuite.run_suite --escala full --procs 1 --so " + miss.join(" ") + " && python3 tools/build_site.py" }),
+      (function () { var b = el("button", { class: "btn", type: "button", text: "Ver a escala rápida" }); b.addEventListener("click", function () { setScale("quick"); }); return b; })()]);
+  }
+  function updateBar(t) {
+    bar.textContent = "";
+    var e = ESC[scale], isFull = scale === "full";
+    bar.appendChild(el("span", { class: "badge" + (isFull ? " full" : ""), text: isFull ? "Escala longa (full)" : "Escala rápida (quick)" }));
+    var txt = "";
+    if (t && t.need && t.need.length) {
+      var c0 = t.need[0], o = DATA.orcamento.linhas[c0], seg = e.meta.cenarios[c0] && e.meta.cenarios[c0].segundos;
+      txt = (o ? c0 + ": " + (isFull ? "longa" : "rápida") + (o.origem && o.origem !== "fixo" && o.origem !== "independe da escala" ? " (rápida → longa: " + o.origem + ")" : "") : "")
+        + (seg != null ? " · rodou em " + fmtDur(seg) : "");
+    } else txt = "As seções de estimativas e escalas independem da escala escolhida.";
+    bar.appendChild(document.createTextNode(txt));
+  }
   function go(id, focus) {
     var t = TABS.filter(function (x) { return x.id === id; })[0] || TABS[0];
-    current = t;
+    curTab = t;
+    d = ESC[scale].dados;
     Array.prototype.forEach.call(tabsEl.children, function (b) { b.setAttribute("aria-selected", String(b.dataset.id === t.id)); b.tabIndex = b.dataset.id === t.id ? 0 : -1; });
-    try { history.replaceState(null, "", "#" + t.id); } catch (e) { /* ignore */ }
-    t.f(panel);
+    try { history.replaceState(null, "", "#" + t.id + (scale === "full" ? "/full" : "")); } catch (e) { /* ignore */ }
+    updateBar(t);
+    var miss = (t.need || []).filter(function (n) { return d[n] === undefined; });
+    if (miss.length && !t.anyScale) { live = []; panel.textContent = ""; panel.appendChild(missingCard(t, miss)); }
+    else t.f(panel);
     if (focus) panel.focus({ preventScroll: true });
+  }
+  function drawScaleSwitch() {
+    scaleEl.textContent = "";
+    [["quick", "Rápida"], ["full", "Longa"]].forEach(function (s) {
+      var avail = !!ESC[s[0]], b = el("button", { type: "button", role: "radio", text: s[1], "aria-checked": String(scale === s[0]) });
+      if (!avail) { b.disabled = true; b.title = "Ainda não há resultados desta escala"; }
+      else if (s[0] === "full" && !ESC.full.meta.completa) b.title = "Escala longa parcial: " + keys(ESC.full.dados).length + " cenários";
+      b.addEventListener("click", function () { setScale(s[0]); });
+      scaleEl.appendChild(b);
+    });
+  }
+  function setScale(s) {
+    if (!ESC[s]) return;
+    scale = s; try { localStorage.setItem("legua-escala", s); } catch (e) { /* ignore */ }
+    drawScaleSwitch(); go(curTab ? curTab.id : TABS[0].id, false);
   }
   TABS.forEach(function (t, i) {
     var b = el("button", { class: "tab", role: "tab", type: "button", text: t.t });
@@ -663,11 +908,10 @@
     tabsEl.appendChild(b);
   });
 
-  var meta = DATA.meta;
-  document.getElementById("meta").textContent = "Escala " + meta.escalas.join(", ") + " · gerado em " + meta.gerado_em +
-    (meta.commit ? " · commit " + meta.commit : "") + (meta.faltando.length ? " · faltando: " + meta.faltando.join(", ") : "");
+  var qm = ESC.quick.meta, fm = ESC.full && ESC.full.meta;
+  document.getElementById("meta").textContent = "Gerado em " + DATA.meta.gerado_em + (DATA.meta.commit ? " · commit " + DATA.meta.commit : "") +
+    " · rápida: " + keys(ESC.quick.dados).length + " cenários" + (fm ? " · longa: " + keys(ESC.full.dados).length + " cenários" + (fm.completa ? "" : " (parcial)") : " · longa: ainda não gerada");
 
-  // tema: claro/escuro com preferência do sistema como padrão
   var root = document.documentElement;
   try { var sv0 = localStorage.getItem("legua-tema"); if (sv0 === "light" || sv0 === "dark") root.setAttribute("data-theme", sv0); } catch (e) { /* sem storage */ }
   document.getElementById("theme").addEventListener("click", function () {
@@ -679,5 +923,9 @@
 
   var rz;
   window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { live.forEach(function (r) { r(); }); }, 150); });
-  go((location.hash || "").slice(1), false);
+  var hp = (location.hash || "").slice(1).split("/");
+  try { var se = localStorage.getItem("legua-escala"); if (se && ESC[se]) scale = se; } catch (e) { /* ignore */ }
+  if (hp[1] === "full" && ESC.full) scale = "full"; else if (hp[1] === "quick") scale = "quick";
+  drawScaleSwitch();
+  go(hp[0], false);
 })();
