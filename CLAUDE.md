@@ -18,20 +18,25 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   depois com `/anthropic-skills:aiclp-kit-bancada-vm`. Não criar drivers, portes nem scripts de bancada aqui. Os
   resultados daqui valem só para comparar e dimensionar até a bancada devolver a calibração (docs/09, §4).
   Onde o `core/` mora no fim é decisão pendente.
-- **Site de resultados** (`site/`, GitHub Pages): `python3 tools/build_site.py` gera `site/data.js` a partir de
-  `simsuite/results/`; abrir `site/index.html` direto ou publicar com `.github/workflows/pages.yml`.
-- Próximo passo (simulação): Fase 2 no núcleo C com teste de equivalência contra `endpoint.py`; escala `full` na máquina
-  local; validação sim×sim (docs/09, §6).
+- **Site de resultados** (`site/`, GitHub Pages, publicado por `.github/workflows/pages.yml`): mostra as escalas rápida
+  (`simsuite/results/`) e longa (`simsuite/results_full/`, ignorada pelo git), com seletor de escala, aba de comparação,
+  orçamento de tempo e aba de **Estimativas** (estimador analítico no navegador, `site/estimator.js`, com referência
+  Python em `simsuite/analysis/estimator.py` e teste de paridade). Gerar dados: `~/.venvs/legua/bin/python tools/build_site.py`
+  (precisa do venv: importa numpy). Abrir `site/index.html` direto também funciona.
+- Próximo passo (simulação): Fase 2 no núcleo C com teste de equivalência contra `endpoint.py`; validação sim×sim
+  (docs/09, §8). A escala `full` já foi rodada (66 min, `--procs 1`); repetir se o protocolo mudar.
 
 ## Comandos
 ```bash
 python3 -m venv ~/.venvs/legua && ~/.venvs/legua/bin/pip install -r requirements.txt   # o pip do sistema é bloqueado (PEP 668)
-PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 21 testes (inclui núcleo C), ~20 s
+PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 26 testes (inclui núcleo C e site), ~20 s
 make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós
-python3 tools/build_site.py                                         # atualiza site/data.js (após rodar a suíte)
+~/.venvs/legua/bin/python tools/build_site.py                       # atualiza site/data.js (após rodar a suíte)
+PYTHONPATH=. python3 -m simsuite.analysis.orcamento                 # orçamento de tempo da escala full
+PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 1  # escala longa em results_full/; veja docs/09 para o tempo
 tools/ci_local.sh [--suite]                                         # tudo, em 1 job e baixa prioridade
+PYTHONPATH=. ~/.venvs/legua/bin/python tools/validar_estimador.py   # estimador x simulador (~3 min)
 PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s, gera simsuite/results/
-PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 8  # horas; só na máquina local
 ```
 
 ## Mapa do código

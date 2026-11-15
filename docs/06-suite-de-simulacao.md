@@ -3,7 +3,7 @@
 > Nome do projeto: **Légua** (antes "AdaptLoRa"; ver decisão de nome na conversa de 15/11/2026). Os docs 01–05 ainda usam o nome antigo.
 
 Data: 15/11/2026. Base: plano de testes do doc 05 (Fases 0–7, B1–B11, F1–F6, M1–M7, T1–T6).
-Código: pacote `simsuite` (Python + numpy/scipy/matplotlib), 20 cenários, testes automatizados (Python e núcleo C); a escala rápida leva ~4 min na máquina de 4 GB.
+Código: pacote `simsuite` (Python + numpy/scipy/matplotlib), 20 cenários, testes automatizados (Python, núcleo C e site); a escala rápida leva ~9,5 min com um processo (~4 min com quatro) e a longa ~1 h 06 min (`docs/09`).
 
 > **Escopo (15/11/2026).** Só simulação. Os experimentos com as placas Heltec e o firmware ficam em outro repositório (`docs/09`), que devolverá a calibração dos parâmetros estimados.
 
@@ -68,24 +68,35 @@ Código: pacote `simsuite` (Python + numpy/scipy/matplotlib), 20 cenários, test
 8. Fila esvaziada na troca de modo; heartbeat só ocioso; LBT/CAD antes de transmitir.
 
 9. **Margem de aceleração com desvanecimento (F7, opcional, desligada por padrão).** O F6 urbano mostrou a Légua oscilando
-   em enlace marginal (132 quedas ao modo base por 2 dias simulados, 84 s/h de desacordo). A causa: a margem fixa de 8 dB
-   ignora a variabilidade do SNR, então acelera e cai logo em seguida por falhas seguidas. `Config.fade_k` soma
-   k × desvio do SNR (30 amostras) à margem. Resultado (quick, 2 sementes de 1 dia, mesmas para todas as variantes):
+   em enlace marginal. A causa: a margem fixa de 8 dB ignora a variabilidade do SNR, então a Légua acelera e cai logo em
+   seguida por falhas seguidas. `Config.fade_k` soma k × desvio do SNR (30 amostras) à margem. Resultado na **escala
+   longa** (7 dias × 5 sementes por enlace, mesmas sementes para todas as variantes):
 
-   | Enlace | Variante | Quedas ao base | Desacordo (s/h) | mJ/pacote | PDR |
+   | Enlace | Variante | PDR | mJ/pacote | Quedas ao base (por hora) | Desacordo (s/h) |
    |---|---|---|---|---|---|
-   | urbano denso 1 km | margem 8 dB (atual) | 132 | 83,6 | 4861 | 0,956 |
-   | urbano denso 1 km | fade_k 1 | 46 | 19,9 | 5722 | 0,973 |
-   | urbano denso 1 km | fade_k 3 | 24 | 7,0 | 6620 | 0,970 |
-   | urbano residencial 3 km | margem 8 dB (atual) | 20 | 12,2 | 6927 | 0,954 |
-   | urbano residencial 3 km | fade_k 3 | 2 | 1,3 | 7837 | 0,961 |
-   | (referência) SF10/125 fixo, urbano denso | — | 0 | 0 | 5157 | 0,974 |
+   | urbano denso 1 km | SF10/125 fixo (referência) | 0,969 | 4599 | 0 | 0 |
+   | urbano denso 1 km | Légua, margem 8 dB (atual) | 0,959 | 3138 | 2,05 | 55,6 |
+   | urbano denso 1 km | Légua, margem 14 dB | 0,966 | 4037 | 0,97 | 21,2 |
+   | urbano denso 1 km | Légua, fade_k 3 | 0,967 | 5705 | 0,61 | 13,8 |
+   | urbano residencial 3 km | SF10/125 fixo (referência) | 0,944 | 4398 | 0 | 0 |
+   | urbano residencial 3 km | Légua, margem 8 dB (atual) | 0,941 | 4253 | 0,76 | 16,4 |
+   | urbano residencial 3 km | Légua, fade_k 3 | 0,945 | 6781 | 0,10 | 2,1 |
 
-   Conclusão: a margem proporcional reduz as quedas e o desacordo em 3 a 10 vezes e recupera o PDR do modo fixo, mas
-   **custa energia** (de +18% a +36% sobre a margem fixa). Em enlace marginal a Légua fica no nível do SF10 fixo em PDR e
-   energia, sem vantagem; o ganho grande aparece em enlace folgado (F6 rural a 8 km: 144 mJ/pacote contra 3840 do fixo).
-   O padrão continua `fade_k = 0`; um perfil "estável" pode usar `fade_k` de 1 a 3. A confirmação exige escala `full`
-   (7 dias, 5 sementes) e, depois, a bancada.
+   Conclusões: (a) em enlace marginal a Légua atual **economiza energia** no urbano denso (−32% contra o SF10 fixo) com
+   cerca de 1 ponto percentual a menos de PDR, mas oscila (2 quedas ao modo base por hora); no residencial a 3 km fica
+   praticamente empatada com o fixo (−3%). (b) A margem proporcional reduz as quedas em 70% a 87% e o desacordo em 75% a
+   87%, e recupera o PDR do modo fixo, **mas devolve a energia**: com `fade_k = 3` a Légua gasta mais que o fixo (+24% no
+   denso, +54% no residencial). A margem fixa de 14 dB é um meio-termo. (c) Não há ganho gratuito: estabilidade e energia
+   são um compromisso. O padrão continua `fade_k = 0`; um perfil "estável" pode usar `fade_k` de 1 a 3. (d) Na escala
+   rápida (2 sementes × 1 dia) o urbano denso parecia empate energético (4861 contra 5157 mJ, −6%): a escala longa mudou
+   a conclusão, o que justifica rodá-la antes de decidir parâmetros. O F6 longo confirma: urbano denso 1 km a Légua
+   gasta 2822 mJ/pacote contra 4520 do fixo, e no rural a 8 km 131 contra 3836 mJ (−97%, PDR 0,9999).
+10. **Laço sem avanço em `_descend` (corrigido).** Quando a escada de degradação descia para o próprio modo base com o
+    estado ainda `RECUPERACAO` ou `DATA` (ou a âncora era o base) e o par ficava em silêncio, `_descend` retornava sem
+    mudar nada e o prazo de silêncio vencia de novo no mesmo instante: 800 mil disparos de timer para 13 mil
+    transmissões em 2 dias simulados (33 s de CPU em vez de 5 s). Agora o nó passa ao estado `BASE`. Efeito nos resultados
+    da escala rápida: no máximo 0,014 de PDR em 3 de 50 células de M; P1 e P3 do verificador, B3, B4, B7, T23 e T456
+    ficaram idênticos.
 
 ## 5. Recomendações para o plano de testes
 
@@ -104,7 +115,7 @@ Canal estatístico com parâmetros estimados; PER por curva logística; malhas d
 
 ```bash
 PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s
-PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 8  # amostras do plano
+PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 1  # amostras do plano, ~1 h 06 min (results_full/)
 PYTHONPATH=. python3 -m pytest -q simsuite/tests
-python3 tools/build_site.py                                         # atualiza o site de resultados
+~/.venvs/legua/bin/python tools/build_site.py                       # atualiza o site de resultados
 ```

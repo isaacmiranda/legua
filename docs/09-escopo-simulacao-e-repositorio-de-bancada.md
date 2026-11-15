@@ -86,10 +86,57 @@ medição, **todo resultado daqui vale só para comparar e dimensionar**.
 2. **Licença** (Apache-2.0 é a proposta do doc 03), a definir pelo autor.
 3. **Como a bancada consome o analisador** (`simsuite/analysis/`): pacote Python instalável ou cópia.
 
-## 6. Próximos passos de simulação
+## 6. Escala longa (full): orçamento de tempo
+
+Máquina de referência: 4 CPUs, 3,4 GB de RAM, disco mecânico. A escala longa roda com **um processo por vez**
+(`--procs 1`, sem disputar RAM e disco) e leva **cerca de 1 h 06 min** (66 min medidos). A escala rápida leva
+9,5 min com um processo (4 min com quatro, mas aí os tempos por cenário ficam inflados pela contenção).
+
+O orçamento é calculado por `python3 -m simsuite.analysis.orcamento` como `tempo(rápida) × fator de trabalho ×
+contenção`. O fator vem do código (tempo simulado × sementes × amostras de cada cenário); a contenção é a mediana de
+medido/extrapolado nos cenários da escala longa já rodados. **Previsão congelada antes da rodada** (1 h 08 min) contra o
+medido:
+
+| Cenário | Rápida (s) | Previsto (s) | Medido (s) | Medido/previsto | O que muda (rápida → longa) |
+|---|---|---|---|---|---|
+| F7 sintonia | 121 | 2112 | 2036 | 0,96 | 1 → 7 dias; 2 → 5 sementes |
+| M mobilidade | 155 | 776 | 718 | 0,93 | T 1 h → 3 h (gado 6 → 24 h); 2 → 3 sementes |
+| F campo fixo | 68 | 510 | 514 | 1,01 | T 2 → 6 h; 2 → 5 sementes |
+| T456 malha | 75 | 225 | 229 | 1,01 | T 2 → 6 h |
+| F6 longa duração | 29 | 204 | 200 | 0,98 | 1 → 7 dias; 3 sementes |
+| B4 injeção de falhas | 9 | 88 | 87 | 0,98 | 300 → 3000 negociações |
+| formal | 75 | 75 | 75 | 1,00 | independe da escala |
+| B3 | 6 | 37 | 30 | 0,79 | 150 → 1000 negociações |
+| B7 | 4 | 22 | 21 | 0,98 | T 4 → 24 h |
+| B2 | 7 | 22 | 19 | 0,87 | 100 → 300 pacotes por ponto |
+| demais (B5, B6, B11, T23, amostras, fase7, tabelas) | | 28 | 28 | 0,99 | |
+| **Total** | **569** | **4100** | **3956** | **0,96** | relógio de parede: 3965 s |
+
+Duas ressalvas. (1) O tempo depende da trajetória simulada, não só da duração: antes do conserto do laço em
+`_descend` (`docs/06`, item 10) um caso de 2 dias levou 33 s contra 5 s depois. Orçamentos futuros assumem que não
+há outro laço desse tipo; se o tempo medido de um cenário passar de 1,5× o previsto, investigue. (2) O orçamento vale
+para esta máquina; em outra, rode a escala rápida com `--procs 1` e use a razão medida.
+
+## 7. Estimativas e comparação de escalas no site
+
+A aba **Estimativas** calcula, no navegador, o que esperar de um setup (cenário, distância, modo, potência,
+retransmissões, intervalo, ganho extra, tráfego de terceiros) com um estimador analítico: o mesmo canal e a mesma curva
+de demodulação da simulação, integrados por quadratura em vez de sorteados. Referência em
+`simsuite/analysis/estimator.py`, porte em `site/estimator.js`, com teste de paridade (tolerância 1e-9). Não modela
+colisão entre os dois nós, CAD/LBT, salto sincronizado nem a negociação de modo.
+
+**Validação contra o simulador de eventos** (`tools/validar_estimador.py`, 15/11/2026): com o sombreamento estático
+do enlace fixado em 0 e em +1σ (a simulação normal sorteia esse valor por semente, o que confunde a comparação),
+3 modos fixos, urbano denso e rural aberto, 3 sementes de 6 h por ponto, 42 pontos: erro absoluto médio de **1,1 pontos
+percentuais** na entrega do receptor, máximo de 4,9, viés de −0,7 (o estimador é levemente pessimista). Só a entrega foi
+validada; energia e latência seguem a mesma conta, mas não foram comparadas ponto a ponto. O seletor **Rápida / Longa** troca a
+escala de todas as abas; seções sem resultado na escala escolhida mostram o que falta e o tempo para gerar. A aba
+**Escalas e orçamento** compara as duas escalas célula a célula.
+
+## 8. Próximos passos de simulação
 
 1. Fase 2 no núcleo C: PROPOSE/VOTE/COMMIT, validação e rollback, com teste de equivalência contra `endpoint.py`.
-2. Rodar a escala `full` na máquina local (horas) e atualizar o site; hoje ele mostra a escala `quick`.
+2. (feito em 15/11/2026) Escala `full` rodada e publicada no site; repetir quando o protocolo mudar.
 3. Validação simulação × simulação contra Meshtasticator e LoRaSim (Fase 2 do plano).
 4. Compactar o pacote de controle de 20 para 14 a 16 B e medir o efeito em B3 (`docs/07`, pendência 4).
 5. Aplicar o resultado da sintonia (F7) como perfil nomeado, se fizer sentido para o produto.
