@@ -8,9 +8,10 @@ from dataclasses import dataclass
 from ..core.radio import toa_s, noise_dbm, SNR_THR, PER_OFFSET_DB, CR_GAIN_DB, i_tx_ma
 from ..core.regulatory import BR2026, NO_RULE
 
-DATA_BYTES = 24      # cabeçalho 8 + MIC 4 + corpo 12 (parede de 24 B no SF10/125)
-ACK_BYTES = 12
-CTRL_BYTES = 20
+# Tamanhos do formato v0 (docs/07; simsuite/protocol/wire.py): cabeçalho 8 + corpo + MIC 4.
+DATA_BYTES = 24      # corpo 12 (parede de 24 B no SF10/125)
+ACK_BYTES = 14       # corpo 2 (seq + ganho); era 12 antes da especificação v0
+CTRL_BYTES = 20      # corpo 8, com bytes reservados (candidato a compactar)
 HW_MAX_DBM = 28.0    # Heltec V4 (FEM); medido 25,6 dBm para 27 configurados [SEC]
 
 
