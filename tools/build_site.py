@@ -53,6 +53,13 @@ def main(argv=None):
                                 check=True).stdout.strip()
     except Exception:
         commit = None
+    try:        # resultados gerados com código ainda não commitado? marca, para não enganar
+        sujo = subprocess.run(["git", "status", "--porcelain", "--", "simsuite", "core"], capture_output=True,
+                              text=True, check=True).stdout.strip()
+        if commit and sujo:
+            commit += "+local"
+    except Exception:
+        pass
     meta = {"gerado_em": datetime.date.today().isoformat(), "commit": commit,
             "escalas": sorted({e for e in escalas.values() if e}), "faltando": faltando}
     os.makedirs(os.path.dirname(a.saida) or ".", exist_ok=True)
