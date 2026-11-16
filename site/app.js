@@ -543,7 +543,7 @@
 
   function panelFormal(panel) {
     var ab = d.formal.ablacoes, mk = d.formal.rodada_markov;
-    var names = { referencia: "referência", sem_descida_por_silencio: "sem descida por silêncio", sem_validacao: "sem validação", ancora_no_commit: "âncora no COMMIT", dois_reboots: "dois reboots" };
+    var names = { referencia: "referência", sem_descida_por_silencio: "sem descida por silêncio", sem_validacao: "sem validação", ancora_no_commit: "âncora no COMMIT", dois_reboots: "dois reboots", teto_assimetrico: "teto assimétrico (B nunca aceita)" };
     var tab = tableCard("Verificação de estados (modelo abstrato, perdas adversárias)",
       "P1: sem desacordo permanente. P2: maior desacordo transitório, em ticks. P3: a recuperação é sempre possível. P4: toda âncora gravada é de um modo em que o par já esteve. Cada linha remove ou altera um mecanismo do protocolo.",
       ["Variante", "Estados", "P1", "P2 (ticks)", "P3", "P4"],
@@ -606,6 +606,22 @@
         ["SF", "BW (kHz)", "LoRaSim (dBm, SX1272 medido)", "Aqui (dBm, modelo SX1262)", "Diferença (dB)"],
         sn.linhas.filter(function (r) { return r.bw === 125; }).map(function (r) { return [r.sf, r.bw, nf(r.lorasim_dbm, 2), nf(r.aqui_dbm, 2), nf(r.diferenca_db, 2)]; }).concat([["todas as 18", "", "", "média |Δ| " + nf(sn.diferenca_media_abs_db, 2), "máx " + nf(sn.maior_diferenca_db, 2)]]),
         [true, true, true, true, true]));
+    }
+    var lo = x && x.lorasim_original;
+    if (lo && lo.disponivel) {
+      var po = lo.pontos;
+      cards.push(tableCard("LoRaSim original executado (experimento 0, mesma geometria)",
+        lo.referencia + ". " + lo.horas_por_semente + " h por semente (3 sementes), um envio a cada " + lo.intervalo_medio_s + " s em média. " + lo.nota,
+        ["Nós", "Carga G", "Analítico", "LoRaSim (original)", "Aqui"],
+        po.map(function (r) { return [nf(r.nos, 0), nf(r.G, 3), fmtPct(r.pdr_analitico), fmtPct(r.pdr_original), fmtPct(r.pdr_aqui)]; }), [true, true, true, true, true]));
+    }
+    var m = x && x.meshtasticator;
+    if (m && m.disponivel) {
+      var pm = m.aloha.pontos, ta2 = m.tempo_no_ar, sn2 = m.sensibilidade;
+      cards.push(tableCard("Meshtasticator (código original executado): camada física",
+        m.referencia + ". Tempo no ar: " + nf(ta2.combinacoes, 0) + " combinações nos " + ta2.presets + " presets; " + (ta2.presets_diferentes.length ? "só difere em " + ta2.presets_diferentes.join(", ") + " (regra do LDRO)." : "todas iguais.") + " Regra de captura (6 dB): " + (m.regra_de_captura.iguais ? "igual nos 10 casos testados." : "DIFERE em algum caso.") + " Sensibilidade dos presets: média |Δ| " + nf(sn2.diferenca_media_abs_db, 2) + " dB, máx " + nf(sn2.maior_diferenca_db, 2) + " dB (calculadora com NF 6 dB contra o modelo do SX1262). O roteamento por inundação do Meshtastic não tem equivalente aqui e não foi comparado.",
+        ["Nós", "Carga G", "Analítico", "Meshtastic (original)", "Aqui"],
+        pm.map(function (r) { return [nf(r.nos, 0), nf(r.G, 3), fmtPct(r.pdr_analitico), fmtPct(r.pdr_meshtastic), fmtPct(r.pdr_aqui)]; }), [true, true, true, true, true]));
     }
     mount(panel, cards);
   }

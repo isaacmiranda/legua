@@ -2,3 +2,4 @@ numpy
 matplotlib
 pytest
 scipy
+simpy==3.0.10   # opcional: só para simsuite/analysis/lorasim_original.py

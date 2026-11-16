@@ -93,7 +93,11 @@ def job(name, escala, outdir=RES):
             r = fase7_demo(outdir)
         elif name == "xsim":
             from .analysis.lorasim import comparar
+            from .analysis import meshtasticator
             r = comparar(rapido=(escala != "full"))
+            r["meshtasticator"] = meshtasticator.comparar(rapido=(escala != "full"))
+            from .analysis import lorasim_original
+            r["lorasim_original"] = lorasim_original.comparar(rapido=(escala != "full"))
         elif name == "equiv":
             from .tests.equiv_harness import resumo
             r = resumo(150 if escala == "full" else 30)

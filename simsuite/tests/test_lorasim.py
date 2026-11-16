@@ -27,3 +27,14 @@ def test_captura_o_forte_sobrevive():
     fortes = sum(o[i] for i in range(N) if i % 2 == 0) / sum(s[i] for i in range(N) if i % 2 == 0)
     fracos = sum(o[i] for i in range(N) if i % 2) / sum(s[i] for i in range(N) if i % 2)
     assert fortes > fracos
+
+
+def test_lorasim_original_executado_proximo_do_daqui():
+    """O loraDir.py original (sintaxe convertida) deve dar PDR de ordem igual à do simulador daqui na mesma geometria."""
+    from simsuite.analysis import lorasim_original as LO
+    if LO.disponivel() is None:
+        pytest.skip("LoRaSim original ou simpy ausentes")
+    r = LO.rodar(100, 600000, 1800000, 1)
+    assert r["enviados"] > 0 and r["recebidos"] <= r["enviados"]
+    s, o = L.run_ours(100, 600.0, 1800.0, 12, 125, 4, 20, lambda i: r["rssi"][i] - 14.0, 2)
+    assert abs(r["recebidos"] / r["enviados"] - sum(o) / sum(s)) < 0.1

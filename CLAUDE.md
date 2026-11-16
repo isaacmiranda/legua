@@ -29,8 +29,8 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   orçamento de tempo e aba de **Estimativas** (estimador analítico no navegador, `site/estimator.js`, com referência
   Python em `simsuite/analysis/estimator.py` e teste de paridade). Gerar dados: `~/.venvs/legua/bin/python tools/build_site.py`
   (precisa do venv: importa numpy). Abrir `site/index.html` direto também funciona.
-- Próximo passo (simulação): validação sim×sim com o Meshtasticator (o LoRaSim já foi comparado: docs/09, §9);
-  decidir onde o `core/` mora. A escala `full` leva ~1 h 10 min com `--procs 1`; repetir se o protocolo mudar.
+- Validação sim×sim: LoRaSim e Meshtasticator com os **originais executados** (docs/09 §9.1; clones em `~/.cache/ext/`,
+  `simpy==3.0.10` opcional). Rascunho de artigo em `docs/10`. Próximo: decidir onde o `core/` mora, licença e MIC. A escala `full` leva ~1 h 10 min com `--procs 1`; repetir se o protocolo mudar.
 
 ## Comandos
 ```bash

@@ -218,7 +218,8 @@ secao("acordo", "Acordo e falhas (B3, B4)", corpo or "<p>Sem dados.</p>")
 corpo = ""
 if fa:
     nomes = {"referencia": "referência", "sem_descida_por_silencio": "sem descida por silêncio", "sem_validacao": "sem validação",
-             "ancora_no_commit": "âncora no COMMIT", "dois_reboots": "dois reboots"}
+             "ancora_no_commit": "âncora no COMMIT", "dois_reboots": "dois reboots",
+             "teto_assimetrico": "teto assimétrico (B nunca aceita)"}
     lin = []
     for k, v in fa["ablacoes"].items():
         ok = lambda x: "vale" if x else "<b>viola</b>"

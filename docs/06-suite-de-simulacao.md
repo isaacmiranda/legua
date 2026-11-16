@@ -125,3 +125,6 @@ PYTHONPATH=. python3 -m pytest -q simsuite/tests
 - **sim×sim (LoRaSim, regras portadas à mão, original não executado):** tempo no ar idêntico exceto SF12/250 (regra de LDRO); PDR ALOHA próximo do analítico; erro médio de sensibilidade 3,87 dB contra a tabela SX1272.
 - **Controle de 16 B** (era 20 B): tempo no ar de controle em SF10/125 de 329,7 ms (era 370,7 ms).
 - Resultados de simulação com parâmetros estimados, escala full; não são previsão de campo.
+- **Originais executados (16/11/2026):** LoRaSim `loraDir.py` (sintaxe convertida) e Meshtasticator (`lib.phy`); detalhes em docs/09 §9.1.
+- **Ausência longa:** 15 min a 12 h sem enlace, com ou sem reinício, ressincronizam em 0,3 a 7 min (docs/07 §8).
+- **Teto assimétrico (formal):** com B nunca aceitando o modo mais rápido, P1, P2 = 0 e P4 valem; o par fica no modo base.

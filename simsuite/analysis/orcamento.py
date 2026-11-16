@@ -26,7 +26,7 @@ FATORES = {
     "F7": (17.5, "1 -> 7 dias; 2 -> 5 sementes"),
     "M": (5.0, "T 1 h -> 3 h (gado 6 h -> 24 h); 2 -> 3 sementes"),
     "T23": (4.0, "T 6 h -> 24 h"), "T456": (3.0, "T 2 h -> 6 h"), "fase7": (1.0, "fixo"),
-    "xsim": (10.0, "3 -> 6 tamanhos de rede; 1 -> 4 h por semente"), "equiv": (5.0, "30 -> 150 cenários"),
+    "xsim": (7.0, "3 -> 6 tamanhos de rede; 1 -> 4 h por semente"), "equiv": (5.0, "30 -> 150 cenários"),
 }
 
 

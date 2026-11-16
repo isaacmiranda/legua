@@ -89,6 +89,24 @@ truncado a 4 B (a escolha é decisão aberta; o MIC de 4 B é aceitável pelo li
 baixa taxa, mas o risco de forja é 2^-32 por tentativa). Não há chave padrão nem chave derivada do MAC. O MIC de
 teste (FNV-1a com chave) existe só nos testes e **não é segurança**.
 
+**Análise do MIC de 4 B (insumo para a decisão; a escolha é do autor).** Contas feitas aqui, a conferir com um
+criptógrafo antes de fixar o formato:
+
+| Cenário | Tentativas por segundo | Tempo médio até uma forja aceita (2^31 tentativas) |
+|---|---|---|
+| Atacante em alcance, SF7/125, controle de 16 B (~52 ms no ar) | ~19 | ~3,5 anos |
+| Atacante em alcance, SF10/125 (~330 ms) | ~3 | ~22 anos |
+| Atacante em alcance, SF12/125 (~1,3 s) | ~0,8 | ~90 anos |
+
+A conta assume que cada tentativa ocupa o ar por um quadro inteiro e que o receptor **não** limita falhas. Duas
+defesas já previstas fecham a margem: (1) o contador anti-replay (quadro com contador fora da janela é descartado
+antes do MIC) obriga o atacante a acertar também o contador, e (2) o alarme do protocolo (B7) pode contar quadros com
+MIC inválido numa janela e travar a aceleração. Recomenda-se escrever (2) como requisito: após *n* falhas de MIC em
+*T* segundos, parar de aceitar PROPOSE e voltar ao modo base. A truncagem de CMAC a 32 bits é permitida pela
+NIST SP 800-38B, que a condiciona a um limite de verificações falhas; **conferir o texto atual da norma**. CCM com tag
+de 4 B (como no 802.15.4) é a alternativa que já traz confidencialidade, mas o payload de 9 B não pede sigilo.
+Impacto no ar: passar de 4 B para 8 B de MIC acrescenta 4 B por quadro (SF10/125: +~41 ms por quadro de controle).
+
 ## 7. Diferenças em relação ao simulador (`endpoint.py`)
 
 Desde 15/11/2026 o núcleo C implementa também a negociação (PROPOSE/VOTE/COMMIT), a validação, o rollback, a descida
@@ -108,9 +126,15 @@ Diferenças que restam, todas de representação:
 ## 8. Pendências
 
 1. Colisão de endereços curtos (16 bits) e como derivar do identificador.
-2. Escolha do algoritmo de MIC e do formato de chave/rotação (`key_id`); ressincronização depois de uma ausência
-   longa (contador do par fora da janela de 32767).
+2. Escolha do algoritmo de MIC e do formato de chave/rotação (`key_id`) (insumos em §6). A **ressincronização depois
+   de uma ausência longa** foi verificada na simulação (teste `test_ausencia_longa_ressincroniza`, nos quatro
+   pares Py/C): com 15 min a 12 h sem enlace, com ou sem reinício de um dos nós ao voltar, os dois voltam a DATA no
+   mesmo modo em 0,3 a 7 min (descida por silêncio até o modo base, HELLO e nova negociação). O que continua
+   aberto é o contador do par fora da janela de 32767 (ausência de mais de 32767 quadros sem reinício do par), que
+   exige um procedimento de ressincronização autenticado.
 3. Fragmentação (flag FRAG) e payload maior que 9 B.
 4. (feito em 15/11/2026) Controle compactado de 20 para 16 B. Ir a 14 B exigiria tirar a velocidade ou o `yes`
    do corpo (ganho extra de 12% no tempo no ar do controle); não vale enquanto o perfil móvel usa a velocidade.
-5. Potência de TX diferente por nó (teto assimétrico): o receptor hoje supõe o mesmo teto nos dois lados.
+5. Potência de TX diferente por nó (teto assimétrico): o receptor hoje supõe o mesmo teto nos dois lados. No modelo
+   formal, o caso extremo (B nunca aceita um modo mais rápido) mantém P1, P2 = 0 e P4: os dois ficam no modo base, sem
+   aceleração (docs/06). O efeito sobre o orçamento de enlace (ganho do ACK, controle de potência) segue sem modelo.

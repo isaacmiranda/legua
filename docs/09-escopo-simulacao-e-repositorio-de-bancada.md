@@ -194,6 +194,20 @@ foram regenerados):
 | registro de NVM com piso do contador do par; gravação por bloco de 64 nos dois contadores | acrescenta gravações raras (~a cada 64 quadros) com 80 ms de parada |
 | contador de retransmissão passa pelo mesmo bloco de NVM | corrige uma gravação omitida |
 
+### 8.1 Cobertura, RAM e pilha do núcleo (16/11/2026, x86-64; recalibrar no alvo)
+
+- **Cobertura de linhas** (gcov, `-O0`): `endpoint.c` 98,2% (637 de 649 linhas) somando os testes C (`test_sim`,
+  `test_fuzz`, `test_codec`: 89,5%) e a suíte de equivalência com 60 sementes pela ponte ctypes (96,9%); `frame.c` 81,2%
+  e `toa.c` 84,6%. Linhas sem cobertura: o transbordo do vetor de ações (que os testes exigem que nunca ocorra), ramos
+  de entrada inválida em `legua_mode_pack`/`legua_frame_decode`, o caso SF 5–6 do tempo no ar e ramos `default:` de
+  `switch`. Cobertura de ramos de `endpoint.c`: 72,8% só pelos testes C.
+- **RAM:** `sizeof(legua_endpoint)` = 816 B, `legua_actions` = 388 B (na pilha do chamador), `legua_params` = 92 B,
+  entrada da tabela de modos = 12 B (18 modos = 216 B, em flash). Em 32 bits os ponteiros encolhem; medir de novo no
+  Xtensa.
+- **Pilha** (`-fstack-usage`, `-Os`): pior quadro `legua_on_rx` 144 B; a cadeia mais funda observada
+  (`on_rx` → `propose` → `emit` → `ctrl_frame` → `legua_frame_encode`) soma ~430 B, mais o vetor de ações do chamador.
+  Recursão: nenhuma. **Código:** ~10 KB de `.text` em x86-64 com `-Os`.
+
 ## 9. Validação simulação × simulação (LoRaSim)
 
 `simsuite/analysis/lorasim.py` (cenário `xsim`) compara o simulador de eventos desta suíte com as regras do **LoRaSim**
@@ -214,13 +228,37 @@ comparação inclui também a expressão analítica do ALOHA puro. Resultados (e
   ruído do SX1262. A diferença média é de ~3,9 dB (máxima 6,5 dB). Isso desloca os limiares de alcance e é uma das
   razões para a bancada calibrar `SNR_THR` e `NF_DB`.
 
-**Não feito:** o **Meshtasticator** (simulador de malha do Meshtastic): precisa de ambiente próprio e só serviria para
-as topologias T4–T6, cujos baselines já são modelos comportamentais nossos; fica como próximo passo.
+### 9.1 Os originais executados (16/11/2026)
+
+Para não depender só do porte, o cenário `xsim` agora **executa o código original** dos dois:
+
+- **LoRaSim original** (`simsuite/analysis/lorasim_original.py`): o `loraDir.py` do commit `1eddb96` é lido do clone
+  (`LEGUA_LORASIM` ou `~/.cache/ext/lorasim`), com **só a sintaxe de `print` convertida** de Python 2 para 3 em memória;
+  a lógica não é tocada. Precisa de `simpy==3.0.10`. Experimento 0 (SF12, BW125, CR 4/8, 20 B, uma frequência,
+  colisão completa), nós em posições aleatórias do disco de alcance; o simulador daqui recebe **o RSSI que o original
+  sorteou** para cada nó. Escala longa (3 sementes de 6 h): PDR do original / daqui / analítico, com 50 nós 0,802 /
+  0,791 / 0,752; 200 nós 0,412 / 0,395 / 0,319; 800 nós 0,068 / 0,061 / 0,010. As duas curvas ficam dentro de ~2 pontos
+  uma da outra; ambas ficam acima do ALOHA puro porque a posição aleatória cria captura, e o original ainda tem a
+  exceção do preâmbulo.
+- **Meshtasticator** (`simsuite/analysis/meshtasticator.py`): `lib.phy.airtime`, `lib.phy.check_collision` e a tabela
+  de presets são importados do clone (`LEGUA_MESHTASTICATOR` ou `~/.cache/ext/Meshtasticator`) e executados. Só a
+  camada física é comparada; o roteamento por inundação do Meshtastic não tem equivalente aqui. Resultados: tempo no
+  ar idêntico nos 10 presets e 240 tamanhos, exceto `VERY_LONG_SLOW` (BW 62,5 kHz: LDRO só em 125 kHz no
+  Meshtasticator); regra de captura de 6 dB igual nos 10 casos testados; sensibilidade dos presets difere em média
+  2,07 dB (máx. 2,49) da calculadora que o Meshtastic usa (NF de 6 dB); PDR da estrela ALOHA com 20 a 300 nós fica a
+  menos de 0,4 ponto do analítico no Meshtasticator e até 3,8 pontos acima no simulador daqui (que usa preâmbulo 8
+  e portanto tempo no ar menor; o analítico de cada um usa o tempo do próprio).
+
+Sem os clones, ou sem `simpy`, os dois blocos devolvem `disponivel: false` e os testes são pulados; a suíte segue.
+
+**Limites:** o experimento 0 do LoRaSim é uma estrela de um canal e um SF; o Meshtasticator só foi usado na camada
+física. Comparar o roteamento por inundação com os baselines de malha (T4–T6) continuaria sendo trabalho à parte.
 
 ## 10. Próximos passos de simulação
 
 1. Fase 2 no núcleo C: PROPOSE/VOTE/COMMIT, validação e rollback, com teste de equivalência contra `endpoint.py`.
 2. (feito em 15/11/2026) Escala `full` rodada e publicada no site; repetir quando o protocolo mudar.
-3. Validação simulação × simulação contra Meshtasticator e LoRaSim (Fase 2 do plano).
-4. Compactar o pacote de controle de 20 para 14 a 16 B e medir o efeito em B3 (`docs/07`, pendência 4).
+3. (feito em 16/11/2026, camada física) Validação simulação × simulação contra Meshtasticator e LoRaSim, com os
+   originais executados (§9.1). Falta só a comparação do roteamento por inundação.
+4. (feito) Controle compactado para 16 B.
 5. Aplicar o resultado da sintonia (F7) como perfil nomeado, se fizer sentido para o produto.

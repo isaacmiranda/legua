@@ -102,3 +102,21 @@ def test_perfis_nomeados_iguais_no_c_e_no_python(shim):
             out = ctypes.c_double()
             assert L.shim_profile_get(PERFIL_C[nome], k.encode(), ctypes.byref(out)) == 0, k
             assert abs(out.value - float(v)) < 1e-4, (nome, k, out.value, v)
+
+
+@precisa_cc
+@pytest.mark.parametrize("horas,reboot", [(4, None), (4, 2), (4, 1)])
+def test_ausencia_longa_ressincroniza(shim, horas, reboot):
+    """Enlace perdido por horas (com ou sem reinício de um nó ao voltar): os dois voltam a DATA no mesmo modo em
+    menos de 10 min, e os quatro pares Py/C continuam idênticos."""
+    h0, h1 = 1_200_000, 1_200_000 + horas * 3600 * 1000
+    sc = dict(cfg=FAST, gain=lambda t: -200.0 if h0 <= t < h1 else -138.0, T=h1 + 1_800_000, chan_seed=9,
+              reboots=[(h1 + 1000, reboot)] if reboot else [])
+    base = _confere(sc, f"ausencia{horas}h_{reboot}")
+    last, t_ok = {}, None
+    for t, nid, _call, _acts, snap in base["trace"]:
+        last[nid] = snap
+        if t >= h1 and len(last) == 2 and last[1][0] == 1 and last[2][0] == 1 and last[1][1] == last[2][1]:
+            t_ok = t - h1
+            break
+    assert t_ok is not None and t_ok < 600_000, f"reacordo em {t_ok} ms"

@@ -45,6 +45,7 @@ class Params:
     validation: bool = True
     persist_at_commit: bool = False
     allow_no_vote: bool = True
+    b_never_yes: bool = False      # teto de TX assimétrico: B nunca aceita o modo mais rápido (sempre vota não)
 
 
 # estado de um nó: (st, mode, prev, anchor, cand, committed, timer, sil, vcnt, fails, val_ok, rb, okcnt, wait)
@@ -198,7 +199,8 @@ class Model:
         loss_ab = list(itertools.product([0, 1], repeat=len(ab)))
         loss_ba = list(itertools.product([0, 1], repeat=len(ba)))
         a_choices = [(p, 0, r) for p in (0, 1) for r in (0, 1) if not (r and A[11] >= P.reboots)]
-        b_choices = [(0, v, r) for v in ((0, 1) if P.allow_no_vote else (0,)) for r in (0, 1)
+        votos_b = (1,) if P.b_never_yes else ((0, 1) if P.allow_no_vote else (0,))
+        b_choices = [(0, v, r) for v in votos_b for r in (0, 1)
                      if not (r and B[11] >= P.reboots)]
         for la in loss_ab:
             inb_b = tuple(m for m, l in zip(ab, la) if not l)
@@ -420,5 +422,11 @@ def ablations():
         "sem_validacao": Params(validation=False),
         "ancora_no_commit": Params(persist_at_commit=True),
         "dois_reboots": Params(reboots=2),
+        "teto_assimetrico": Params(b_never_yes=True),
     }
-    return {k: analyze(p) for k, p in cases.items()}
+    out = {k: analyze(p) for k, p in cases.items()}
+    out["teto_assimetrico"]["nota"] = (
+        "B nunca aceita um modo mais rápido (por exemplo, o teto de potência dele não comporta o modo). P3 'falha' só "
+        "porque 'operando' exige DATA e a negociação nunca é aceita: os dois ficam em acordo permanente no modo base "
+        "(P2 = 0, P1 e P4 valem). É a ausência de aceleração, não perda de enlace; a segurança continua intacta.")
+    return out
