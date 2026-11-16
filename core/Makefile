@@ -4,7 +4,7 @@ CFLAGS  ?= -std=c99 -O1 -g -Wall -Wextra -Wpedantic -Werror -Wshadow -Wconversio
 BUILD   := build
 SRC     := src/frame.c src/toa.c src/endpoint.c
 OBJ     := $(SRC:src/%.c=$(BUILD)/%.o)
-TESTS   := $(BUILD)/test_codec $(BUILD)/test_sim $(BUILD)/toa_table
+TESTS   := $(BUILD)/test_codec $(BUILD)/test_sim $(BUILD)/toa_table $(BUILD)/test_edge
 SHIM    := $(BUILD)/liblegua_shim.so
 VECTORS := tests/vectors/frames.txt
 
@@ -32,6 +32,7 @@ fuzz: tests/test_fuzz.c $(SRC) include/legua/legua.h tests/testenv.h profiles/br
 test: $(TESTS) $(SHIM)
 	$(BUILD)/test_codec $(VECTORS)
 	$(BUILD)/test_sim
+	$(BUILD)/test_edge
 
 vectors:
 	cd .. && PYTHONPATH=. python3 -m simsuite.protocol.wire --vetores core/$(VECTORS)
