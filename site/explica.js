@@ -277,12 +277,18 @@
         y += 24;
       });
     });
+    var H = 168, yb = Math.max(y, 148) + 6;           // faixa de resultado abaixo da última seta, sem cobrir os rótulos
     if (step === STEPS.length - 1) {
-      inner += falha ? rect(40, 118, 280, 26, BAD, { op: 0.15, s: BAD }) + tx(180, 135, "enlace piorou: rollback ao modo anterior", { a: "middle", c: BAD, b: 1 }) :
-        rect(40, 118, 280, 26, OK, { op: 0.15, s: OK }) + tx(180, 135, "modo X validado: vira âncora", { a: "middle", c: OK, b: 1 });
+      inner += falha ? rect(40, yb, 280, 26, BAD, { op: 0.15, s: BAD }) + tx(180, yb + 17, "enlace piorou: rollback ao modo anterior", { a: "middle", c: BAD, b: 1 }) :
+        rect(40, yb, 280, 26, OK, { op: 0.15, s: OK }) + tx(180, yb + 17, "modo X validado: vira âncora", { a: "middle", c: OK, b: 1 });
+      H = yb + 34;
     }
-    if (perda && step >= 3) inner += tx(180, 160, "COMMIT perdido: B continua no modo antigo e A desiste depois de um tempo", { a: "middle", c: BAD });
-    return wrap(360, 168, "Passo " + (step + 1) + " de " + STEPS.length + ": " + s.t, inner);
+    if (perda && step >= 3) {
+      var yn = step === STEPS.length - 1 ? H + 6 : 160;
+      inner += tx(180, yn, "COMMIT perdido: B continua no modo antigo", { a: "middle", c: BAD }) + tx(180, yn + 14, "e A desiste depois de um tempo", { a: "middle", c: BAD });
+      H = yn + 24;
+    }
+    return wrap(360, H, "Passo " + (step + 1) + " de " + STEPS.length + ": " + s.t, inner);
   }
 
   var LINKS = [
