@@ -349,6 +349,7 @@
     // desenha depois de inserir no DOM, para ter largura
     panel.querySelectorAll(".card").forEach(function (c) { if (c._render) c._render(); });
     appendDiscussion(panel);
+    if (window.LeguaExplica) window.LeguaExplica.anotar(panel);
   }
   function plainTable(head, rows, num) {
     var t = el("table"), th = el("thead"), hr = el("tr");
@@ -685,6 +686,54 @@
     mount(panel, [c1, c2, c3]);
   }
 
+  var GRUPOS = { L: "Légua", F: "modos fixos", O: "outros" };
+  function tetoStats(T, cen, g) {
+    // PDR: média sobre as células do grupo. Energia: mediana só das células com enlace (PDR >= 2%) em TODOS os tetos,
+    // senão o teto baixo pareceria mais barato só porque perdeu as células longas (viés de sobrevivência).
+    var rows = T.cenarios[cen].filter(function (r) { return !g || r.g === g; }), out = {}, comuns = rows.filter(function (r) {
+      return T.tetos.every(function (c) { var v = r.v[c]; return v && v[0] >= 0.02 && v[1] != null; }); });
+    T.tetos.forEach(function (c) {
+      var pd = [], mj = comuns.map(function (r) { return r.v[c][1]; });
+      rows.forEach(function (r) { var v = r.v[c]; if (v) pd.push(v[0]); });
+      mj.sort(function (a, b) { return a - b; });
+      out[c] = { n: pd.length, nc: comuns.length, pdr: pd.length ? pd.reduce(function (a, b) { return a + b; }, 0) / pd.length : null, mj: mj.length ? mj[Math.floor(mj.length / 2)] : null };
+    });
+    return out;
+  }
+  function tetoGrupos(T, cen) {          // grupos presentes no cenário; um só grupo = sem rótulo
+    var gs = ["L", "F", "O"].filter(function (g) { return T.cenarios[cen].some(function (r) { return r.g === g; }); });
+    return gs.length > 1 ? gs : [null];
+  }
+  function tetoMuda(T, cen) {          // o resultado do cenário muda de verdade com o teto?
+    var rows = T.cenarios[cen];
+    if (!rows.length) return false;
+    return rows.some(function (r) { var v = keys(r.v).map(function (c) { return r.v[c]; });
+      var lo = Math.min.apply(null, v.map(function (x) { return x[0]; })), hi = Math.max.apply(null, v.map(function (x) { return x[0]; }));
+      var e = v.map(function (x) { return x[1]; }).filter(function (x) { return x != null; });
+      return hi - lo > 0.005 || (e.length > 1 && Math.max.apply(null, e) > 1.01 * Math.min.apply(null, e)); });
+  }
+  function panelTetos(panel) {
+    var T = ESC[scale].tetos;
+    if (!T) { mount(panel, [el("section", { class: "card warn-card" }, [el("h2", { text: "Sem varredura de teto nesta escala" }),
+      el("p", { class: "note", text: "Rode tools/varredura_teto.sh " + scale + " e depois python3 tools/build_site.py." })])]); return; }
+    var caps = T.tetos.slice().sort(function (a, b) { return a - b; });
+    var todos = keys(T.cenarios), cens = todos.filter(function (c) { return tetoMuda(T, c); }), fixos = todos.filter(function (c) { return cens.indexOf(c) < 0; });
+    var sel = st.tet && cens.indexOf(st.tet.cen) >= 0 ? st.tet.cen : cens[0];
+    st.tet = { cen: sel };
+    var head = ["Cenário"].concat(caps.map(function (c) { return c + " dBm"; }));
+    var sum = tableCard("Resumo: PDR médio · energia mediana por pacote, por teto de TX",
+      "PDR: média simples sobre todas as células do cenário. Energia: mediana só das células que têm enlace (PDR acima de 2%) em todos os tetos, para comparar as mesmas células (as células longas morrem com teto baixo e sumiriam da conta). Os tetos de 8, 14 e 20 dBm vêm da varredura; 28 dBm é a rodada normal. Teto menor limita todos os nós do cenário. " + (fixos.length ? "Sem diferença entre os tetos (não aparecem abaixo): " + fixos.join(", ") + " — cenários de bancada com teto próprio de 0 ou 10 dBm, tabelas ou modelos de terceiros com potência própria." : ""),
+      head, [].concat.apply([], cens.map(function (c) { return tetoGrupos(T, c).map(function (g) { var s = tetoStats(T, c, g);
+        return [c + (g ? " · " + GRUPOS[g] : "") + " (" + s[caps[0]].n + " células, " + s[caps[0]].nc + " comparáveis em energia)"].concat(caps.map(function (cp) { var x = s[cp]; return x.pdr == null ? "–" : fmtPdr(x.pdr) + " · " + fmtMj(x.mj); })); }); })), [false].concat(caps.map(function () { return true; })));
+    var detail = el("section", { class: "card" }, [el("h2", { text: "Detalhe por célula" })]);
+    detail.appendChild(el("div", { class: "controls" }, [select("Cenário", cens.map(function (c) { return { v: c, t: c }; }), sel, function (v) { st.tet.cen = v; panelTetos(panel); })]));
+    detail.appendChild(el("p", { class: "note", text: "PDR · mJ por pacote entregue. Células sem entrega aparecem como 'sem enlace'." }));
+    detail.appendChild(plainTable(["Célula"].concat(caps.map(function (c) { return c + " dBm"; })),
+      T.cenarios[sel].map(function (r) { return [r.k || "(único)"].concat(caps.map(function (cp) { var v = r.v[cp]; return !v ? "–" : v[0] < 0.02 ? "sem enlace" : fmtPdr(v[0]) + (v[1] == null ? "" : " · " + fmtMj(v[1])); })); }),
+      [false].concat(caps.map(function () { return true; }))));
+    mount(panel, [sum, detail]);
+  }
+
   function panelSintonia(panel) {
     var F7 = d.F7, links = keys(F7), variants = keys(F7[links[0]]);
     var S = ordSeries(links.map(function (l, i) { return { id: l, label: l.charAt(0).toUpperCase() + l.slice(1), short: l }; }));
@@ -921,6 +970,26 @@
   function pp(a, b) { return nf(100 * Math.abs(a - b), 1); }              // diferença em pontos percentuais
   function rel(a, b) { return nf(100 * Math.abs(a / b - 1), 0) + "%"; }   // diferença relativa
   var DISC = {
+    tetos: function () {
+      var T = ESC[scale].tetos;
+      if (!T) return { car: ["Sem dados."], van: [], des: [], apl: [], cri: [] };
+      var caps = T.tetos.slice().sort(function (a, b) { return a - b; }), lo = caps[0], hi = caps[caps.length - 1];
+      var cens = keys(T.cenarios).filter(function (c) { return tetoMuda(T, c); }), perdas = [], ganhos = [];
+      cens.forEach(function (c) { var g0 = tetoGrupos(T, c).indexOf("L") >= 0 ? "L" : null, s = tetoStats(T, c, g0); if (s[lo].pdr != null && s[hi].pdr != null) {
+        perdas.push(c + (g0 ? " (Légua)" : "") + " " + pp(s[lo].pdr, s[hi].pdr) + " pontos"); if (s[lo].mj != null && s[hi].mj != null && s[lo].mj < s[hi].mj) ganhos.push(c + (g0 ? " (Légua)" : "") + " (" + fmtMj(s[lo].mj) + " contra " + fmtMj(s[hi].mj) + ")"); } });
+      return {
+        car: ["A mesma bateria de cenários foi rodada com o teto de TX limitado a " + caps.join(", ") + " dBm em todos os nós; 28 dBm é o padrão. Diferença de PDR médio entre " + lo + " e " + hi + " dBm, por cenário: " + perdas.join("; ") + ".",
+          "Cada célula é um enlace (distância, ambiente ou configuração) fixo; por isso, reduzir o teto desloca o alcance e não a qualidade de todos os enlaces por igual."],
+        van: [ganhos.length ? "Onde o teto menor gasta menos energia por pacote (mediana das células comparáveis, vivas em todos os tetos; a Légua isolada quando o cenário tem modos fixos): " + ganhos.join("; ") + "." : "Nenhum cenário gastou menos energia com o teto menor, na mediana das células com enlace.",
+          "O protocolo se adapta: com teto menor ele escolhe modos mais lentos em vez de transmitir mais alto."],
+        des: ["Teto baixo derruba as células de maior distância; a média do PDR mistura enlaces mortos com enlaces saudáveis, então a leitura correta é a tabela de detalhe.",
+          "Os cenários de bancada (B*) já têm tetos fixos de 0 e 10 dBm e quase não mudam."],
+        apl: ["Escolher o teto de TX do produto por cenário de uso (bateria, regulação, antena) antes da bancada.", "Ver, por cenário, onde o protocolo mais depende da folga de potência."],
+        cri: ["Mesma ressalva da aba Potência de TX: a corrente do PA é estimada e a posição do mínimo de energia depende dela.",
+          "Distâncias e ambientes dos cenários não foram reescalados para cada teto: células mortas com teto baixo são esperadas.",
+          "A média simples de PDR por cenário dá o mesmo peso a células de natureza diferente."]
+      };
+    },
     potencia: function () {
       var P = d.P, ds = keys(P.simetrico);
       function need(src, dk, lim) { var ok = keys(src[dk]).filter(function (c) { return src[dk][c].pdr >= lim; }); return ok.length ? ok[0] : null; }
@@ -1231,10 +1300,12 @@
 
   // ------------------------------------------------------------------ navegação
   var TABS = [
+    { id: "guia", t: "Comece aqui", f: function (panel) { mount(panel, window.LeguaExplica ? window.LeguaExplica.guia() : [el("p", { class: "note", text: "O guia não carregou (explica.js ausente)." })]); }, need: [], anyScale: true },
     { id: "campo", t: "Campo fixo", f: panelCampo, need: ["F"] }, { id: "mob", t: "Mobilidade", f: panelMob, need: ["M"] },
     { id: "alcance", t: "Alcance e deriva", f: panelAlcance, need: ["B2", "B9", "B10"] }, { id: "acordo", t: "Acordo e falhas", f: panelAcordo, need: ["B3", "B4", "B5", "F6", "B6"] },
     { id: "sintonia", t: "Sintonia (F7)", f: panelSintonia, need: ["F7"] },
     { id: "potencia", t: "Potência de TX", f: panelPotencia, need: ["P"] },
+    { id: "tetos", t: "Teto × cenários", f: panelTetos, need: [], anyScale: true },
     { id: "formal", t: "Verificação formal", f: panelFormal, need: ["formal"] },
     { id: "validacao", t: "Validação cruzada", f: panelValidacao, need: ["xsim", "equiv"] }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca, need: ["B7", "B11"] },
     { id: "modos", t: "Modos", f: panelModos, need: ["modos"] }, { id: "malha", t: "Grupos e malha", f: panelMalha, need: ["T23", "T456"] },
@@ -1313,6 +1384,22 @@
     root.setAttribute("data-theme", next);
     try { localStorage.setItem("legua-tema", next); } catch (e) { /* ignore */ }
   });
+
+  if (window.MutationObserver && window.LeguaExplica) {          // painéis que se redesenham sozinhos (Alcance, Estimativas)
+    new MutationObserver(function () { window.LeguaExplica.anotar(panel); }).observe(panel, { childList: true, subtree: true });
+  }
+  document.addEventListener("legua:ir", function (ev) { go(ev.detail, true); window.scrollTo(0, 0); });
+  var btnEx = document.getElementById("expl");
+  function setExpl(on) {
+    document.body.classList.toggle("sem-expl", !on);
+    btnEx.setAttribute("aria-pressed", String(on));
+    btnEx.textContent = "Explicações: " + (on ? "ligadas" : "desligadas");
+    try { localStorage.setItem("legua-expl", on ? "1" : "0"); } catch (e) { /* ignore */ }
+  }
+  var exOn = true;
+  try { exOn = localStorage.getItem("legua-expl") !== "0"; } catch (e) { /* ignore */ }
+  setExpl(exOn);
+  btnEx.addEventListener("click", function () { setExpl(btnEx.getAttribute("aria-pressed") !== "true"); });
 
   var rz;
   window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { live.forEach(function (r) { r(); }); }, 150); });

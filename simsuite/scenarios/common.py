@@ -1,4 +1,5 @@
 """Montagem de enlaces P2P com a AdaptLoRa de referência ou baselines."""
+import os
 import numpy as np
 from ..core.channel_static import ENVS
 from ..core.links import FixedLink, MobileLink
@@ -7,6 +8,15 @@ from ..protocol.modes import table
 from ..protocol.endpoint import Endpoint, Config
 
 R7 = {}
+
+# Varredura de potência (run_suite --teto): limita o teto de TX de TODOS os nós de qualquer cenário. Vem do ambiente para
+# valer também nos processos filhos. Nunca aumenta um teto que o cenário já fixou mais baixo (a bancada usa 0 e 10 dBm).
+TETO_MAX = float(os.environ["LEGUA_TETO_MAX"]) if os.environ.get("LEGUA_TETO_MAX") else None
+
+
+def teto(c):
+    """Teto efetivo de TX em dBm para o valor pedido pelo cenário."""
+    return c if TETO_MAX is None else min(c, TETO_MAX)
 
 
 def r7_km(env):
@@ -26,6 +36,7 @@ def make_pair(env_id, link, T, seed, cfg=None, profile="BR-2026", cap=28.0, app_
     sim = Sim(env, rng, T, {(0, 1): link}, log_path=log_path, ext_scale=ext_scale)
     eps = []
     caps = cap if isinstance(cap, (tuple, list)) else (cap, cap)       # teto de TX por nó (assimétrico se for par)
+    caps = tuple(teto(c) for c in caps)
     for nid, peer in ((0, 1), (1, 0)):
         ep = endpoint_cls(nid, peer, modes, base, rec, cfg, rng, env["noise_rise"], caps[nid])
         n = Node(nid, ep, track=tracks[nid], clock_ppm=clock_ppm[nid], xtal=xtal, app_interval=app_interval)

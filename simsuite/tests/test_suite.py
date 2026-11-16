@@ -165,3 +165,21 @@ def test_varredura_de_potencia_monotonia_basica(monkeypatch):
     s = r["simetrico"]["3.0 km"]
     assert s["28"]["pdr"] > s["8"]["pdr"] + 0.3
     assert set(r["assimetrico"]["1.0 km"]) == {"8", "28"}
+
+
+def test_teto_global_limita_sem_subir_e_folhas_do_site(monkeypatch):
+    import numpy as np
+    from simsuite.core.links import FixedLink
+    from simsuite.core.channel_static import ENVS
+    from simsuite.scenarios import common
+    link = FixedLink(ENVS["urbano_residencial"], 1.0, np.random.default_rng(1), 100)
+    monkeypatch.setattr(common, "TETO_MAX", 14.0)
+    sim = common.make_pair("urbano_residencial", link, 60.0, 1, cap=28.0)
+    assert sim.nodes[0].ep.cap == 14.0 and sim.nodes[1].ep.cap == 14.0
+    sim = common.make_pair("urbano_residencial", link, 60.0, 1, cap=10.0)
+    assert sim.nodes[0].ep.cap == 10.0                      # nunca sobe um teto que o cenário já fixou
+    monkeypatch.setattr(common, "TETO_MAX", None)
+    assert common.make_pair("urbano_residencial", link, 60.0, 1, cap=(28.0, 8.0)).nodes[1].ep.cap == 8.0
+    from tools.build_site import folhas
+    f = folhas({"F1": {"1 km": {"cfg": {"pdr": 0.9, "mj_por_pacote_mediana": 12.0}}}, "_doppler": {"pdr": 1}})
+    assert f == [("F1 › 1 km › cfg", 0.9, 12.0)]

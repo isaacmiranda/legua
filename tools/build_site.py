@@ -11,6 +11,7 @@ import datetime
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 
@@ -30,6 +31,61 @@ def limpar(x):
     if isinstance(x, list):
         return [limpar(v) for v in x]
     return x
+
+
+def folhas(r, caminho=()):
+    """Células de resultado com PDR (e energia por pacote, se houver), com o caminho até elas."""
+    out = []
+    if isinstance(r, dict):
+        pdr = r.get("pdr") if isinstance(r.get("pdr"), (int, float)) else r.get("pdr_grupo")
+        if isinstance(pdr, (int, float)):
+            mj = r.get("mj_por_pacote_mediana", r.get("mj_por_pacote"))
+            out.append((" › ".join(str(c) for c in caminho), pdr, mj if isinstance(mj, (int, float)) else None))
+        else:
+            for k, v in r.items():
+                if not str(k).startswith("_"):
+                    out += folhas(v, caminho + (k,))
+    return out
+
+
+def ler_tetos(pasta, dados):
+    """Varredura de potência: pastas teto_<dBm>/ ao lado dos resultados normais (que valem como 28 dBm)."""
+    if not pasta or not os.path.isdir(pasta):
+        return None
+    caps = sorted(float(d[5:]) for d in os.listdir(pasta) if d.startswith("teto_") and os.path.isdir(os.path.join(pasta, d)))
+    if not caps:
+        return None
+    nome = lambda c: f"{c:g}"
+    res = {}
+    for c in caps:
+        sub = os.path.join(pasta, f"teto_{nome(c)}")
+        for cen in CENARIOS:
+            p = os.path.join(sub, cen + ".json")
+            if os.path.exists(p):
+                d = json.load(open(p))
+                if "erro" not in d:
+                    res.setdefault(cen, {})[nome(c)] = folhas(d["resultado"])
+    for cen in list(res):
+        if cen in dados:
+            res[cen]["28"] = folhas(dados[cen])
+    out = {"tetos": [nome(c) for c in caps] + ["28"], "cenarios": {}}
+    for cen, por_cap in res.items():
+        chaves = []
+        for cap in por_cap.values():
+            for k, _, _ in cap:
+                if k not in chaves:
+                    chaves.append(k)
+        linhas = []
+        for k in chaves:
+            row = {}
+            for cap, fl in por_cap.items():
+                for kk, pdr, mj in fl:
+                    if kk == k:
+                        row[cap] = [round(pdr, 4), None if mj is None else round(mj, 1)]
+            g = "L" if re.search(r"AdaptLoRa|Légua|adaptlora", k, re.I) else ("F" if "Fixo" in k else "O")
+            linhas.append({"k": k, "g": g, "v": row})
+        out["cenarios"][cen] = linhas
+    return out
 
 
 def ler_escala(pasta):
@@ -55,7 +111,7 @@ def ler_escala(pasta):
             escalas.add(d["escala"])
     if not dados:
         return None
-    return {"dados": dados, "meta": {"cenarios": info, "faltando": faltando, "completa": not faltando,
+    return {"dados": dados, "tetos": ler_tetos(pasta, dados), "meta": {"cenarios": info, "faltando": faltando, "completa": not faltando,
                                      "escala": sorted(escalas)[0] if escalas else None}}
 
 

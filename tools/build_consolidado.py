@@ -135,6 +135,46 @@ if pw:
         "O controle de potência quase não muda o PDR e a energia varia pouco nos dois sentidos; seu ganho é pequeno com este modelo de corrente."])
 secao("potencia", "Varredura da potência de TX (P)", corpo or "<p>Sem dados.</p>")
 
+# ------------------------------------------------------------------ teto de TX × cenários
+def _tetos():
+    from tools.build_site import ler_escala
+    for escala, pasta in (("full", "simsuite/results_full"), ("quick", "simsuite/results")):
+        e = ler_escala(os.path.join(RAIZ, pasta))
+        if e and e.get("tetos"):
+            return e["tetos"], escala
+    return None, None
+
+
+TT, tte = _tetos()
+corpo = ""
+if TT:
+    caps = sorted(TT["tetos"], key=float)
+    linhas, fixos = [], []
+    NOMES = {"L": "Légua", "F": "modos fixos", "O": "outros"}
+    for cen, todas in TT["cenarios"].items():
+        if not any(len({round(r["v"][c][0], 2) for c in r["v"]}) > 1 for r in todas):
+            fixos.append(cen)
+            continue
+        gs = [g for g in "LFO" if any(r.get("g") == g for r in todas)]
+        for g in (gs if len(gs) > 1 else [None]):
+            rows = [r for r in todas if g is None or r.get("g") == g]
+            comuns = [r for r in rows if all(cp in r["v"] and r["v"][cp][0] >= 0.02 and r["v"][cp][1] is not None for cp in caps)]
+            cel = []
+            for cp in caps:
+                pd = [r["v"][cp][0] for r in rows if cp in r["v"]]
+                mj = sorted(r["v"][cp][1] for r in comuns)
+                cel.append("–" if not pd else f"{pct(sum(pd) / len(pd))}" + (f" · {n(mj[len(mj) // 2], 0)} mJ" if mj else ""))
+            rot = cen + (f" · {NOMES[g]}" if g else "")
+            linhas.append([f"{rot} ({len(rows)} células, {len(comuns)} comparáveis em energia)"] + cel)
+    corpo += tabela(["Cenário"] + [f"{c} dBm" for c in caps], linhas, [False] + [True] * len(caps))
+    if fixos:
+        corpo += f"<p>Sem diferença entre os tetos: {', '.join(fixos)} (cenários de bancada com teto próprio, ou modelos de terceiros com potência própria).</p>"
+    corpo += lista([
+        "Tetos menores deslocam o alcance dos enlaces: as células mais distantes caem a zero, e a média de PDR mistura enlaces mortos com saudáveis; a tabela por célula está na aba Teto × cenários do site.",
+        "Os cenários de bancada (B*) já têm tetos fixos de 0 e 10 dBm e mudam pouco; a distância dos cenários de campo não foi reescalada para cada teto.",
+        "A corrente do PA é estimada; onde o teto menor gasta menos energia depende da curva real, que só a bancada mede."])
+secao("tetos", "Varredura de teto de TX em todos os cenários", corpo or "<p>Sem dados da varredura (rode <code>tools/varredura_teto.sh</code>).</p>")
+
 # ------------------------------------------------------------------ 2. sintonia / campo
 f7, f7e, _ = R("F7")
 corpo = ""

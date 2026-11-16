@@ -7,7 +7,7 @@ from ..core import mobility as mob
 from ..core.radio import p_demod, noise_dbm, i_tx_ma, VCC, CR_GAIN_DB
 from ..protocol.modes import table, DATA_BYTES, CTRL_BYTES
 from ..baselines import mesh_models as MM
-from .common import r7_km
+from .common import r7_km, teto
 
 
 # ------------------------------------------------------------------ estrela T2/T3
@@ -35,7 +35,7 @@ def star(escala="quick", seed=41):
 
         def margin(i, m, t, extra=0.0):
             g = links[i].gain_db(t) - (weak_db if i == weak else 0.0) + extra
-            return min(28.0, m.cap) + g - m.sens(nr)
+            return min(teto(28.0), m.cap) + g - m.sens(nr)
 
         def best_mode(margins_fn):
             for m in modes:                      # do mais rápido ao mais lento
@@ -92,10 +92,10 @@ def star(escala="quick", seed=41):
                         continue
                     gid = next(g for g, mem in group.items() if i in mem)
                     m = gmode[gid]
-                    p = 28.0 - (weak_db if i == weak else 0.0)
+                    p = teto(28.0) - (weak_db if i == weak else 0.0)
                     okp = False
                     for _ in range(4):
-                        energy += VCC * i_tx_ma(min(28.0, m.cap)) * m.toa(DATA_BYTES)
+                        energy += VCC * i_tx_ma(min(teto(28.0), m.cap)) * m.toa(DATA_BYTES)
                         if rr.random() < _p_ok(links[i], t, m, min(p, m.cap), nr):
                             okp = True
                             break

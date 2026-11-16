@@ -173,6 +173,10 @@ ALL = ["modos", "amostras", "formal", "B2", "B3", "B4", "B5", "B6", "B7", "B8", 
        "F", "F6", "F7", "P", "M", "T23", "T456", "fase7", "xsim", "equiv"]
 
 
+# cenários cujo resultado muda com o teto de TX (os demais são tabelas, verificação ou independem da potência)
+CENARIOS_DE_TETO = ["B2", "B3", "B4", "B5", "B6", "B7", "B11", "F", "F6", "F7", "M", "T23", "T456", "fase7"]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--escala", default="quick", choices=["quick", "full"])
@@ -181,10 +185,17 @@ def main():
     ap.add_argument("--limite-horas", type=float, default=8.0,
                     help="na escala full, recusa rodar se a estimativa passar disso (padrão 8 h); veja --forcar")
     ap.add_argument("--forcar", action="store_true", help="ignora o limite de horas da escala full")
+    ap.add_argument("--teto", type=float, default=None,
+                    help="varredura de potência: limita o teto de TX de todos os nós (dBm) e grava em results[_full]/teto_<N>/; "
+                         "sem --so roda os cenários que dependem do teto")
     ap.add_argument("--saida", default=None, help="diretório de saída (padrão: results/ no quick, results_full/ no full)")
     a = ap.parse_args()
-    names = a.so or ALL
+    if a.teto is not None:
+        os.environ["LEGUA_TETO_MAX"] = f"{a.teto:g}"           # herdado pelos processos filhos (common.TETO_MAX)
+    names = a.so or (CENARIOS_DE_TETO if a.teto is not None else ALL)
     outdir = a.saida or os.path.join(HERE, "results" if a.escala == "quick" else "results_full")
+    if a.teto is not None and not a.saida:
+        outdir = os.path.join(outdir, f"teto_{a.teto:g}")
     if a.escala == "full" and not a.forcar:
         from .analysis.orcamento import estimar_execucao, fmt
         est = estimar_execucao(os.path.join(HERE, "results"), outdir, names)
