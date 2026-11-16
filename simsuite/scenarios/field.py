@@ -44,11 +44,11 @@ def configs(mobile=False, app=20.0):
         "Fixo SF10/125 salto (base)": dict(factory=locked_factory(base)),
         "Fixo SF7/125 salto (rápido)": dict(factory=locked_factory(by_name(modes, "SF7/125/FH"))),
         "Fixo SF12/500 digital": dict(factory=locked_factory(by_name(modes, "SF12/500"))),
-        "AdaptLoRa perfil fixo": dict(cfg=Config()),
+        "Légua perfil fixo": dict(cfg=Config()),
     }
     if mobile:
         ts = max(30.0, 3 * app)               # silêncio proporcional ao tráfego
-        c["AdaptLoRa perfil móvel"] = dict(cfg=Config(mobile=True, cooldown_up=120.0, n_up=10, t_silence=ts,
+        c["Légua perfil móvel"] = dict(cfg=Config(mobile=True, cooldown_up=120.0, n_up=10, t_silence=ts,
                                                       t_recovery=2 * ts, fail_streak_degrade=2, t_valid=20.0))
     return c
 
@@ -128,7 +128,7 @@ def f6_long_duration(escala="quick"):
                                    "rural aberto 8 km": ("rural_aberto", 8.0, 8.5)}.items():
         env = ENVS[env_id]
         row = {}
-        for cname in ("Fixo SF10/125 salto (base)", "AdaptLoRa perfil fixo"):
+        for cname in ("Fixo SF10/125 salto (base)", "Légua perfil fixo"):
             ckw = configs()[cname]
             mk = lambda s, env=env, d=d, off=off: OffsetLink(
                 FixedLink(env, d, np.random.default_rng(77 + s), T + 10), off)

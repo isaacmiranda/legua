@@ -1,6 +1,6 @@
 # Ideia 01: Biblioteca de comunicação adaptativa sobre LoRa
 
-> Nome: **AdaptLoRa** (provisório, aceito; ver §9.1)
+> Nome: **Légua** (provisório, aceito; ver §9.1)
 > Tipo: software (biblioteca embarcada multiplataforma para rádios Semtech SX12xx)
 > Status: rascunho para especificação (SDD), revisão 3
 
@@ -10,7 +10,7 @@
 
 Hoje, cada projeto que usa LoRa fixa na mão os parâmetros de rádio: spreading factor (SF), largura de banda (BW), coding rate (CR), potência e frequência. Essa escolha fixa quase nunca é a melhor para todas as situações. Um nó perto do outro gasta bateria à toa com SF12 e muito tempo no ar. Um nó distante perde pacotes se usar SF7 com banda larga.
 
-A **AdaptLoRa** é uma biblioteca que pode ser reaproveitada em qualquer projeto, em qualquer plataforma embarcada e com qualquer antena. Ela:
+A **Légua** é uma biblioteca que pode ser reaproveitada em qualquer projeto, em qualquer plataforma embarcada e com qualquer antena. Ela:
 
 1. **Separa o conteúdo da configuração.** Todo pacote tem duas partes: um *payload genérico*, com os dados da aplicação, que a biblioteca não interpreta, e um *bloco de configuração*, com os metadados de enlace.
 2. **Torna cada nó autônomo** para descobrir vizinhos e negociar o melhor modo de enlace com eles, seja a rede ponto a ponto, ponto-multiponto ou multiponto-multiponto.
@@ -343,7 +343,7 @@ Objetivo: em cada ensaio, saber **onde cada nó estava** quando transmitiu ou re
 | 6 | Região | Todas as regiões, com foco no Brasil. |
 | 7 | GNSS nos ensaios | Um único modelo de placa e módulo. |
 | 8 | Registros | Cada nó mantém o próprio registro. |
-| 9 | Nome | AdaptLoRa, sujeito à verificação de §9.1. |
+| 9 | Nome | Légua, sujeito à verificação de §9.1. |
 | 10 | Antena | A biblioteca é independente de antena; a antena é um perfil configurável. A comparação de antenas é feita à parte. |
 | 11 | Multi-salto | Selecionável durante o uso, nó a nó. |
 | 12 | Escuta de vários modos | Modo base comum (sempre o inicial) + modos de dados por grupo de enlace + agenda de escuta. Vale para ponto a ponto, ponto-multiponto e multiponto-multiponto. |
@@ -375,7 +375,7 @@ Objetivo: em cada ensaio, saber **onde cada nó estava** quando transmitiu ou re
 
 ### 9.1 Verificação do nome
 
-Uma busca por "AdaptLoRa" não encontrou nenhuma biblioteca publicada com esse nome. Antes de publicar, ainda vale conferir diretamente nos registros do GitHub, do PlatformIO, do Gerenciador de Bibliotecas do Arduino e do ESP Component Registry.
+Uma busca por "Légua" não encontrou nenhuma biblioteca publicada com esse nome. Antes de publicar, ainda vale conferir diretamente nos registros do GitHub, do PlatformIO, do Gerenciador de Bibliotecas do Arduino e do ESP Component Registry.
 
 ### 9.2 Projetos existentes
 

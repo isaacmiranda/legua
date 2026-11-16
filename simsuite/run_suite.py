@@ -1,4 +1,4 @@
-"""Suíte de simulação do plano de testes da AdaptLoRa (doc 05).
+"""Suíte de simulação do plano de testes da Légua (doc 05).
 
 Uso (a partir do diretório que contém 'simsuite'):
   python3 -m simsuite.run_suite                  # escala rápida, todos os cenários

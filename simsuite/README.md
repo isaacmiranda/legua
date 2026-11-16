@@ -1,6 +1,6 @@
 # Légua — suíte de simulação (`simsuite`)
 
-> **Légua**: acordo de modo, validação e rollback para enlaces LoRa ponto a ponto (nome de trabalho; antes "AdaptLoRa").
+> **Légua**: acordo de modo, validação e rollback para enlaces LoRa ponto a ponto (nome de trabalho).
 
 Suíte de simulação do plano de testes da Légua
 
@@ -25,10 +25,10 @@ simulável) e figuras `fig_*.png`. `exemplo_telemetria.jsonl` mostra o esquema d
 | Pasta | Conteúdo |
 |---|---|
 | `core/` | rádio (ToA, sensibilidade, LDRO, Doppler/deriva, corrente), canal estático, enlaces móveis (LoS/NLoS, sombreamento correlacionado, Rice), mobilidade, regulação BR-2026 (plano de canais, sequência de salto, verificador de conformidade), simulador de eventos discretos (half-duplex, CAD/LBT, colisões com captura, flash stall), bancada com atenuador programável |
-| `protocol/` | tabela de modos BR-2026 e o endpoint AdaptLoRa (máquina de estados pura: BASE/DATA/NEGOCIANDO/AGUARDA_COMMIT/VALIDANDO/RECUPERACAO, PROPOSE/VOTE/COMMIT, validação, âncora em NVM, rollback, alarme, perfil móvel, escada de degradação, volta à âncora) + variantes (modo travado, teste de negociação) |
+| `protocol/` | tabela de modos BR-2026 e o endpoint Légua (máquina de estados pura: BASE/DATA/NEGOCIANDO/AGUARDA_COMMIT/VALIDANDO/RECUPERACAO, PROPOSE/VOTE/COMMIT, validação, âncora em NVM, rollback, alarme, perfil móvel, escada de degradação, volta à âncora) + variantes (modo travado, teste de negociação) |
 | `formal/` | verificador de estados explícito (BFS) das propriedades P1–P3 com perda adversária, ablações e cadeia de Markov da rodada de negociação |
 | `analysis/` | estatística (Wilson, Clopper-Pearson, tamanhos de amostra, bootstrap em blocos), leitura de telemetria JSONL, relatório |
-| `baselines/` | modelos nível-2 de Meshtastic, MeshCore, Reticulum, LoRaMesher e AdaptLoRa em malha |
+| `baselines/` | modelos nível-2 de Meshtastic, MeshCore, Reticulum, LoRaMesher e Légua em malha |
 | `scenarios/` | bancada (B2–B11), campo fixo (F1–F6), mobilidade (M1–M7), topologias (T2–T6) |
 
 ## Mapa plano de testes → simulação

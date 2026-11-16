@@ -1,4 +1,4 @@
-"""Máquina de estados de referência da AdaptLoRa v1 para um enlace P2P (doc 05).
+"""Máquina de estados de referência da Légua v1 para um enlace P2P (doc 05).
 
 Pura: não conhece rádio nem relógio. Recebe eventos (on_rx, on_app, on_timer,
 on_tx_done, reboot) e devolve ações:

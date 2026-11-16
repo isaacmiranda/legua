@@ -1,4 +1,4 @@
-"""Simulador de eventos discretos para enlaces P2P com a AdaptLoRa de referência.
+"""Simulador de eventos discretos para enlaces P2P com a Légua de referência.
 
 O rádio é half-duplex e só recebe no modo e na sequência de salto configurados.
 Cada quadro passa por: casamento de modo e canal (relógios com deriva), Doppler

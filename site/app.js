@@ -38,8 +38,8 @@
 
   // Entidades fixas -> cor, traço e marcador (a cor segue a entidade, nunca a posição).
   var CFG = {
-    "AdaptLoRa perfil fixo":       { label: "Légua (perfil fixo)",   short: "Légua fixo",  slot: 1, dash: "",        mk: "circle" },
-    "AdaptLoRa perfil móvel":      { label: "Légua (perfil móvel)",  short: "Légua móvel", slot: 2, dash: "",        mk: "diamond" },
+    "Légua perfil fixo":       { label: "Légua (perfil fixo)",   short: "Légua fixo",  slot: 1, dash: "",        mk: "circle" },
+    "Légua perfil móvel":      { label: "Légua (perfil móvel)",  short: "Légua móvel", slot: 2, dash: "",        mk: "diamond" },
     "Fixo SF10/125 salto (base)":  { label: "SF10/125 salto (base)", short: "SF10 base",   slot: 3, dash: "6 3",     mk: "square" },
     "Fixo SF7/125 salto (rápido)": { label: "SF7/125 salto (rápido)",short: "SF7 rápido",  slot: 4, dash: "2 3",     mk: "triangle" },
     "Fixo SF12/500 digital":       { label: "SF12/500 digital",      short: "SF12/500",    slot: 5, dash: "8 3 2 3", mk: "cross" }
@@ -638,7 +638,7 @@
       ["Fonte", "Resultado no modelo", "Pior ocupação por canal", "Violações"],
       k11.map(function (k) { var r = b11[k], v = r.violacoes, tot = 0, det = [];
         keys(v).forEach(function (x) { tot += v[x]; if (v[x]) det.push(x.replace(/_/g, " ") + " = " + v[x]); });
-        return [k.replace("AdaptLoRa", "Légua"), tot === 0 ? { pill: "ok", text: "sem violações" } : { pill: "bad", text: "viola" }, nf(r.pior_ocupacao_s, 3) + " s", det.join("; ") || "–"]; }),
+        return [k.replace("Légua", "Légua"), tot === 0 ? { pill: "ok", text: "sem violações" } : { pill: "bad", text: "viola" }, nf(r.pior_ocupacao_s, 3) + " s", det.join("; ") || "–"]; }),
       [false, false, true, false]);
     mount(panel, [t7, t11]);
   }
@@ -805,7 +805,7 @@
     F6: { t: "Longa duração (F6)", cells: function (D) { var o = []; keys(D.F6).forEach(function (en) { keys(D.F6[en]).forEach(function (cf) { o.push({ k: en, c: cf, r: D.F6[en][cf] }); }); }); return o; } },
     F7: { t: "Sintonia da aceleração (F7)", cells: function (D) { var o = []; keys(D.F7).forEach(function (en) { keys(D.F7[en]).forEach(function (vn) { o.push({ k: en, c: vn, r: D.F7[en][vn] }); }); }); return o; } }
   };
-  var cmp = { grp: "F", fld: "pdr", cfg: "AdaptLoRa perfil fixo" };
+  var cmp = { grp: "F", fld: "pdr", cfg: "Légua perfil fixo" };
 
   function panelEscalas(panel) {
     var O = DATA.orcamento, nodes = [];
@@ -990,7 +990,7 @@
   // ------------------------------------------------------------------ discussão dos resultados
   // Cada aba tem uma leitura: características, vantagens, desvantagens, aplicações e críticas. Os números citados
   // são lidos dos dados da escala escolhida (mudam com ela); o texto interpretativo vale para as duas escalas.
-  var LG = "AdaptLoRa perfil fixo", LM = "AdaptLoRa perfil móvel", SB = "Fixo SF10/125 salto (base)", S7 = "Fixo SF7/125 salto (rápido)";
+  var LG = "Légua perfil fixo", LM = "Légua perfil móvel", SB = "Fixo SF10/125 salto (base)", S7 = "Fixo SF7/125 salto (rápido)";
   function pp(a, b) { return nf(100 * Math.abs(a - b), 1); }              // diferença em pontos percentuais
   function rel(a, b) { return nf(100 * Math.abs(a / b - 1), 0) + "%"; }   // diferença relativa
   var DISC = {
@@ -1256,18 +1256,18 @@
       var FR = " (sem regra (22 dBm))", BR = " (BR-2026)";
       return {
         car: ["Estrela com um membro 10 dB mais fraco: o PDR dele é " + fmtPdr(w10.unanimidade.pdr_membro_fraco) + " na unanimidade, " + fmtPdr(w10.divisao.pdr_membro_fraco) + " dividindo o grupo e " + fmtPdr(w10.relay.pdr_membro_fraco) + " com relay; o relay gasta " + fmtMj(w10.relay.mj_por_pacote) + " contra " + fmtMj(w10.unanimidade.mj_por_pacote) + " e fecha " + nf(w10.relay["negociacoes_ok_%"], 0) + "% das negociações contra " + nf(w10.unanimidade["negociacoes_ok_%"], 0) + "%.",
-          "Malha urbana de 14 nós em regime livre (22 dBm, sem regra): Meshtastic entrega " + fmtPdr(t5["meshtastic" + FR].pdr) + ", Légua " + fmtPdr(t5["adaptlora" + FR].pdr) + " e Légua com inundação " + fmtPdr(t5["adaptlora+ff" + FR].pdr) + "; a Légua gasta " + fmtMj(t5["adaptlora" + FR].mj_por_pacote) + " por pacote contra " + fmtMj(t5["meshtastic" + FR].mj_por_pacote) + " e ocupa " + nf(t5["adaptlora" + FR]["ocupacao_%"], 0) + "% do canal contra " + nf(t5["meshtastic" + FR]["ocupacao_%"], 0) + "%.",
-          "No regime BR-2026 os modelos de terceiros, obrigados a respeitar o envelope sem trocar de preset, entregam no máximo " + fmtPdr(Math.max(t5["meshtastic" + BR].pdr, t5["meshcore" + BR].pdr)) + " na malha de 14 nós; a Légua entrega " + fmtPdr(t5["adaptlora" + BR].pdr) + ". Na linha de 6 nós em regime livre a Légua entrega " + fmtPdr(t4["adaptlora" + FR].pdr) + " contra " + fmtPdr(t4["meshtastic" + FR].pdr) + " do Meshtastic."],
+          "Malha urbana de 14 nós em regime livre (22 dBm, sem regra): Meshtastic entrega " + fmtPdr(t5["meshtastic" + FR].pdr) + ", Légua " + fmtPdr(t5["legua" + FR].pdr) + " e Légua com inundação " + fmtPdr(t5["legua+ff" + FR].pdr) + "; a Légua gasta " + fmtMj(t5["legua" + FR].mj_por_pacote) + " por pacote contra " + fmtMj(t5["meshtastic" + FR].mj_por_pacote) + " e ocupa " + nf(t5["legua" + FR]["ocupacao_%"], 0) + "% do canal contra " + nf(t5["meshtastic" + FR]["ocupacao_%"], 0) + "%.",
+          "No regime BR-2026 os modelos de terceiros, obrigados a respeitar o envelope sem trocar de preset, entregam no máximo " + fmtPdr(Math.max(t5["meshtastic" + BR].pdr, t5["meshcore" + BR].pdr)) + " na malha de 14 nós; a Légua entrega " + fmtPdr(t5["legua" + BR].pdr) + ". Na linha de 6 nós em regime livre a Légua entrega " + fmtPdr(t4["legua" + FR].pdr) + " contra " + fmtPdr(t4["meshtastic" + FR].pdr) + " do Meshtastic."],
         van: ["Em estrela, o relay evita que o membro fraco trave o grupo inteiro na pior velocidade e, com membro fraco, é a política mais barata em energia.",
           "Em malha livre, a Légua (com inundação) entrega próximo dos concorrentes modelados com cerca de um terço da energia por pacote e da ocupação do canal.",
           "O fallback por inundação no modo base dá robustez a custo baixo, e o mesmo acordo P2P escala para grupos pequenos."],
         des: ["O relay concentra tráfego e é ponto único de falha; adiciona um salto de latência.",
           "A unanimidade é a pior política: o membro mais fraco define o modo de todos e a maioria das negociações falha.",
-          "Em malha livre a Légua sem inundação entrega menos que o Meshtastic: " + pp(t5["adaptlora" + FR].pdr, t5["meshtastic" + FR].pdr) + " pontos na malha de 14 nós e " + pp(t6["adaptlora" + FR].pdr, t6["meshtastic" + FR].pdr) + " na malha com 2 nós móveis; a inundação fecha a diferença. A vantagem está em energia e ocupação, não em entrega.",
+          "Em malha livre a Légua sem inundação entrega menos que o Meshtastic: " + pp(t5["legua" + FR].pdr, t5["meshtastic" + FR].pdr) + " pontos na malha de 14 nós e " + pp(t6["legua" + FR].pdr, t6["meshtastic" + FR].pdr) + " na malha com 2 nós móveis; a inundação fecha a diferença. A vantagem está em energia e ocupação, não em entrega.",
           "A inundação eleva a ocupação do canal (até ~15% no regime livre), o que pesa na regra de ocupação do BR-2026."],
         apl: ["Estrelas com membros em enlaces desiguais (um nó atrás de parede ou em mata): usar relay.",
           "Malhas pequenas sob a regra BR-2026, onde presets nativos de terceiros não cabem no envelope sem adaptação, e onde ocupação e energia limitam.",
-          "Linhas de vários saltos sob a regra BR-2026: a inundação eleva o PDR de " + fmtPdr(t4["adaptlora" + BR].pdr) + " para " + fmtPdr(t4["adaptlora+ff" + BR].pdr) + " na linha urbana de 6 nós; em regime livre ela é neutra (" + fmtPdr(t4["adaptlora" + FR].pdr) + " e " + fmtPdr(t4["adaptlora+ff" + FR].pdr) + ")."],
+          "Linhas de vários saltos sob a regra BR-2026: a inundação eleva o PDR de " + fmtPdr(t4["legua" + BR].pdr) + " para " + fmtPdr(t4["legua+ff" + BR].pdr) + " na linha urbana de 6 nós; em regime livre ela é neutra (" + fmtPdr(t4["legua" + FR].pdr) + " e " + fmtPdr(t4["legua+ff" + FR].pdr) + ")."],
         cri: ["**Os baselines são modelos comportamentais nossos** (nível 2), não as implementações reais do Meshtastic, MeshCore, Reticulum e LoRaMesher. Nenhum resultado aqui é uma afirmação sobre esses produtos.",
           "A coluna BR-2026 mostra o que acontece ao impor a regra a presets que não foram feitos para ela; isso diz que o preset padrão não cabe no envelope, não que o produto seja ruim. A comparação justa de desempenho é a do regime livre, onde a vantagem da Légua é pequena em entrega e grande em energia e ocupação.",
           "Os cenários foram dimensionados para o alcance da Légua; falta a validação simulação × simulação (Meshtasticator, LoRaSim) e a bancada com 3 e 4 placas (T2/T3)."]

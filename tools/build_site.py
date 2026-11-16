@@ -82,7 +82,7 @@ def ler_tetos(pasta, dados):
                 for kk, pdr, mj in fl:
                     if kk == k:
                         row[cap] = [round(pdr, 4), None if mj is None else round(mj, 1)]
-            g = "L" if re.search(r"AdaptLoRa|Légua|adaptlora", k, re.I) else ("F" if "Fixo" in k else "O")
+            g = "L" if re.search(r"Légua|legua", k, re.I) else ("F" if "Fixo" in k else "O")
             linhas.append({"k": k, "g": g, "v": row})
         out["cenarios"][cen] = linhas
     return out

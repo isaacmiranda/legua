@@ -3,7 +3,7 @@
 **Acordo de modo, validação e rollback para enlaces LoRa ponto a ponto.**
 *Mode agreement, validation and rollback for peer-to-peer LoRa links.*
 
-> Nome de trabalho; antes "AdaptLoRa". "Légua" é a medida de distância do sertão.
+> Nome de trabalho. "Légua" é a medida de distância do sertão.
 > "LoRa" é marca da Semtech e aparece aqui só como descrição técnica do uso.
 
 ## O que é

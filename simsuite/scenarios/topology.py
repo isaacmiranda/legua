@@ -130,7 +130,7 @@ def _mesh_links(env, pos_or_tracks, T, seed, mobile_idx=()):
 
 def mesh(escala="quick", seed=51):
     T = 2 * 3600 if escala == "quick" else 6 * 3600
-    methods = ["meshtastic", "meshcore", "reticulum", "loramesher", "adaptlora", "adaptlora+ff"]
+    methods = ["meshtastic", "meshcore", "reticulum", "loramesher", "legua", "legua+ff"]
     out = {}
     for env_id in ("urbano_residencial", "rural_aberto"):
         env = ENVS[env_id]
@@ -157,11 +157,11 @@ def mesh(escala="quick", seed=51):
             for regime, p_base in (("sem regra (22 dBm)", 22.0), ("BR-2026", None)):
                 for m in methods:
                     if regime == "BR-2026":
-                        p = 28.0 if m.startswith("adaptlora") else -3.0      # canal fixo estreito: baixa potência
+                        p = 28.0 if m.startswith("legua") else -3.0      # canal fixo estreito: baixa potência
                     else:
                         p = p_base
                     r = MM.run_two_pass(m, env, links, len(tracks), sink, T, 120.0, seed + 7, p,
-                                        "BR-2026" if (regime == "BR-2026" or m.startswith("adaptlora")) else "sem-regra")
+                                        "BR-2026" if (regime == "BR-2026" or m.startswith("legua")) else "sem-regra")
                     row[f"{m} ({regime})"] = {k: (round(v, 4) if isinstance(v, float) else v) for k, v in r.items()
                                               if k not in ("ocupacao", "perda_colisao")}
                     row[f"{m} ({regime})"]["ocupacao_%"] = round(100 * sum(r["ocupacao"].values()), 2)

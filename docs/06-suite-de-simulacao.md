@@ -1,6 +1,6 @@
 # 06 — Suíte de simulação do plano de testes (simsuite)
 
-> Nome do projeto: **Légua** (antes "AdaptLoRa"; ver decisão de nome na conversa de 15/11/2026). Os docs 01–05 ainda usam o nome antigo.
+> Nome do projeto: **Légua** (ver docs/00).
 
 Data: 15/11/2026. Base: plano de testes do doc 05 (Fases 0–7, B1–B11, F1–F6, M1–M7, T1–T6).
 Código: pacote `simsuite` (Python + numpy/scipy/matplotlib), 20 cenários, testes automatizados (Python, núcleo C e site); a escala rápida leva ~9,5 min com um processo (~4 min com quatro) e a longa ~1 h 06 min (`docs/09`).
@@ -28,7 +28,7 @@ Código: pacote `simsuite` (Python + numpy/scipy/matplotlib), 20 cenários, test
 ## 2. Arquitetura
 
 - `core/`: rádio (ToA, sensibilidade, LDRO, tolerância a deriva/Doppler, corrente com FEM até 28 dBm), canal fixo e móvel, mobilidade (pedestre, bicicleta, carro, drone, gado), regulação (plano de canais, sequência de salto com guarda de 15 ms, verificador), DES, atenuador de bancada.
-- `protocol/`: tabela de modos BR-2026 e endpoint AdaptLoRa como máquina de estados pura (doc 03 E1), variantes travadas.
+- `protocol/`: tabela de modos BR-2026 e endpoint Légua como máquina de estados pura (doc 03 E1), variantes travadas.
 - `formal/`, `analysis/`, `baselines/`, `scenarios/`, `run_suite.py`, `tests/`.
 
 ## 3. Resultados da escala rápida (indicativos)
@@ -43,18 +43,18 @@ Código: pacote `simsuite` (Python + numpy/scipy/matplotlib), 20 cenários, test
 
 **B9 deriva.** Com cristal comum (sem TCXO), SF10/125, SF11/250 e SF12/500 falham a ≥22 dBm pelo aquecimento do PA. Exigir TCXO ou forçar LDRO.
 
-**B11 conformidade.** AdaptLoRa e os presets com salto ficam conformes; LongFast fixo a 22 dBm não.
+**B11 conformidade.** Légua e os presets com salto ficam conformes; LongFast fixo a 22 dBm não.
 
 **F (campo fixo, energia mediana por pacote entregue).**
 - Rural aberto/serra e curtas distâncias urbanas: ganhos grandes, mesma entrega (F4 3 km: 57 mJ contra 323–2074 mJ dos presets; F1 0,3 km: 114 contra 336–2363).
-- Limite de alcance: AdaptLoRa acompanha o modo base (F4 26 km 0,97; F1 3 km 0,40 ≈ base).
+- Limite de alcance: Légua acompanha o modo base (F4 26 km 0,97; F1 3 km 0,40 ≈ base).
 - Zona intermediária urbana (F1 0,6–1,5 km): PDR 1–4 pontos abaixo do base fixo; energia abaixo do base mas por vezes acima do SF7 fixo. É o ponto fraco a atacar.
 
 **M (mobilidade).** Perfil móvel fica próximo do base fixo em confiabilidade (M4 rodovia 0,996; M5 0,99). Perfil fixo troca entrega por energia (M1 urbano 0,87 a 510 mJ). Em pedestre/drone rural o perfil fixo entrega ≥0,99 com 40–90 mJ.
 
 **T2/T3.** Unanimidade sofre com membro fraco; relay é a melhor política.
 
-**T4–T6 malha.** Sem regra (22 dBm), AdaptLoRa+fallback por inundação empata ou supera as malhas existentes (T4 urbano 0,70 contra 0,40 do Meshtastic). Sob BR-2026 com as malhas de terceiros limitadas a −3 dBm (canal fixo estreito), só AdaptLoRa funciona (0,96–1,0 contra ≤0,09). O fallback por inundação resolve quebras de rota com nós móveis (T6 urbano 0,96 → 1,0).
+**T4–T6 malha.** Sem regra (22 dBm), Légua+fallback por inundação empata ou supera as malhas existentes (T4 urbano 0,70 contra 0,40 do Meshtastic). Sob BR-2026 com as malhas de terceiros limitadas a −3 dBm (canal fixo estreito), só Légua funciona (0,96–1,0 contra ≤0,09). O fallback por inundação resolve quebras de rota com nós móveis (T6 urbano 0,96 → 1,0).
 
 ## 4. Ajustes de protocolo que a simulação motivou
 

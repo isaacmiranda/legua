@@ -30,7 +30,7 @@ def _load(res):
 
 def write_report(res, mapa, escala):
     R = _load(res)
-    L = [f"# Suíte de simulação da AdaptLoRa: resultados ({'escala rápida' if escala == 'quick' else 'escala do plano'})", "",
+    L = [f"# Suíte de simulação da Légua: resultados ({'escala rápida' if escala == 'quick' else 'escala do plano'})", "",
          "Gerado por `python3 -m simsuite.run_suite`. Todos os números saem de modelos com parâmetros estimados "
          "(canal, corrente do PA, deriva, interferência) e servem para dimensionar e comparar, não para prever "
          "valores absolutos de campo.", "", "## O que é simulável no plano de testes", "",

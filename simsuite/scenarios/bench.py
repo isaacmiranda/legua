@@ -309,7 +309,7 @@ def b11_compliance(escala="quick", seed=6):
     modes, base, rec = table()
     T = 2 * 3600 if escala == "quick" else 12 * 3600
     out = {}
-    cases = {"AdaptLoRa (perfil BR-2026)": None,
+    cases = {"Légua (perfil BR-2026)": None,
              "Fixo SF10/125 com salto": by_name([base], base.name),
              "Fixo SF12/500 digital": by_name(modes, "SF12/500")}
     for nome, mode in cases.items():

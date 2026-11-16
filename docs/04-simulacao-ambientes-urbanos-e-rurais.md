@@ -1,6 +1,6 @@
-# AdaptLoRa: simulação em ambientes urbanos e rurais
+# Légua: simulação em ambientes urbanos e rurais
 
-> Documento 04 do projeto. Comparação quantitativa entre a AdaptLoRa (como especificada nos documentos 01 e 03) e métodos tradicionais, em ponto a ponto, estrela e malha.
+> Documento 04 do projeto. Comparação quantitativa entre a Légua (como especificada nos documentos 01 e 03) e métodos tradicionais, em ponto a ponto, estrela e malha.
 > Data: 14 de novembro de 2026. Simulador: `adaptsim` (Python + numpy, semente fixa).
 > Painel da campanha 1: https://claude.ai/artifact/2sqmzqzbR3rNukxvTt56FD
 > Painel da campanha 2 (SF11/SF12, capacidade total, exceção da Anatel): https://claude.ai/artifact/3Rtc3iSNNkvkBYNmSMj86R
@@ -20,19 +20,19 @@
 
 R7 é a distância em que a perda média esgota o orçamento do SF7/125 a 22 dBm. Eventos: obstruções (veículos, contêineres), chuva, ciclo diurno de umidade; interferência de terceiros por ALOHA com captura. Calibração grosseira: rural aberto reproduz ~8 km com SF7/20 dBm (Facina et al., SBrT 2021). Curva de erro 2,5 dB acima do limiar do datasheet (Hernandez Ortiz et al., 2026).
 
-**Métodos:** fixo SF7/125, fixo SF12/125, fixo SF11/250 (LongFast), fixo SF12/500, ADR estilo LoRaWAN (servidor Semtech + ADR_ACK_LIMIT/DELAY, com receptor idealmente sincronizado), AdaptLoRa (cabeçalho de dados de 10 B) e AdaptLoRa com cabeçalho de 8 B. Na malha: inundação gerenciada estilo Meshtastic, roteamento SF7 fixo estilo LoRaMesher e AdaptLoRa com modo por enlace e rota de menor custo.
+**Métodos:** fixo SF7/125, fixo SF12/125, fixo SF11/250 (LongFast), fixo SF12/500, ADR estilo LoRaWAN (servidor Semtech + ADR_ACK_LIMIT/DELAY, com receptor idealmente sincronizado), Légua (cabeçalho de dados de 10 B) e Légua com cabeçalho de 8 B. Na malha: inundação gerenciada estilo Meshtastic, roteamento SF7 fixo estilo LoRaMesher e Légua com modo por enlace e rota de menor custo.
 
-**AdaptLoRa modelada:** modo base SF10/125 com salto; PROPOSE/VOTE/COMMIT no modo base, com perda de COMMIT gerando dessincronia; janela de validação de 3 pacotes; âncora e rollback (para o modo base quando o modo que falhou era mais robusto que a âncora); histerese assimétrica (degrada após perda, acelera após 20 pacotes estáveis, 10 min entre trocas, máx. 6 trocas/h); sondagem de 2 pacotes; margem de 5 dB; potência mínima por energia; ocupação ≤ 0,4 s por canal (fragmenta se passar); recuo exponencial após falhas de negociação; congelamento após rollbacks repetidos (E11). Em estrela: subgrupos de até 4 nós por canal, unanimidade, divisão do grupo após 3 falhas.
+**Légua modelada:** modo base SF10/125 com salto; PROPOSE/VOTE/COMMIT no modo base, com perda de COMMIT gerando dessincronia; janela de validação de 3 pacotes; âncora e rollback (para o modo base quando o modo que falhou era mais robusto que a âncora); histerese assimétrica (degrada após perda, acelera após 20 pacotes estáveis, 10 min entre trocas, máx. 6 trocas/h); sondagem de 2 pacotes; margem de 5 dB; potência mínima por energia; ocupação ≤ 0,4 s por canal (fragmenta se passar); recuo exponencial após falhas de negociação; congelamento após rollbacks repetidos (E11). Em estrela: subgrupos de até 4 nós por canal, unanimidade, divisão do grupo após 3 falhas.
 
 **Dois regimes de potência:**
 - *Mesma potência:* 22 dBm para todos (comparação técnica pura).
-- *Regra brasileira (interpretação do projeto, a confirmar com OCD):* canal fixo < 500 kHz na classe de baixa potência (~−3 dBm conduzidos); SF12/500 fixo e AdaptLoRa a 28 dBm.
+- *Regra brasileira (interpretação do projeto, a confirmar com OCD):* canal fixo < 500 kHz na classe de baixa potência (~−3 dBm conduzidos); SF12/500 fixo e Légua a 28 dBm.
 
 ## 2. Resultados principais
 
 ### Ponto a ponto, alcance com 90% de entrega (km)
 
-| Ambiente | SF7 | SF12/125 | LongFast | SF12/500 | ADR | AdaptLoRa | AdaptLoRa 8 B |
+| Ambiente | SF7 | SF12/125 | LongFast | SF12/500 | ADR | Légua | Légua 8 B |
 |---|---|---|---|---|---|---|---|
 | *Mesma potência* | | | | | | | |
 | Urbano denso | 0,48 | **1,01** | 0,73 | 0,67 | 0,21 | 0,63 | 0,67 |
@@ -51,7 +51,7 @@ R7 é a distância em que a perda média esgota o orçamento do SF7/125 a 22 dBm
 
 ### Energia por pacote entregue a 0,5×R7 (mJ, mediana; soma de TX dos dois nós)
 
-| Ambiente | LongFast | SF12/500 | ADR | AdaptLoRa |
+| Ambiente | LongFast | SF12/500 | ADR | Légua |
 |---|---|---|---|---|
 | Rural aberto, mesma potência | 214 | 214 | 38 | **32** |
 | Rural aberto, regra BR | sem enlace | 751 | sem enlace | **45** |
@@ -61,14 +61,14 @@ R7 é a distância em que a perda média esgota o orçamento do SF7/125 a 22 dBm
 
 ### Estrela e malha (resumo)
 
-- **Estrela:** a AdaptLoRa empata em entrega com o SF12/500 e o LongFast, mas com cabeçalho de 10 B gasta cerca de 2× mais energia: nós fracos não conseguem unanimidade, ficam no modo base e cada pacote de 26 B vira 2 fragmentos em SF10/125. Com cabeçalho de 8 B o custo cai para o nível dos fixos robustos (ex.: urbano denso 1296 → 656 mJ) e a entrega sobe 3 a 5 pontos.
-- **Malha, mesma potência:** AdaptLoRa entrega 97–100% (inundação 95–98%, SF7 roteado 82–99%) com 3 a 10× menos tempo no ar que a inundação, mas latência de 3–5 s contra 1–1,5 s.
-- **Malha, regra BR:** só a AdaptLoRa funciona (97–100%); inundação e SF7 roteado em canal fixo caem para 0–20%.
+- **Estrela:** a Légua empata em entrega com o SF12/500 e o LongFast, mas com cabeçalho de 10 B gasta cerca de 2× mais energia: nós fracos não conseguem unanimidade, ficam no modo base e cada pacote de 26 B vira 2 fragmentos em SF10/125. Com cabeçalho de 8 B o custo cai para o nível dos fixos robustos (ex.: urbano denso 1296 → 656 mJ) e a entrega sobe 3 a 5 pontos.
+- **Malha, mesma potência:** Légua entrega 97–100% (inundação 95–98%, SF7 roteado 82–99%) com 3 a 10× menos tempo no ar que a inundação, mas latência de 3–5 s contra 1–1,5 s.
+- **Malha, regra BR:** só a Légua funciona (97–100%); inundação e SF7 roteado em canal fixo caem para 0–20%.
 
 ## 3. Conclusões para o projeto
 
-1. **O ganho da AdaptLoRa é de energia e de conformidade, não de alcance bruto.** Com potência igual, o SF12/125 fixo vai mais longe, porque a AdaptLoRa abre mão de SF11/SF12 em 125 kHz para respeitar 0,4 s por canal. O teto de robustez dela (SF10/125 ≈ SF11/250 ≈ SF12/500) fica ~5 dB atrás.
-2. **Sob a regra brasileira, a comparação muda de figura.** Os métodos de canal fixo estreito perdem quase todo o alcance; restam a AdaptLoRa e o SF12/500 fixo. Contra este, a AdaptLoRa tem o mesmo alcance e gasta de 2,5 a 17× menos energia a meia distância.
+1. **O ganho da Légua é de energia e de conformidade, não de alcance bruto.** Com potência igual, o SF12/125 fixo vai mais longe, porque a Légua abre mão de SF11/SF12 em 125 kHz para respeitar 0,4 s por canal. O teto de robustez dela (SF10/125 ≈ SF11/250 ≈ SF12/500) fica ~5 dB atrás.
+2. **Sob a regra brasileira, a comparação muda de figura.** Os métodos de canal fixo estreito perdem quase todo o alcance; restam a Légua e o SF12/500 fixo. Contra este, a Légua tem o mesmo alcance e gasta de 2,5 a 17× menos energia a meia distância.
 3. **O ADR estilo LoRaWAN é o tradicional mais eficiente em ambientes estáveis, mas falha nos voláteis** (alcance 90% de 0–0,6 km nos urbanos): reduz potência pelo SNR máximo e demora a reagir à piora. Confirma a literatura (Li et al.; Farhad et al.).
 4. **Em ambiente urbano volátil a adaptação rende pouco** (221 contra 261 mJ no urbano denso). Rollbacks e renegociações consomem o que a aceleração economiza.
 5. **O ponto fraco é a estrela com nós de borda.** A unanimidade trava com membros fracos e o modo base fica caro. A divisão de grupo após falhas repetidas foi necessária para funcionar.
@@ -105,7 +105,7 @@ R7 é a distância em que a perda média esgota o orçamento do SF7/125 a 22 dBm
 
 ### 7.1 O que mudou
 
-**Métodos (só os melhores da campanha 1):** fixo SF12/125 (maior alcance), fixo SF12/500 (conforme), ADR estilo LoRaWAN (mais eficiente) e, na malha, a inundação estilo Meshtastic. Contra eles, três versões da AdaptLoRa:
+**Métodos (só os melhores da campanha 1):** fixo SF12/125 (maior alcance), fixo SF12/500 (conforme), ADR estilo LoRaWAN (mais eficiente) e, na malha, a inundação estilo Meshtastic. Contra eles, três versões da Légua:
 
 | Versão | Modos | Outras mudanças |
 |---|---|---|
@@ -127,7 +127,7 @@ Interpretação do projeto, a confirmar com OCD (inclusive se a exceção cobre 
 
 ### 7.2 Alcance com 90% de entrega, ponto a ponto (km)
 
-| Ambiente | SF12/125 | SF12/500 | ADR | AdaptLoRa atual | + SF11/SF12 | Completa |
+| Ambiente | SF12/125 | SF12/500 | ADR | Légua atual | + SF11/SF12 | Completa |
 |---|---|---|---|---|---|---|
 | *Limite do hardware* | | | | | | |
 | Urbano denso | **1,34** | 1,21 | 0,21 | 1,16 | 1,28 | 1,28 |
@@ -153,7 +153,7 @@ Interpretação do projeto, a confirmar com OCD (inclusive se a exceção cobre 
 
 ### 7.3 Energia por pacote entregue a 0,5×R7 (mJ, mediana)
 
-| Ambiente | SF12/125 | SF12/500 | ADR | AdaptLoRa atual | + SF11/SF12 | Completa |
+| Ambiente | SF12/125 | SF12/500 | ADR | Légua atual | + SF11/SF12 | Completa |
 |---|---|---|---|---|---|---|
 | *Limite do hardware* | | | | | | |
 | Urbano denso | 4409 | 871 | 79 | 334 | 760 | 1048 |
@@ -175,11 +175,11 @@ O ADR gasta pouco a meia distância, mas seu alcance a 90% nos urbanos é de 0�
 ### 7.4 Estrela e malha
 
 - **Estrela:** nos três regimes, a versão + SF11/SF12 tem a maior entrega média em quase todos os ambientes (ex.: urbano residencial, hardware: 92% contra 90% do SF12/125 fixo). Na exceção e no hardware ela gasta cerca de 2× a versão atual, pelo controle no modo base SF12 a 28 dBm. Na regra nova, ela gasta menos que a atual (1250–1665 contra 1753–2706 mJ), por causa do cabeçalho de 8 B.
-- **Malha:** as três AdaptLoRa entregam 99–100% em todos os regimes. Na regra nova, a inundação cai para 5–20%. No hardware e na exceção, a inundação entrega 98–100%, mas com 2,7 a 3,6 J por pacote, contra 0,3–0,6 J da AdaptLoRa atual e 0,5–1,9 J das versões novas.
+- **Malha:** as três Légua entregam 99–100% em todos os regimes. Na regra nova, a inundação cai para 5–20%. No hardware e na exceção, a inundação entrega 98–100%, mas com 2,7 a 3,6 J por pacote, contra 0,3–0,6 J da Légua atual e 0,5–1,9 J das versões novas.
 
 ### 7.5 Conclusões
 
-1. **Liberar SF11/SF12 só vale onde a regra deixa usá-los em alta potência.** No hardware e na exceção, a AdaptLoRa alcança o SF12/125 fixo (ganho de 1% a 65% sobre a versão atual, maior em vegetação e urbano residencial) e gasta 3,6 a 40× menos energia que ele a meia distância. Na regra nova, SF11/SF12 em 125 kHz não cabem em 0,4 s e não ajudam.
+1. **Liberar SF11/SF12 só vale onde a regra deixa usá-los em alta potência.** No hardware e na exceção, a Légua alcança o SF12/125 fixo (ganho de 1% a 65% sobre a versão atual, maior em vegetação e urbano residencial) e gasta 3,6 a 40× menos energia que ele a meia distância. Na regra nova, SF11/SF12 em 125 kHz não cabem em 0,4 s e não ajudam.
 2. **A capacidade total do chip rende pouco além do SF11/SF12.** BW estreita ganha até ~7 dB no papel, mas pacotes de vários segundos ficam expostos a interferência e desvanecimento. Na exceção, o limite de 8 dBm/3 kHz corta a potência na mesma proporção e anula o ganho. SF5/SF6 economizam um pouco em enlaces curtos. CR mais forte rende ~1 dB (estimado).
 3. **Para negociar SF12 a distância, o modo base também precisa alcançar, e isso custa caro.** Sem base robusta e sem controle in-band, a versão com SF11/SF12 ficava presa no alcance do SF10 (teste exploratório). Com base SF12/125 a 28 dBm, cada mensagem de controle custa ~2 J (estimado) e a malha gasta 1,6 a 3× mais energia.
 4. **O que a regra nova realmente pede é BW 500 kHz confirmada em laboratório**, não SF mais alto: a largura de 6 dB do SF12/500 decide o teto de robustez legal.

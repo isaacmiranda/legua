@@ -96,7 +96,7 @@ eq, eqe, _ = R("equiv")
 xs, xse, _ = R("xsim")
 tot_full = sum(D[c]["full"]["segundos"] for c in D if "full" in D[c] and D[c]["full"].get("segundos"))
 secao("resumo", "O que é a Légua e o que este trabalho mostra", f"""
-<p>A <b>Légua</b> (antes “AdaptLoRa”) é uma biblioteca LoRa ponto a ponto, sem LoRaWAN, para rádios Semtech SX12xx
+<p>A <b>Légua</b> é uma biblioteca LoRa ponto a ponto, sem LoRaWAN, para rádios Semtech SX12xx
 (referência: Heltec WiFi LoRa 32 V4, ESP32-S3 + SX1262, 915 MHz). Seu núcleo é um acordo negociado de modo de rádio
 entre os dois lados (PROPOSE, VOTE, COMMIT), troca em instante combinado, janela de validação, âncora em memória não
 volátil e rollback, dentro de um envelope regulatório executável.</p>
@@ -190,9 +190,9 @@ if f7:
                                                  linhas, [False, True, True, True, True, True])
     k0 = list(f7)[0]
     cf0 = f7[k0]
-    at = acha(cf0, "Légua atual") or acha(cf0, "AdaptLoRa atual")
+    at = acha(cf0, "Légua atual") or acha(cf0, "Légua atual")
     b0 = acha(cf0, "Fixo SF10")
-    f3 = acha(cf0, "Légua fade_k 3") or acha(cf0, "AdaptLoRa fade_k 3")
+    f3 = acha(cf0, "Légua fade_k 3") or acha(cf0, "Légua fade_k 3")
     if at and b0 and f3:
         d_en = 100 * (cf0[at]["mj_por_pacote_mediana"] / cf0[b0]["mj_por_pacote_mediana"] - 1)
         d_f3 = 100 * (cf0[f3]["mj_por_pacote_mediana"] / cf0[b0]["mj_por_pacote_mediana"] - 1)
@@ -225,7 +225,7 @@ if fc:
     for cen, dist in fc.items():
         for dk, cf in dist.items():
             b = acha(cf, "Fixo SF10")
-            a = acha(cf, "AdaptLoRa") or acha(cf, "Légua")
+            a = acha(cf, "Légua") or acha(cf, "Légua")
             if a and b:
                 linhas.append([esc(cen), esc(dk), n(cf[b].get("pdr"), 3), n(cf[b].get("mj_por_pacote_mediana"), 0),
                                n(cf[a].get("pdr"), 3), n(cf[a].get("mj_por_pacote_mediana"), 0)])
@@ -247,7 +247,7 @@ if m:
         cf = v["configs"]
         b = acha(cf, "Fixo SF10")
         a = [k for k in cf if "móvel" in k.lower() or "movel" in k.lower()]
-        f = [k for k in cf if k.startswith("AdaptLoRa") or k.startswith("Légua")]
+        f = [k for k in cf if k.startswith("Légua") or k.startswith("Légua")]
         for k in (f if f else []):
             linhas.append([esc(cen), esc(v.get("velocidade", "")), esc(k), n(cf[k].get("pdr"), 3), n(cf[k].get("mj_por_pacote_mediana"), 0),
                            n(cf[b].get("pdr"), 3) if b else "–", n(cf[b].get("mj_por_pacote_mediana"), 0) if b else "–"])

@@ -1,4 +1,4 @@
-# Légua (antes "AdaptLoRa")
+# Légua
 
 Biblioteca LoRa P2P (sem LoRaWAN) para rádios Semtech SX12xx, com adaptação negociada de modo
 (PROPOSE/VOTE/COMMIT), troca em instante combinado, janela de validação, âncora em NVM e rollback.
@@ -66,7 +66,7 @@ simulador, tabela de ToA, fuzz, `pyshim.c` = ponte ctypes para o teste de equiva
 
 ## Regras do projeto
 - Idioma: documentos e respostas em português do Brasil; código, API e nomes de símbolos em inglês.
-- **Nome:** ler "AdaptLoRa" como "Légua" (docs/00). "AdapLoRa" (um só "t") é outro trabalho (ICNP 2020).
+- **Nome:** o projeto é "Légua" (docs/00). "AdapLoRa" (um só "t") é outro trabalho (ICNP 2020); não confundir.
   Não usar "LoRa" como parte do nome de pacote ou produto; usar `legua` (sem acento) em registros.
 - **Regulação:** o perfil BR-2026 vem de fonte secundária. Marque sempre como `nao_verificado`; nunca afirme
   que a biblioteca é "conforme" ou "homologada". A conformidade é do produto; a biblioteca respeita o teto do integrador.

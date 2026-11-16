@@ -1,5 +1,5 @@
 """Malha (T4-T6): modelos comportamentais de Meshtastic, MeshCore, Reticulum,
-LoRaMesher e AdaptLoRa sobre o mesmo canal e a mesma topologia.
+LoRaMesher e Légua sobre o mesmo canal e a mesma topologia.
 
 Nível de abstração 2: cada transmissão é sorteada com a curva de PER e o ganho do
 enlace no instante; colisões entram como probabilidade a partir da ocupação de
@@ -143,13 +143,13 @@ def hop(net, u, v, t, phy, p, nb, retries, ack_nb=12, chkey="fix"):
 
 
 def run(method, env, links, n, sink, T, interval, rng, p_tx, col_p, regime="BR-2026", mobile=()):
-    flood_fallback = method == "adaptlora+ff"
+    flood_fallback = method == "legua+ff"
     if flood_fallback:
-        method = "adaptlora"
+        method = "legua"
     net = Net(env, links, n, sink, rng, col_p)
     gen = deliv = 0
     lat, hops = [], []
-    nb = DATA_BYTES + (8 if not method.startswith("adaptlora") else 2)
+    nb = DATA_BYTES + (8 if not method.startswith("legua") else 2)
     phy = PRESETS.get(method)
     route = {}             # meshcore: caminhos aprendidos
     nh = [None] * n
@@ -165,8 +165,8 @@ def run(method, env, links, n, sink, T, interval, rng, p_tx, col_p, regime="BR-2
             t = k * interval + rng.uniform(0, interval)
             gen += 1
             # --- manutenção periódica de rotas
-            if method in ("loramesher", "reticulum", "adaptlora") and t - last_ref >= \
-                    {"loramesher": 120.0, "reticulum": 1800.0, "adaptlora": 300.0}[method]:
+            if method in ("loramesher", "reticulum", "legua") and t - last_ref >= \
+                    {"loramesher": 120.0, "reticulum": 1800.0, "legua": 300.0}[method]:
                 last_ref = t
                 cost = {}
                 for i in range(n):
@@ -183,7 +183,7 @@ def run(method, env, links, n, sink, T, interval, rng, p_tx, col_p, regime="BR-2
                                 net.tx(phy, 40, p_tx)      # anúncio (inundado) por destino
                             if net.ok(i, j, t, phy, 40, p_tx)[0]:
                                 cost[(i, j)] = 1.0
-                        else:  # adaptlora: beacon no modo base e modo por enlace
+                        else:  # legua: beacon no modo base e modo por enlace
                             if j == 0:
                                 net.tx(base_phy, 20, min(p_tx, base.cap), "base")
                             ok, rx = net.ok(i, j, t, base_phy, 20, min(p_tx, base.cap), "base")
@@ -250,7 +250,7 @@ def run(method, env, links, n, sink, T, interval, rng, p_tx, col_p, regime="BR-2
                     hops.append(r[1])
                     route[src] = _greedy_path(net, src, t, phy, p_tx, nb, r[1])
                 continue
-            # roteamento hop-a-hop (loramesher, reticulum, adaptlora)
+            # roteamento hop-a-hop (loramesher, reticulum, legua)
             u, tt, h, okp = src, t, 0, True
             visited = {src}
             while u != sink and h < 10:
@@ -258,7 +258,7 @@ def run(method, env, links, n, sink, T, interval, rng, p_tx, col_p, regime="BR-2
                 if v is None or v in visited:
                     okp = False
                     break
-                if method == "adaptlora":
+                if method == "legua":
                     _, m, cap = link_mode.get((u, v), (0, base, min(p_tx, base.cap)))
                     mp = PHY(m.sf, m.bw, m.cr, m.fhss)
                     tt += rng.uniform(0, 1.0)                 # agenda de escuta
@@ -294,7 +294,7 @@ def run(method, env, links, n, sink, T, interval, rng, p_tx, col_p, regime="BR-2
                     u = v
                     h2 += 1
                 okp, tt, h = ok2 and u == sink, tt2, h2
-            if method == "adaptlora" and not okp and flood_fallback:
+            if method == "legua" and not okp and flood_fallback:
                 # rota quebrou (nó móvel, enlace caiu): inundação gerenciada no modo base
                 r = flood(net, src, tt, base_phy, min(p_tx, base.cap), nb, hop_limit=4)
                 if r:

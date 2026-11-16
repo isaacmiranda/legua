@@ -1,4 +1,4 @@
-# AdaptLoRa: parecer multidisciplinar e plano de implementação
+# Légua: parecer multidisciplinar e plano de implementação
 
 > Documento 03 do projeto. Avalia os documentos 01 (ideia, revisão 3) e 02 (estado da arte) sob três olhares (engenharia, regulação e experiência de uso) e registra o que fazer, como fazer e o que não fazer.
 > Premissas dadas pelo autor: biblioteca de **uso geral** e de **código livre**.
@@ -215,7 +215,7 @@ O usuário é quem escreve firmware. A "interface" é a API, as mensagens de err
 | Licença do código | **Apache-2.0**: permissiva, aceita uso em produto fechado e traz concessão explícita de patentes, útil dado que há patentes próximas ainda não lidas | MIT é mais curta, mas sem cláusula de patentes. GPL/LGPL dificulta o uso em firmware comercial e contraria o "uso geral" |
 | Especificação, documentação e tabelas regionais | CC BY 4.0 | — |
 | Dados de ensaio | CC BY 4.0, com posições revisadas antes de publicar | — |
-| Nome | Manter "AdaptLoRa" como provisório. Existe um esquema acadêmico "AdapLoRa"; conferir conflito e registros (GitHub, PlatformIO, Arduino, ESP Component Registry) antes da primeira publicação | Trocar o nome antes da versão 0.1 custa pouco; depois custa muito |
+| Nome | Manter "Légua" como provisório. Existe um esquema acadêmico "AdapLoRa"; conferir conflito e registros (GitHub, PlatformIO, Arduino, ESP Component Registry) antes da primeira publicação | Trocar o nome antes da versão 0.1 custa pouco; depois custa muito |
 | Marca LoRa | "LoRa" é marca da Semtech. Conferir as regras de uso de marca antes de fixar o nome | — |
 | Contribuições | DCO (assinatura no commit), guia de contribuição, código de conduta, política de divulgação de falhas de segurança | CLA é mais pesado e afasta contribuidores |
 | Dependências | Núcleo sem terceiros. AES próprio pequeno ou de licença compatível, com aceleração por hardware via camada de porte | — |
@@ -293,7 +293,7 @@ Trilhas paralelas, do início ao fim: pendências regulatórias (seção 3.4), c
 
 | Campo | Valor |
 |---|---|
-| Projeto | AdaptLoRa, biblioteca C99 de comunicação LoRa P2P adaptativa |
+| Projeto | Légua, biblioteca C99 de comunicação LoRa P2P adaptativa |
 | Placas | Heltec WiFi LoRa 32 V4 (ESP32-S3 + SX1262, até 28 dBm), via USB |
 | Quantidade | Mínimo 2 (fases 1 a 5); 4 para grupos e relay (fase 6) |
 | Periféricos | GNSS Quectel L76K (só para o módulo opcional) |
@@ -368,7 +368,7 @@ Trilhas paralelas, do início ao fim: pendências regulatórias (seção 3.4), c
 ## 11. Questões para o autor decidir
 
 1. Licença: Apache-2.0, como proposto?
-2. Nome: manter AdaptLoRa apesar do "AdapLoRa" acadêmico?
+2. Nome: manter Légua apesar do "AdapLoRa" acadêmico?
 3. Aceita a ordem de trabalho com canal fixo BW 500 nas fases 1 a 3, mantendo o salto como padrão da versão publicada?
 4. MIC de 4 bytes no modo base é aceitável, dado o limite de 24 bytes?
 5. Quantas placas e qual material de RF já estão disponíveis para a bancada?

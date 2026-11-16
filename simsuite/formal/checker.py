@@ -1,4 +1,4 @@
-"""Verificação exaustiva (estado explícito) do acordo de modo da AdaptLoRa v1.
+"""Verificação exaustiva (estado explícito) do acordo de modo da Légua v1.
 
 Modelo abstrato, independente do código do simulador, das regras do doc 05:
   modos 0=base, 1=R (recuperação), 2=C (corrente), 3=F (candidato mais rápido);

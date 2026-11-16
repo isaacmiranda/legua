@@ -1,4 +1,4 @@
-"""Montagem de enlaces P2P com a AdaptLoRa de referência ou baselines."""
+"""Montagem de enlaces P2P com a Légua de referência ou baselines."""
 import os
 import numpy as np
 from ..core.channel_static import ENVS
