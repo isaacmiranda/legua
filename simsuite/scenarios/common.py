@@ -25,8 +25,9 @@ def make_pair(env_id, link, T, seed, cfg=None, profile="BR-2026", cap=28.0, app_
     cfg = cfg or Config()
     sim = Sim(env, rng, T, {(0, 1): link}, log_path=log_path, ext_scale=ext_scale)
     eps = []
+    caps = cap if isinstance(cap, (tuple, list)) else (cap, cap)       # teto de TX por nó (assimétrico se for par)
     for nid, peer in ((0, 1), (1, 0)):
-        ep = endpoint_cls(nid, peer, modes, base, rec, cfg, rng, env["noise_rise"], cap)
+        ep = endpoint_cls(nid, peer, modes, base, rec, cfg, rng, env["noise_rise"], caps[nid])
         n = Node(nid, ep, track=tracks[nid], clock_ppm=clock_ppm[nid], xtal=xtal, app_interval=app_interval)
         sim.add(n)
         eps.append(ep)

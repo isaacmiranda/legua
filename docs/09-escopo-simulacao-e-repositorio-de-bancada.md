@@ -83,7 +83,7 @@ medição, **todo resultado daqui vale só para comparar e dimensionar**.
 1. **Onde o `core/` mora.** Hoje fica aqui, como referência executável do formato e da máquina de estados, com
    teste cruzado contra o Python. O firmware vai precisar dele (como submódulo, cópia versionada ou pacote). Decidir
    qual repositório é a fonte da verdade antes de a Fase 2 em C crescer.
-2. **Licença** (Apache-2.0 é a proposta do doc 03), a definir pelo autor.
+2. **Licença:** decidida em 16/11/2026, o código é livre sob **Apache-2.0** (arquivo `LICENSE`, README). Contribuições com DCO.
 3. **Como a bancada consome o analisador** (`simsuite/analysis/`): pacote Python instalável ou cópia.
 
 ## 6. Escala longa (full): orçamento de tempo
@@ -252,7 +252,13 @@ Para não depender só do porte, o cenário `xsim` agora **executa o código ori
 Sem os clones, ou sem `simpy`, os dois blocos devolvem `disponivel: false` e os testes são pulados; a suíte segue.
 
 **Limites:** o experimento 0 do LoRaSim é uma estrela de um canal e um SF; o Meshtasticator só foi usado na camada
-física. Comparar o roteamento por inundação com os baselines de malha (T4–T6) continuaria sendo trabalho à parte.
+física.
+
+**Decisão sobre o roteamento por inundação (16/11/2026): não fazer agora.** O escopo do projeto é o par bem provado
+(docs/05, "Escopo refinado"); a malha entra só como extensão, e os baselines T4–T6 já são modelos comportamentais da
+inundação gerenciada do Meshtastic. Comparar com o roteamento original exigiria modelar mobilidade de pacotes, papéis
+e a camada de aplicação do Meshtastic, sem que o resultado mudasse uma decisão do par. Reabrir se o projeto passar a
+mirar malha.
 
 ## 10. Próximos passos de simulação
 
@@ -261,4 +267,7 @@ física. Comparar o roteamento por inundação com os baselines de malha (T4–T
 3. (feito em 16/11/2026, camada física) Validação simulação × simulação contra Meshtasticator e LoRaSim, com os
    originais executados (§9.1). Falta só a comparação do roteamento por inundação.
 4. (feito) Controle compactado para 16 B.
+4b. (feito em 16/11/2026) Varredura da potência de TX (cenário `P`, docs/06): teto simétrico, teto assimétrico e
+   controle de potência. Falta levar o teto do vizinho ao cálculo da margem (hoje cada nó usa o próprio teto) e medir a
+   curva de corrente do PA na bancada, da qual depende o mínimo de energia.
 5. Aplicar o resultado da sintonia (F7) como perfil nomeado, se fizer sentido para o produto.

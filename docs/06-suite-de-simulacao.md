@@ -128,3 +128,13 @@ PYTHONPATH=. python3 -m pytest -q simsuite/tests
 - **Originais executados (16/11/2026):** LoRaSim `loraDir.py` (sintaxe convertida) e Meshtasticator (`lib.phy`); detalhes em docs/09 §9.1.
 - **Ausência longa:** 15 min a 12 h sem enlace, com ou sem reinício, ressincronizam em 0,3 a 7 min (docs/07 §8).
 - **Teto assimétrico (formal):** com B nunca aceitando o modo mais rápido, P1, P2 = 0 e P4 valem; o par fica no modo base.
+
+## Cenário P: varredura da potência de TX (16/11/2026)
+`simsuite/scenarios/power.py`, aba "Potência de TX" do site. Ambiente urbano residencial, enlace fixo, distâncias de 1 a 4 km,
+tetos de 2 a 28 dBm, mesmas sementes de canal em todas as células.
+- **Simétrico:** cada distância tem um teto mínimo para fechar o enlace; abaixo dele o PDR cai a zero. Em enlace curto o menor
+  consumo de energia por pacote não está no teto máximo (depende da corrente do PA, estimada).
+- **Assimétrico (A em 28 dBm, B variável):** o PDR se mantém, mas a energia por pacote sobe muito porque o nó fraco arrasta o par
+  para modos lentos. Tráfego só de A para B; com tráfego nos dois sentidos o efeito no PDR seria maior.
+- **Controle de potência ligado × desligado:** diferença pequena de PDR e de energia neste modelo.
+Números exatos: a aba do site e a página consolidada (seção P). Resultados de simulação com corrente do PA estimada.

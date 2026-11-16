@@ -670,6 +670,21 @@
     mount(panel, [t23, ctl, tmal]);
   }
 
+  function panelPotencia(panel) {
+    var P = d.P, dists = keys(P.simetrico), caps = keys(P.simetrico[dists[0]]);
+    function cell(r) { return r.pdr < 0.02 ? "sem enlace" : fmtPdr(r.pdr) + " · " + fmtMj(r.mj_por_pacote_mediana); }
+    var c1 = tableCard("Teto de TX simétrico (os dois nós com o mesmo teto)", "Ambiente " + P.ambiente.replace(/_/g, " ") + ", " + P.T_h + " h por semente, " + P.sementes.length + " sementes. Cada célula: PDR · mJ por pacote entregue; 'sem enlace' = PDR abaixo de 2%.",
+      ["Distância"].concat(caps.map(function (c) { return c + " dBm"; })),
+      dists.map(function (dk) { return [dk].concat(caps.map(function (c) { return cell(P.simetrico[dk][c]); })); }), [false].concat(caps.map(function () { return true; })));
+    var c2 = tableCard("Teto assimétrico: A com 28 dBm, B com o teto da coluna", "Os dois sentidos usam o mesmo modo; cada nó vota com o próprio teto e o ganho do enlace vale o pior sentido.",
+      ["Distância"].concat(caps.map(function (c) { return "B = " + c + " dBm"; })),
+      dists.map(function (dk) { return [dk].concat(caps.map(function (c) { return cell(P.assimetrico[dk][c]); })); }), [false].concat(caps.map(function () { return true; })));
+    var c3 = tableCard("Controle de potência (teto de 28 dBm nos dois nós)", "Ligado: o protocolo reduz a potência quando sobra margem. Desligado: transmite sempre no teto do modo.",
+      ["Distância", "Ligado (PDR · mJ/pacote)", "Desligado (PDR · mJ/pacote)"],
+      dists.map(function (dk) { var a = P.controle_de_potencia[dk]; return [dk, cell(a.ligado), cell(a.desligado)]; }), [false, true, true]);
+    mount(panel, [c1, c2, c3]);
+  }
+
   function panelSintonia(panel) {
     var F7 = d.F7, links = keys(F7), variants = keys(F7[links[0]]);
     var S = ordSeries(links.map(function (l, i) { return { id: l, label: l.charAt(0).toUpperCase() + l.slice(1), short: l }; }));
@@ -906,6 +921,28 @@
   function pp(a, b) { return nf(100 * Math.abs(a - b), 1); }              // diferença em pontos percentuais
   function rel(a, b) { return nf(100 * Math.abs(a / b - 1), 0) + "%"; }   // diferença relativa
   var DISC = {
+    potencia: function () {
+      var P = d.P, ds = keys(P.simetrico);
+      function need(src, dk, lim) { var ok = keys(src[dk]).filter(function (c) { return src[dk][c].pdr >= lim; }); return ok.length ? ok[0] : null; }
+      var near = ds[0], far = ds[ds.length - 1], a = P.assimetrico[near], sm = P.simetrico[near];
+      var c0 = keys(a)[0], cN = keys(a)[keys(a).length - 1];
+      var lig = P.controle_de_potencia[near].ligado, des = P.controle_de_potencia[near].desligado;
+      var minC = null, minE = Infinity;
+      keys(sm).forEach(function (c) { var e = sm[c].mj_por_pacote_mediana; if (e != null && sm[c].pdr >= 0.95 && e < minE) { minE = e; minC = c; } });
+      return {
+        car: ["O teto de TX é o que o integrador permite; o protocolo nunca passa dele. Cada distância tem um teto mínimo para fechar o enlace: com PDR de pelo menos 90%, " + ds.map(function (dk) { var c = need(P.simetrico, dk, 0.9); return dk + (c ? " pede " + c + " dBm" : " não fecha com os tetos testados"); }).join("; ") + ".",
+          "Com teto assimétrico, os dois sentidos usam o mesmo modo, então o nó de teto menor decide o modo do par."],
+        van: ["A 1 km, com PDR de pelo menos 95%, a energia por pacote é mínima com teto de " + (minC || "–") + " dBm (" + fmtMj(minE) + "); subir o teto além disso não melhora a entrega e custa energia no modelo.",
+          "O controle de potência quase não muda o PDR (a " + near + ": " + fmtPdr(lig.pdr) + " ligado, " + fmtPdr(des.pdr) + " desligado)."],
+        des: ["Um teto menor encolhe o alcance: a " + far + " " + (need(P.simetrico, far, 0.9) ? "só o teto de " + need(P.simetrico, far, 0.9) + " dBm ou mais entrega 90%." : "nenhum dos tetos testados entrega 90% (o melhor chega a " + fmtPdr(P.simetrico[far][keys(P.simetrico[far]).slice(-1)[0]].pdr) + ")."),
+          "Com B em " + c0 + " dBm e A em 28 dBm, a " + near + " o PDR segue " + fmtPdr(a[c0].pdr) + ", mas a energia por pacote sobe para " + fmtMj(a[c0].mj_por_pacote_mediana) + " contra " + fmtMj(a[cN].mj_por_pacote_mediana) + " com os dois em " + cN + " dBm: o nó fraco arrasta o par para modos lentos."],
+        apl: ["Dimensionar o teto de TX de um produto (bateria, antena, regulação) antes da bancada: a tabela diz o teto mínimo por distância.",
+          "Decidir se vale misturar nós de potências diferentes num mesmo par (por exemplo, um nó a pilha e outro na tomada)."],
+        cri: ["A corrente do PA é um modelo estimado, não medida; a posição do mínimo de energia depende dela. A bancada precisa medir a curva de corrente por potência.",
+          "Um só ambiente (urbano residencial) e enlace fixo; sem mobilidade, sem interferência externa. O tráfego de dados vai só de A para B (B responde com ACK), por isso o teto de B pesa menos na entrega do que pesaria com tráfego nos dois sentidos.",
+          "O teto assimétrico foi testado com A em 28 dBm; o simulador e o núcleo C ainda supõem o mesmo teto nos dois lados no cálculo da margem do vizinho."]
+      };
+    },
     campo: function () {
       function c(sc, dist, cf) { return d.F[sc][dist][cf]; }
       var F1 = "F1 urbano denso", F4 = "F4 rural aberto (mastro 8 m)", F2 = "F2 urbano residencial";
@@ -1197,6 +1234,7 @@
     { id: "campo", t: "Campo fixo", f: panelCampo, need: ["F"] }, { id: "mob", t: "Mobilidade", f: panelMob, need: ["M"] },
     { id: "alcance", t: "Alcance e deriva", f: panelAlcance, need: ["B2", "B9", "B10"] }, { id: "acordo", t: "Acordo e falhas", f: panelAcordo, need: ["B3", "B4", "B5", "F6", "B6"] },
     { id: "sintonia", t: "Sintonia (F7)", f: panelSintonia, need: ["F7"] },
+    { id: "potencia", t: "Potência de TX", f: panelPotencia, need: ["P"] },
     { id: "formal", t: "Verificação formal", f: panelFormal, need: ["formal"] },
     { id: "validacao", t: "Validação cruzada", f: panelValidacao, need: ["xsim", "equiv"] }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca, need: ["B7", "B11"] },
     { id: "modos", t: "Modos", f: panelModos, need: ["modos"] }, { id: "malha", t: "Grupos e malha", f: panelMalha, need: ["T23", "T456"] },

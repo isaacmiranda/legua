@@ -113,6 +113,28 @@ hardware. Cada tabela indica a escala (rápida ou longa) de onde saiu.</div>
 confiança desta página é estreito o bastante para dispensar a bancada.</p>
 """)
 
+# ------------------------------------------------------------------ potência de TX
+pw, pwe, _ = R("P")
+corpo = ""
+if pw:
+    caps = list(next(iter(pw["simetrico"].values())).keys())
+
+    def cel(r):
+        return "sem enlace" if r["pdr"] < 0.02 else f"{pct(r['pdr'])} · {n(r['mj_por_pacote_mediana'], 0)} mJ"
+    corpo += f"<p>{badge(pwe)} Ambiente {esc(pw['ambiente'].replace('_', ' '))}, {n(pw['T_h'], 0)} h por semente, {len(pw['sementes'])} sementes; mesmas sementes de canal em todas as células. Cada célula: PDR · energia de TX por pacote entregue (corrente do PA estimada).</p>"
+    corpo += "<h3>Teto simétrico</h3>" + tabela(["Distância"] + [f"{c} dBm" for c in caps],
+        [[dk] + [cel(v) for v in row.values()] for dk, row in pw["simetrico"].items()], [False] + [True] * len(caps))
+    corpo += "<h3>Teto assimétrico (A em 28 dBm, B com o teto da coluna)</h3>" + tabela(["Distância"] + [f"B = {c} dBm" for c in caps],
+        [[dk] + [cel(v) for v in row.values()] for dk, row in pw["assimetrico"].items()], [False] + [True] * len(caps))
+    corpo += "<h3>Controle de potência ligado × desligado (28 dBm)</h3>" + tabela(["Distância", "Ligado", "Desligado"],
+        [[dk, cel(r["ligado"]), cel(r["desligado"])] for dk, r in pw["controle_de_potencia"].items()], [False, True, True])
+    corpo += lista([
+        "Cada distância tem um teto mínimo para fechar o enlace; abaixo dele o PDR cai a zero em vez de degradar devagar, porque o modo mais robusto da tabela já está no limite.",
+        "Em enlace curto o teto mais alto não é o mais barato: o modelo de corrente do PA faz a energia por pacote ter mínimo em teto intermediário. A posição desse mínimo depende da curva de corrente, que só a bancada mede.",
+        "Um nó de teto baixo mantém o PDR (o outro lado compensa) mas arrasta o par para modos lentos e a energia por pacote sobe muito; o tráfego aqui vai só de A para B.",
+        "O controle de potência quase não muda o PDR e a energia varia pouco nos dois sentidos; seu ganho é pequeno com este modelo de corrente."])
+secao("potencia", "Varredura da potência de TX (P)", corpo or "<p>Sem dados.</p>")
+
 # ------------------------------------------------------------------ 2. sintonia / campo
 f7, f7e, _ = R("F7")
 corpo = ""
@@ -295,12 +317,24 @@ if xs:
     pts = xs["aloha"]["pontos"]
     lin = [[n(p["nos"], 0), n(p["G"], 3), pct(p["pdr_analitico"]), pct(p["pdr_lorasim"]), pct(p["pdr_aqui"])] for p in pts]
     cr = xs["captura"]["resultado"]
-    corpo += f"<h3>Contra as regras do LoRaSim</h3><p>{badge(xse)} Porte feito à mão (o LoRaSim original é Python 2 e não foi executado).</p>" + tabela(
+    corpo += f"<h3>Contra as regras do LoRaSim</h3><p>{badge(xse)} Porte feito à mão das regras do LoRaSim (as comparações com o original executado estão logo abaixo).</p>" + tabela(
         ["Nós", "Carga G", "ALOHA analítico", "LoRaSim (porte)", "Simulador desta suíte"], lin, [True, True, True, True, True]) + lista([
         f"Tempo no ar idêntico em {n(xs['tempo_no_ar']['combinacoes'], 0)} combinações, exceto SF12/250 (regra do LDRO: a Semtech manda ligar acima de 16 ms; o LoRaSim só liga em 125 kHz com SF11/12).",
         f"Captura com metade dos nós 10 dB mais forte: fortes {pct(cr['aqui']['pdr_fortes'])} e fracos {pct(cr['aqui']['pdr_fracos'])} aqui; {pct(cr['lorasim']['pdr_fortes'])} e {pct(cr['lorasim']['pdr_fracos'])} no porte.",
         f"Sensibilidade: o LoRaSim usa valores medidos num SX1272; o modelo daqui (SX1262) difere em média {n(xs['sensibilidade']['diferenca_media_abs_db'], 1)} dB (máximo {n(xs['sensibilidade']['maior_diferenca_db'], 1)} dB).",
         "O simulador acompanha o ALOHA analítico; o porte do LoRaSim perde ~1 ponto a menos por causa da exceção do preâmbulo."])
+if xs and xs.get("lorasim_original", {}).get("disponivel"):
+    lo = xs["lorasim_original"]
+    corpo += "<h3>LoRaSim original executado</h3><p>" + esc(lo["referencia"]) + f". {n(lo['horas_por_semente'], 0)} h por semente, 3 sementes; o simulador desta suíte recebe o RSSI que o original sorteou.</p>" + tabela(
+        ["Nós", "Carga G", "ALOHA analítico", "LoRaSim (original)", "Simulador desta suíte"],
+        [[n(p["nos"], 0), n(p["G"], 3), pct(p["pdr_analitico"]), pct(p["pdr_original"]), pct(p["pdr_aqui"])] for p in lo["pontos"]], [True] * 5) + lista([
+        "As duas curvas ficam a poucos pontos uma da outra; ambas ficam acima do ALOHA puro porque a posição aleatória cria captura e o original tem a exceção do preâmbulo."])
+if xs and xs.get("meshtasticator", {}).get("disponivel"):
+    ms = xs["meshtasticator"]
+    corpo += "<h3>Meshtasticator (código original executado)</h3><p>" + esc(ms["referencia"]) + ". Só a camada física; o roteamento por inundação não foi comparado.</p>" + tabela(
+        ["Nós", "Carga G", "ALOHA analítico", "Meshtastic (original)", "Simulador desta suíte"],
+        [[n(p["nos"], 0), n(p["G"], 3), pct(p["pdr_analitico"]), pct(p["pdr_meshtastic"]), pct(p["pdr_aqui"])] for p in ms["aloha"]["pontos"]], [True] * 5) + lista([
+        "Tempo no ar igual em " + str(ms["tempo_no_ar"]["presets"] - len(ms["tempo_no_ar"]["presets_diferentes"])) + " dos " + str(ms["tempo_no_ar"]["presets"]) + " presets (difere em " + ", ".join(ms["tempo_no_ar"]["presets_diferentes"]) + ", pela regra do LDRO); regra de captura de 6 dB " + ("igual" if ms["regra_de_captura"]["iguais"] else "DIFERENTE") + f"; sensibilidade difere em média {n(ms['sensibilidade']['diferenca_media_abs_db'], 1)} dB."])
 corpo += "<h3>Estimador analítico do site</h3>" + lista([
     "A aba Estimativas usa a mesma curva do simulador, integrada por quadratura; contra o simulador de eventos (42 pontos, sombreamento fixado) o erro absoluto médio na entrega é de 1,1 ponto percentual (máximo 4,9; viés −0,7). Só a entrega foi validada, não energia nem latência."])
 secao("validacao", "Validação cruzada", corpo)
@@ -312,7 +346,7 @@ secao("criticas", "Críticas e limitações gerais", lista([
     "<b>Amostras:</b> a escala longa não é o tamanho de amostra completo do plano (≥ 3 dias distintos por enlace com rodízio); poucos enlaces independentes, sombreamento estático sorteado por semente.",
     "<b>Baselines:</b> Meshtastic, MeshCore, Reticulum e LoRaMesher aparecem como modelos comportamentais nossos; não substituem rodar os produtos.",
     "<b>Formal:</b> o modelo é abstrato (ticks, dois nós, adversário de perda); não usa TLC, UPPAAL nem PRISM; provar o modelo não prova o código (o teste de equivalência cobre a ponte C-Python).",
-    "<b>Segurança:</b> MIC de teste; sem escolha de algoritmo, sem rotação de chave, sem ressincronização depois de ausência longa; peer counter com janela de replay de até 63 quadros após reinício.",
+    "<b>Segurança:</b> MIC de teste; sem escolha de algoritmo, sem rotação de chave, ressincronização depois de ausência longa só verificada em simulação (15 min a 12 h, minutos para voltar a DATA); contador do par fora da janela de 32767 sem procedimento; peer counter com janela de replay de até 63 quadros após reinício.",
     "<b>Novidade:</b> a contribuição defensável é acordo + validação + âncora + rollback com verificação formal dentro de um envelope regulatório executável; adaptação de SF, salto e mesh já existem na literatura e não são reivindicados.",
     "<b>Energia:</b> perto do limite de alcance a Légua pode gastar mais que o SF10 fixo; a vantagem de energia é de enlaces folgados e médios."]))
 
@@ -325,11 +359,11 @@ secao("futuro", "Trabalhos futuros", f"""
     "Confirmar a homologação da Heltec V4 e a validade do perfil BR-2026 com o órgão regulador."])}
 <h3>Protocolo e especificação</h3>{lista([
     "Escolher o algoritmo de MIC, o formato e a rotação de chave; ressincronização depois de ausência longa (contador do par fora da janela).",
-    "Colisão de endereços curtos de 16 bits; fragmentação e payload maior que 9 B; teto de potência assimétrico entre os nós.",
+    "Colisão de endereços curtos de 16 bits; fragmentação e payload maior que 9 B; teto de potência assimétrico entre os nós no cálculo da margem do vizinho (a varredura P já mostra o efeito em simulação).",
     "Perfis alternativos para a aceleração: histerese temporal, estimador de quantil do SNR; avaliar contra o <code>fade_k</code>.",
-    "Controle em 14 B só se o perfil móvel dispensar a velocidade; decidir onde o <code>core/</code> mora e a licença (Apache-2.0 proposta)."])}
+    "Controle em 14 B só se o perfil móvel dispensar a velocidade; decidir onde o <code>core/</code> mora (a licença é livre: Apache-2.0, arquivo <code>LICENSE</code>)."])}
 <h3>Simulação e verificação</h3>{lista([
-    "Validar contra o Meshtasticator e executar o LoRaSim original (ambiente Python 2) em vez do porte.",
+    "Comparar o roteamento por inundação do Meshtastic só se o projeto passar a mirar malha: o escopo é o par (docs/05) e os baselines T4–T6 já são modelos comportamentais.",
     "Modelos TLA+, UPPAAL ou PRISM do acordo; propriedade de vivacidade com justiça; estender P4 para o estado corrente do par.",
     "CAD/LBT e salto sincronizado no núcleo C; protocolo congelado antes de comparar malhas com os produtos reais.",
     "Escala completa do plano (mais sementes e dias, intervalos de confiança), nós com tetos e relógios heterogêneos, interferência de terceiros medida em campo.",

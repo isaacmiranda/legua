@@ -35,6 +35,7 @@ MAPA = [
     ("F1–F5", "Campo fixo urbano/rural", "Parcial", "F", "Modelo de canal estimado; serve para dimensionar e comparar configurações"),
     ("F6", "Longa duração", "Parcial", "F6", "Trocas/hora, rollbacks e estabilidade sob variação diurna/eventos"),
     ("F7", "Sintonia da aceleração", "Sim", "F7", "Margem fixa × proporcional ao desvio do SNR em enlace marginal: estabilidade × energia"),
+    ("P", "Varredura de potência de TX", "Parcial", "P", "Teto simétrico e assimétrico, controle de potência ligado/desligado: PDR e energia (corrente do PA estimada)"),
     ("M1–M7", "Mobilidade", "Parcial", "M", "Trajetórias, LoS/NLoS, Doppler; perfis fixo e móvel"),
     ("T1", "P2P contra presets", "Sim", "F (configurações)", "Mesmas sementes de canal para todas as configurações"),
     ("T2/T3", "Estrela, membro fraco", "Parcial", "T23", "Modelo de nível 2: unanimidade × divisão × relay"),
@@ -76,6 +77,9 @@ def job(name, escala, outdir=RES):
         elif name.startswith("F") and name not in ("F6", "F7"):
             from .scenarios.field import field_campaign
             r = field_campaign(escala, which=name.split(":")[1] if ":" in name else None)
+        elif name == "P":
+            from .scenarios.power import power_sweep
+            r = power_sweep(escala)
         elif name == "F6":
             from .scenarios.field import f6_long_duration
             r = f6_long_duration(escala)
@@ -166,7 +170,7 @@ def fase7_demo(outdir=RES):
 
 
 ALL = ["modos", "amostras", "formal", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11",
-       "F", "F6", "F7", "M", "T23", "T456", "fase7", "xsim", "equiv"]
+       "F", "F6", "F7", "P", "M", "T23", "T456", "fase7", "xsim", "equiv"]
 
 
 def main():

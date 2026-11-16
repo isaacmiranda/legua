@@ -155,3 +155,13 @@ def test_run_suite_full_recusa_quando_passa_do_limite(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as exc:
         run_suite.main()
     assert exc.value.code == 2          # 1000 s x 17,5 = 4,9 h > 1 h: adiada, sem rodar nada
+
+
+def test_varredura_de_potencia_monotonia_basica(monkeypatch):
+    """Teto maior nunca piora muito o PDR de um enlace no limite, e teto assimétrico aceita tupla em make_pair."""
+    from simsuite.scenarios import power
+    monkeypatch.setattr(power, "CAPS", [8.0, 28.0])
+    r = power.power_sweep("quick")
+    s = r["simetrico"]["3.0 km"]
+    assert s["28"]["pdr"] > s["8"]["pdr"] + 0.3
+    assert set(r["assimetrico"]["1.0 km"]) == {"8", "28"}

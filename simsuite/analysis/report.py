@@ -143,6 +143,17 @@ def write_report(res, mapa, escala):
             L += [f"### {enlace}", "", _t([(c, v["pdr"], v["mj_por_pacote_mediana"], v["trocas_por_hora"], v["rollbacks_por_hora"],
                                              v["quedas_base"], v["desacordo_s_por_hora"]) for c, v in row.items()],
                                            ["Variante", "PDR", "mJ/pacote", "Trocas/h", "Rollbacks/h", "Quedas ao base", "Desacordo (s/h)"]), ""]
+    if get("P"):
+        P = get("P")
+        L += ["## P: varredura da potência de TX", "", P["nota"], ""]
+        for chave, tit in (("simetrico", "Teto simétrico"), ("assimetrico", "Teto assimétrico (A = 28 dBm)")):
+            L += [f"### {tit} (PDR / mJ por pacote)", "", _t([[dk] + [f"{_f(v['pdr'], 3)} / {_f(v['mj_por_pacote_mediana'], 0)}"
+                                                                    for v in row.values()] for dk, row in P[chave].items()],
+                                                              ["Distância"] + [f"{c} dBm" for c in next(iter(P[chave].values()))]), ""]
+        L += ["### Controle de potência", "", _t([(dk, f"{_f(r['ligado']['pdr'], 3)} / {_f(r['ligado']['mj_por_pacote_mediana'], 0)}",
+                                                  f"{_f(r['desligado']['pdr'], 3)} / {_f(r['desligado']['mj_por_pacote_mediana'], 0)}")
+                                                 for dk, r in P["controle_de_potencia"].items()],
+                                               ["Distância", "Ligado", "Desligado"]), ""]
     if get("M"):
         m = dict(get("M"))
         dop = m.pop("_doppler", None)
