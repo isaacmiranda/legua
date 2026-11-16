@@ -271,3 +271,7 @@ mirar malha.
    controle de potência. Falta levar o teto do vizinho ao cálculo da margem (hoje cada nó usa o próprio teto) e medir a
    curva de corrente do PA na bancada, da qual depende o mínimo de energia.
 5. Aplicar o resultado da sintonia (F7) como perfil nomeado, se fizer sentido para o produto.
+
+### Varreduras já feitas e o que falta (16/11/2026)
+
+Feitas, isoladas: teto de TX global e cenário P; margem/`fade_k` (F7); janela de validação (V); `t_silence` × aplicação (S). Não feitas: payload, deriva do cristal (`xtal`), perda de canal assimétrica, interações (teto × `fade_k`). Combinação completa é inviável (minutos por ponto na escala longa); payload e distância densos têm modelo analítico no estimador. Orçamento: V e S somam ~9 min na escala longa; a varredura de teto, ~4 h.

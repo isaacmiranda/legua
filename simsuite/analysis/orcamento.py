@@ -24,6 +24,7 @@ FATORES = {
     "B11": (6.0, "T 2 h -> 12 h"),
     "F": (7.5, "T 2 h -> 6 h; 2 -> 5 sementes"), "F6": (7.0, "1 -> 7 dias; 3 sementes"),
     "F7": (17.5, "1 -> 7 dias; 2 -> 5 sementes"),
+    "V": (7.5, "T 2 h -> 6 h; 2 -> 5 sementes"), "S": (7.5, "T 2 h -> 6 h; 2 -> 5 sementes"),
     "P": (7.5, "T 2 h -> 6 h; 2 -> 5 sementes"),
     "M": (5.0, "T 1 h -> 3 h (gado 6 h -> 24 h); 2 -> 3 sementes"),
     "T23": (4.0, "T 6 h -> 24 h"), "T456": (3.0, "T 2 h -> 6 h"), "fase7": (1.0, "fixo"),

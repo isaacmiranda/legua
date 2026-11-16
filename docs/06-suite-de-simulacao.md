@@ -138,3 +138,36 @@ tetos de 2 a 28 dBm, mesmas sementes de canal em todas as células.
   para modos lentos. Tráfego só de A para B; com tráfego nos dois sentidos o efeito no PDR seria maior.
 - **Controle de potência ligado × desligado:** diferença pequena de PDR e de energia neste modelo.
 Números exatos: a aba do site e a página consolidada (seção P). Resultados de simulação com corrente do PA estimada.
+
+## Varredura de teto de TX em todos os cenários e varreduras de mecanismo V e S (16/11/2026)
+
+Fonte: `simsuite/results_full/teto_{8,14,20}/` (escala longa, 5 sementes onde o cenário usa 5) e `V.json`, `S.json`.
+Simulação com parâmetros estimados; vale para comparar, não para prever campo.
+
+**Teto de TX global** (`run_suite --teto N`, `tools/varredura_teto.sh`). O teto nunca sobe um valor que o cenário já
+fixou mais baixo; por isso B2–B5, B7, B11 e os baselines de malha não mudam. Nos cenários F, F6, M e T23:
+- Os modos fixos transmitem sempre no teto: a energia por pacote entregue cresce muito de 8 para 28 dBm (F1, 0,3 km,
+  SF10/125: 97 → 2.394 mJ), enquanto a Légua reduz a potência quando sobra margem (114 mJ a 28 dBm no mesmo ponto).
+- Em F6 rural 8 km, a Légua entrega 0,9998 a 14 dBm contra 1,0000 do modo fixo, com 103 mJ contra 184 mJ por pacote; a
+  28 dBm são 145 mJ contra 3.847 mJ.
+- O preço aparece em enlaces já marginais: em M1 pedestre urbano o PDR da Légua é menor que o do modo fixo a 28 dBm
+  (0,79 contra 0,95 em um dos perfis), porque a adaptação perde pacotes na troca.
+- Com teto baixo (8 dBm) o PDR cai igual para todos quando falta enlace; abaixo de certo teto nenhum protocolo recupera.
+
+**V: janela de validação** (urbano residencial, 2 e 3 km, enlace marginal):
+- `f_valid = 1` (um único fracasso desfaz o modo) produz rollbacks falsos: 0,6 a 1,4 por hora com k = 3 ou 5, contra
+  0,03 a 0,3 com f ≥ 3. O padrão k = 3, f = 3 está na faixa segura; k = 2/f = 3 tem menos trocas, com PDR igual.
+- Janela de 15 s é curta demais: 3 a 6 rollbacks por hora e PDR 2 a 3 pontos abaixo; 45 s e 90 s são equivalentes
+  (PDR 0,98 a 2 km, 0,93 a 3 km). Manter 45 s.
+- Na escala rápida (2 h, 2 sementes) k = 1 parecia livre de rollbacks; na longa ele passa a ter rollbacks e energia
+  maior que k = 2 a 2 km. **Não** usar a escala rápida para ajustar essa sintonia: o ruído é do tamanho do efeito.
+
+**S: descida por silêncio** (`t_silence` × intervalo da aplicação):
+- `t_silence = 30 s` com tráfego esparso (aplicação a 60 s ou 300 s) causa descidas falsas em massa: a 2 km, 700 a 760
+  quedas ao base em 6 h × 5 sementes e PDR 0,88 a 0,92, contra 10 a 17 quedas e 0,99 com 90 s.
+- `t_silence = 60 s` também falha com aplicação esparsa (PDR 0,96 a 2 km; 280 a 415 quedas), porque é igual ao
+  heartbeat de 60 s.
+- 90 s é o menor valor sem descida falsa; 180 s e 300 s dão resultado idêntico, pois o heartbeat limita o silêncio
+  observável. **Regra:** `t_silence` ≥ 1,5 × `hb_interval`.
+- A 3 km o efeito do `t_silence` some sob o ruído do enlace marginal (PDR entre 0,91 e 0,94 em quase todas as
+  células), então a regra vale para enlace bom e médio; não foi demonstrada para enlace no limite.
