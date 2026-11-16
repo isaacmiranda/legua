@@ -29,21 +29,61 @@
   var S1 = "var(--s1)", S2 = "var(--s2)", S3 = "var(--s3)", S4 = "var(--s4)", S5 = "var(--s5)", OK = "var(--ok)", BAD = "var(--bad)";
 
   // ------------------------------------------------------------------ diagramas
+  // Gráfico de pontos como o dos resultados: uma linha por cenário, marcadores de formatos diferentes, linha fina ligando-os.
+  function mk(shape, x, y, c) {
+    if (shape === "d") return '<path d="M' + x + " " + (y - 5) + " L" + (x + 5) + " " + y + " L" + x + " " + (y + 5) + " L" + (x - 5) + " " + y + 'Z" style="fill:' + c + '"/>';
+    if (shape === "s") return '<rect x="' + (x - 4) + '" y="' + (y - 4) + '" width="8" height="8" style="fill:' + c + '"/>';
+    if (shape === "t") return '<path d="M' + x + " " + (y - 5) + " L" + (x + 5) + " " + (y + 4) + " L" + (x - 5) + " " + (y + 4) + 'Z" style="fill:' + c + '"/>';
+    if (shape === "x") return ln(x - 4, y - 4, x + 4, y + 4, c, 2) + ln(x - 4, y + 4, x + 4, y - 4, c, 2);
+    return circ(x, y, 4, c);
+  }
+  function dotRows(label, rows, leg, unit) {
+    var L = 96, R = 340, inner = "", y0 = 22, dy = 26, k;
+    rows.forEach(function (r, i) {
+      var y = y0 + i * dy;
+      if (i % 2 === 0) inner += '<rect x="8" y="' + (y - 13) + '" width="344" height="26" style="fill:var(--grid);opacity:.35"/>';
+      inner += tx(L - 8, y + 4, r[0], { a: "end" });
+      var xs = r[1].map(function (f) { return L + f * (R - L); });
+      inner += ln(Math.min.apply(null, xs), y, Math.max.apply(null, xs), y, "var(--text-3)", 1);
+      r[1].forEach(function (f, j) { inner += mk(leg[j][2], xs[j], y, leg[j][0]); });
+    });
+    var yb = y0 + rows.length * dy - 6;
+    inner += ln(L, yb, R, yb, "var(--text-3)", 1.2) + tx(L, yb + 12, "menor", { a: "middle" }) + tx(R, yb + 12, "maior", { a: "middle" }) + tx((L + R) / 2, yb + 12, unit, { a: "middle" });
+    var lx = 10, ly = yb + 30;
+    leg.forEach(function (it, j) { inner += mk(it[2], lx + 4, ly - 4, it[0]) + tx(lx + 14, ly, it[1]); lx += 14 + it[1].length * 6 + 14; });
+    return wrap(360, ly + 10, label, inner);
+  }
   var DG = {
+    "pontos-cenarios": function () {
+      return dotRows("Gráfico de pontos: cada linha é um cenário e cada marcador, uma configuração; a posição horizontal é o valor medido",
+        [["cenário A", [0.92, 0.98, 0.95]], ["cenário B", [0.55, 0.8, 0.7]], ["cenário C", [0.3, 0.5, 0.45]]],
+        [[S1, "Légua", "o"], [S2, "modo fixo rápido", "t"], [S3, "modo fixo robusto", "s"]], "valor");
+    },
+    "pontos-escalas": function () {
+      return dotRows("Gráfico de pontos: cada linha é uma configuração e os marcadores são a escala rápida e a escala longa, para comparar",
+        [["configuração 1", [0.9, 0.86]], ["configuração 2", [0.6, 0.64]], ["configuração 3", [0.35, 0.33]]],
+        [[S1, "escala rápida", "o"], [S2, "escala longa", "d"]], "valor");
+    },
+    "curva-perda": function () {
+      return wrap(360, 146, "Curva: o eixo horizontal é a perda de quadros e o vertical, a medida do acordo; a curva sobe com a perda",
+        axes("perda de quadros no ar →", "medida do acordo") + path("M44 112 C 120 108 180 96 240 70 C 280 52 320 34 344 26", S1, 2.4) +
+        circ(44, 112, 3.5, S1) + circ(120, 108, 3.5, S1) + circ(190, 94, 3.5, S1) + circ(262, 62, 3.5, S1) + circ(344, 26, 3.5, S1) +
+        tx(60, 28, "sobe devagar: bom", { c: OK }));
+    },
+    "tabela-linhas": function () {
+      return wrap(360, 128, "Tabela: cada linha é um caso testado e as colunas são os resultados medidos para esse caso",
+        rect(14, 8, 332, 22, "var(--grid)", { r: 2 }) + tx(24, 23, "caso", { b: 1 }) + tx(150, 23, "resultado", { b: 1 }) + tx(260, 23, "observação", { b: 1 }) +
+        tx(24, 48, "caso 1") + tx(150, 48, "0,99") + tx(260, 48, "ok", { c: OK }) +
+        tx(24, 70, "caso 2") + tx(150, 70, "0,93") + tx(260, 70, "ok", { c: OK }) +
+        tx(24, 92, "caso 3") + tx(150, 92, "0,41") + tx(260, 92, "atenção", { c: BAD }) +
+        tx(180, 118, "leia linha por linha: cada caso se compara com os outros", { a: "middle" }));
+    },
     "curva-distancia": function () {
       return wrap(360, 146, "Curvas de taxa de entrega contra distância: modo rápido cai cedo, modo robusto cai tarde, a Légua acompanha o melhor",
         axes("distância entre os nós →", "taxa de entrega") + ln(44, 24, 348, 24, "var(--grid)", 1) + tx(40, 27, "100%", { a: "end" }) +
         path("M44 26 C 90 26 110 30 130 110 L 150 118", S2, 2) + path("M44 40 C 160 40 230 44 270 70 C 300 90 320 110 340 118", S3, 2) +
         path("M44 26 C 110 26 130 30 160 36 C 220 44 260 62 290 82 C 315 100 328 112 340 118", S1, 2.6) +
         tx(100, 92, "modo rápido", { c: S2 }) + tx(150, 60, "modo robusto", { c: S3 }) + tx(200, 12, "Légua: troca de modo conforme o enlace", { a: "middle", c: S1, b: 1 }));
-    },
-    "barras-comparar": function () {
-      return wrap(360, 140, "Barras agrupadas: cada grupo é um cenário e cada barra uma configuração; a altura é o valor medido",
-        axes("cenários (um grupo por cenário)", "valor") +
-        rect(60, 40, 22, 78, S2) + rect(86, 28, 22, 90, S1) + rect(112, 60, 22, 58, S3) +
-        rect(180, 70, 22, 48, S2) + rect(206, 52, 22, 66, S1) + rect(232, 84, 22, 34, S3) +
-        rect(290, 90, 22, 28, S2) + rect(316, 80, 22, 38, S1) +
-        tx(96, 134, "cenário A", { a: "middle" }) + tx(218, 134, "cenário B", { a: "middle" }) + legendDots([[S1, "Légua"], [S2, "modo fixo rápido"], [S3, "modo fixo robusto"]], 250, 18));
     },
     "acordo-seq": function () {
       var y = 38;
@@ -145,27 +185,27 @@
   var EX = [
     { re: /^Taxa de entrega × distância/, d: "curva-distancia", oque: "Para cada distância entre os dois rádios, quanta porcentagem dos pacotes chegou ao destino. Cada linha é uma configuração: um modo fixo ou a Légua, que escolhe o modo sozinha.",
       ler: "Procure onde cada linha começa a cair: quanto mais à direita, mais longe o enlace funciona. A Légua parte do modo seguro e acelera quando sobra folga, por isso fica perto da melhor linha em cada trecho.", atencao: "Cada ponto é a média de poucas sementes de canal; use as faixas de incerteza como alerta, não como garantia." },
-    { re: /^Taxa de entrega por cenário de mobilidade/, d: "barras-comparar", oque: "O mesmo enlace com um dos nós em movimento (a pé, de carro, em rebanho). Cada grupo de barras é um cenário; cada barra, uma configuração.",
-      ler: "Barras mais altas são melhores. Compare as barras dentro de um grupo: o grupo todo muda porque cada cenário tem velocidade e ambiente diferentes.", atencao: "Cenário rápido não é pior por si só: o que importa é a diferença entre as barras dentro do mesmo grupo." },
-    { re: /^Energia por pacote entregue/, d: "barras-comparar", oque: "Quanta energia de transmissão foi gasta para cada pacote que realmente chegou. Pacotes perdidos contam como gasto sem retorno.",
-      ler: "Barras mais baixas são melhores. Um modo rápido gasta pouco quando funciona e muito quando falha e retransmite.", atencao: "A corrente do amplificador é estimada, não medida; vale para comparar configurações, não para prever a bateria." },
+    { re: /^Taxa de entrega por cenário de mobilidade/, d: "pontos-cenarios", oque: "O mesmo enlace com um dos nós em movimento (a pé, de carro, em rebanho). Cada linha é um cenário; cada marcador, uma configuração (a legenda está logo acima do gráfico).",
+      ler: "Marcadores mais à direita são melhores. Compare os marcadores dentro de uma linha: a linha toda se desloca porque cada cenário tem velocidade e ambiente diferentes; a linha fina liga o pior ao melhor.", atencao: "Cenário rápido não é pior por si só: o que importa é a diferença entre os marcadores dentro da mesma linha." },
+    { re: /^Energia por pacote entregue/, d: "pontos-cenarios", oque: "Quanta energia de transmissão foi gasta para cada pacote que realmente chegou. Pacotes perdidos contam como gasto sem retorno.",
+      ler: "Marcadores mais à esquerda (menor energia) são melhores. Um modo rápido gasta pouco quando funciona e muito quando falha e retransmite.", atencao: "A corrente do amplificador é estimada, não medida; vale para comparar configurações, não para prever a bateria." },
     { re: /^SF\d+\/\d+/, d: "curva-distancia", oque: "Para um modo de rádio específico, a chance de um pacote chegar conforme a atenuação do enlace (a perda de sinal entre os dois nós).",
       ler: "A curva tem formato de degrau suave: do lado esquerdo o sinal sobra e quase tudo chega; do lado direito o sinal some e nada chega. O ponto onde a curva cai é o limite de alcance desse modo.", atencao: "Modos com espalhamento maior (SF mais alto) têm o degrau mais à direita, mas gastam mais tempo no ar." },
     { re: /^B9/, d: "modos", oque: "Quando a temperatura muda, o relógio do rádio deriva. Esta tabela diz de quanto pode ser a deriva antes de o pacote não ser mais recebido em cada modo.",
       ler: "Cada linha é um modo; a coluna de tolerância é o desvio máximo aceito. Tolerância pequena = modo sensível a temperatura.", atencao: "As taxas de deriva dos cristais são estimativas; a bancada deve medi-las." },
     { re: /^B10/, d: "modos", oque: "Tempo que o rádio gasta ‘ouvindo’ o canal para detectar se há transmissão (CAD) em cada espalhamento.",
       ler: "Tempos maiores significam varreduras mais lentas e mais energia ao procurar o parceiro.", atencao: "Só os tempos são calculados; a taxa de detecção e de falso alarme exige hardware." },
-    { re: /^B3 · rollbacks/, d: "rollback", oque: "Quando a troca de modo é validada e falha, os nós voltam ao modo anterior (rollback). Aqui, quantos rollbacks acontecem a cada 100 trocas conforme a perda de quadros aumenta.",
+    { re: /^B3 · rollbacks/, d: "curva-perda", oque: "Quando a troca de modo é validada e falha, os nós voltam ao modo anterior (rollback). Aqui, quantos rollbacks acontecem a cada 100 trocas conforme a perda de quadros aumenta.",
       ler: "Eixo horizontal: perda de quadros no ar. Eixo vertical: rollbacks por 100 trocas. Subir devagar é bom: o protocolo desiste só quando o canal piora de verdade.", atencao: "Um rollback não é erro: é o mecanismo de segurança funcionando." },
-    { re: /^B3 · tempo até validar/, d: "acordo-seq", oque: "Quanto tempo leva, do início da proposta até o modo novo estar validado, quando há perda de quadros.",
+    { re: /^B3 · tempo até validar/, d: "curva-perda", oque: "Quanto tempo leva, do início da proposta até o modo novo estar validado, quando há perda de quadros.",
       ler: "Mais perda significa mais retransmissões e mais espera. Linhas altas indicam acordos demorados.", atencao: "O tempo é de relógio simulado dos rádios, incluindo as janelas de espera do protocolo." },
-    { re: /^B4/, d: "acordo-seq", oque: "Injeção de falhas: reinícios no meio da troca, quadros duplicados, perdas de rajada. Cada linha é um tipo de falha e mostra se os dois nós voltaram a concordar.",
+    { re: /^B4/, d: "tabela-linhas", oque: "Injeção de falhas: reinícios no meio da troca, quadros duplicados, perdas de rajada. Cada linha é um tipo de falha e mostra se os dois nós voltaram a concordar.",
       ler: "Procure ‘desacordo’ e ‘rollbacks’: o ideal é o par sempre acabar no mesmo modo, mesmo que isso custe um rollback.", atencao: "Não mostra falhas que o simulador não modela." },
-    { re: /^B5/, d: "acordo-seq", oque: "Um nó novo (ou que reiniciou) precisa encontrar o parceiro. Aqui, quanto tempo leva até os dois estarem conversando, em função do intervalo entre os avisos (beacons).",
+    { re: /^B5/, d: "tabela-linhas", oque: "Um nó novo (ou que reiniciou) precisa encontrar o parceiro. Aqui, quanto tempo leva até os dois estarem conversando, em função do intervalo entre os avisos (beacons).",
       ler: "Avisos mais frequentes encontram o parceiro mais rápido, mas gastam mais energia.", atencao: "Um rádio escutando o tempo todo seria mais rápido e muito mais caro." },
-    { re: /^F6/, d: "rollback", oque: "Uma simulação de vários dias com variação diurna do canal e eventos aleatórios, para ver se a Légua fica estável: quantas trocas de modo e rollbacks por hora.",
+    { re: /^F6/, d: "tabela-linhas", oque: "Uma simulação de vários dias com variação diurna do canal e eventos aleatórios, para ver se a Légua fica estável: quantas trocas de modo e rollbacks por hora.",
       ler: "Poucas trocas e poucos rollbacks por hora indicam um protocolo calmo; muitos indicam oscilação.", atencao: "Trocas demais cansam a rede mesmo que o PDR esteja bom." },
-    { re: /^B6/, d: "curva-distancia", oque: "O mesmo traço de variação do canal é reproduzido em duas situações (‘campo’ e ‘bancada’) para ver se o resultado da bancada prevê o do campo.",
+    { re: /^B6/, d: "tabela-linhas", oque: "O mesmo traço de variação do canal é reproduzido em duas situações (‘campo’ e ‘bancada’) para ver se o resultado da bancada prevê o do campo.",
       ler: "Os dois resultados devem ser parecidos; se não forem, a bancada está escondendo algum efeito.", atencao: "A bancada reproduz só o ganho lento do canal, sem o desvanecimento rápido." },
     { re: /^(Quedas ao modo base|Desacordo entre os nós)/, d: "pontos-variantes", oque: "Comparação de variantes do critério para acelerar em dois enlaces difíceis. Cada ponto é um enlace; cada linha, uma variante.",
       ler: "Menos é melhor nos dois gráficos: menos quedas ao modo seguro e menos tempo em desacordo. Uma variante boa precisa ganhar nos dois e não gastar mais energia.", atencao: "Enlaces diferentes preferem variantes diferentes; olhe os dois pontos de cada linha." },
@@ -189,7 +229,7 @@
       ler: "Troque o cenário no seletor. ‘Sem enlace’ = quase nenhum pacote chegou.", atencao: "Os cenários de bancada já têm tetos fixos baixos e variam pouco." },
     { re: /^Verificação de estados/, d: "estados-formal", oque: "Um verificador testa todas as combinações de estados e de perdas de mensagem do protocolo, num modelo simplificado, para provar propriedades. Cada linha remove ou altera um mecanismo.",
       ler: "‘vale’ é bom, ‘viola’ aponta o mecanismo que protege aquela propriedade. P1: nunca fica em desacordo para sempre. P3: sempre dá para voltar a operar. P4: só vira âncora um modo que o par aceitou.", atencao: "Prova para o modelo, não para o código; a equivalência com o código C é testada à parte." },
-    { re: /^Rodada de aceleração/, d: "acordo-seq", oque: "Se cada quadro tem uma chance de se perder, qual a probabilidade de a troca de modo dar certo de primeira, passar por um desacordo curto ou desistir.",
+    { re: /^Rodada de aceleração/, d: "curva-perda", oque: "Se cada quadro tem uma chance de se perder, qual a probabilidade de a troca de modo dar certo de primeira, passar por um desacordo curto ou desistir.",
       ler: "Quanto maior a perda, maior a fatia de ‘degrada’ e de desacordo transitório.", atencao: "Cálculo de cadeia de Markov com perdas independentes; perdas em rajada são piores." },
     { re: /^Núcleo C × simulador/, d: "equivalencia", oque: "Os dois programas (Python, referência, e C99, o código do produto) recebem os mesmos eventos e geram os mesmos quadros? Um teste compara byte a byte.",
       ler: "Zero divergências em muitos cenários aleatórios e dirigidos indica que o C faz o que o Python especifica.", atencao: "Prova que o C copia o Python, não que o Python descreve a realidade." },
@@ -213,7 +253,7 @@
       ler: "Compare entrega, energia e atraso em cada topologia.", atencao: "São modelos do comportamento desses sistemas, não os produtos reais." },
     { re: /^Orçamento de tempo/, d: "orcamento-tempo", oque: "Quanto tempo cada cenário leva na escala longa, estimado a partir da escala rápida e comparado com o tempo medido.",
       ler: "Medido/previsto perto de 1 significa que a previsão foi boa.", atencao: "O tempo depende da máquina em que a suíte roda." },
-    { re: /^Rápida × longa/, d: "orcamento-tempo", oque: "Os mesmos números nas duas escalas lado a lado: a longa tem mais sementes e mais tempo simulado.",
+    { re: /^Rápida × longa/, d: "pontos-escalas", oque: "Os mesmos números nas duas escalas lado a lado: a longa tem mais sementes e mais tempo simulado.",
       ler: "Se um ponto muda muito entre as escalas, a escala rápida estava imprecisa naquele caso.", atencao: "A escala rápida é para desenvolvimento; use a longa para conclusões." },
     { re: /^Parâmetros do setup/, d: "estimativa", oque: "Os dados do seu cenário (distância, antena, ambiente, potência) para calcular uma estimativa sem rodar o simulador.",
       ler: "Mude um parâmetro por vez e veja como as tabelas abaixo respondem.", atencao: "É uma conta analítica, mais simples e rápida que a simulação." },
