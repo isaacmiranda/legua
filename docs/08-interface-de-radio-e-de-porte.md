@@ -22,21 +22,34 @@ aplicação
 
 | Evento | Função |
 |---|---|
+| inicialização / reinício | `legua_init(ep, cfg, env, now, acts)`; `cfg` traz o registro lido da NVM |
 | dados da aplicação | `legua_on_app(ep, payload, len, now, acts)` |
-| quadro recebido | `legua_on_rx(ep, raw, len, now, acts)` |
-| fim de transmissão | `legua_on_tx_done(ep, raw, len, now, acts)` |
+| quadro recebido | `legua_on_rx(ep, raw, len, &rxinfo, now, acts)`; `rxinfo` = RSSI e SNR em décimos de dB |
+| fim de transmissão | `legua_on_tx_done(ep, raw, len, mode_id, now, acts)`; `mode_id` é o modo em que o quadro saiu |
 | prazo vencido | `legua_on_timer(ep, now, acts)`; `legua_next_deadline` diz quando |
+| velocidade GNSS (perfil móvel) | `legua_set_speed(ep, m/s)` |
 
 | Ação | O que o porte faz |
 |---|---|
-| `LEGUA_ACT_TX` | `radio.start_tx(bytes, len)`; ao fim, chama `legua_on_tx_done` |
-| `LEGUA_ACT_RX` | `radio.configure(mode_id, ...)` e `radio.start_rx` |
-| `LEGUA_ACT_PERSIST` | grava `ctr_block` em NVM (`port.nvm_store`), de forma atômica |
-| `LEGUA_ACT_DELIVER` | entrega `payload` (9 B) à aplicação |
-| `LEGUA_ACT_LOG` | telemetria (código e argumento) |
+| `LEGUA_ACT_TX` | `radio.configure(tx.mode_id, canal, tx.power_dbm)`, `start_tx(bytes, len)`; ao fim, chama `legua_on_tx_done` |
+| `LEGUA_ACT_RX` | `radio.configure(mode_id, ...)` e `start_rx`; **descarta transmissões ainda não iniciadas em outro modo** |
+| `LEGUA_ACT_PERSIST` | grava o registro inteiro em NVM (`port.nvm_store`), de forma atômica: âncora, bloco do contador de TX, piso do contador do par. No máximo uma por evento |
+| `LEGUA_ACT_DELIVER` | entrega `payload` (9 B) à aplicação (heartbeats não são entregues) |
+| `LEGUA_ACT_LOG` | telemetria (código e argumento): `MODE` (modo, estado e motivo), `PROPOSE`, `NEG_FAIL`, `VALIDATED`, `COMMIT_RX`, `ALARM`, rejeições, retransmissão |
 
-Regras: o núcleo não guarda ponteiro para `raw`; `legua_actions` tem capacidade fixa
-(`LEGUA_MAX_ACTIONS`); tempo em `uint32_t` de ms que dá a volta (comparação por diferença com sinal).
+**Tabela de modos.** O núcleo não tem RF embutida. O integrador passa em `legua_config.modes` uma tabela ordenada do
+mais rápido ao mais lento, com `{mode_id, cap_dbm, sens_dbm, toa_data_us}` por modo, mais o modo base e o de
+recuperação. Para o perfil BR-2026 (`nao_verificado`) existe `core/profiles/br2026.h`, **gerado** do simulador por
+`tools/gen_modetab.py` (um teste confere que está em sincronia). Assim o núcleo e o Python usam os mesmos modos,
+tetos e sensibilidades; a calibração da bancada (docs/09 §4) entra por essa tabela.
+
+**Parâmetros.** `legua_params` espelha `Config` do simulador (tempos em ms). `legua_params_default` dá o padrão e
+`legua_params_profile` os perfis nomeados da sintonia F7 (`DEFAULT`, `STABLE`, `CAUTIOUS`).
+
+Regras: o núcleo não guarda ponteiro para `raw` nem para a tabela de modos (que deve sobreviver ao endpoint);
+`legua_actions` tem capacidade fixa (`LEGUA_MAX_ACTIONS` = 12) e o campo `overflow` acusa descarte (os testes exigem
+que nunca aconteça); tempo em `uint32_t` de ms que dá a volta (comparação por diferença com sinal). Estados e
+motivos em `enum legua_state` e `enum legua_reason`.
 
 ## 3. Porte (`port.h`)
 
@@ -56,4 +69,4 @@ mbedTLS, no porte). Nada de terceiros no núcleo.
 
 ## 6. Fora do escopo da v0
 
-Escolha de canal e salto, telemetria JSONL, negociação (PROPOSE/VOTE/COMMIT), âncora e rollback (Fases 2 a 4).
+Escolha de canal e salto, telemetria JSONL, driver SX1262, MIC real, CAD/LBT e coexistência. A negociação (PROPOSE/VOTE/COMMIT), a validação, a âncora e o rollback já estão no núcleo (Fase 2, equivalente ao simulador).

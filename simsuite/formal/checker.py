@@ -15,6 +15,10 @@ Propriedades verificadas:
      mesmo modo" (EF), isto é, com entregas a rede sempre pode voltar a operar;
   S1 estados com validação divergente (A validou F, B não) são alcançáveis? (esperado:
      sim, pelo problema dos Dois Generais; P1 garante que se resolvem).
+  P4 âncora confirmada: toda âncora gravada em NVM é de um modo em que o PAR já esteve (variável fantasma
+     com o histórico de modos de cada nó). É a propriedade que separa os mecanismos "gravar só depois da
+     validação" e "janela de validação": sem eles um nó pode reiniciar num modo que o par nunca aceitou.
+     P1 e P3 valem mesmo sem esses mecanismos (a descida por silêncio resolve), por isso não os justificam.
 Ablações: sem descida por silêncio, sem validação, âncora gravada no COMMIT.
 """
 import itertools
@@ -54,11 +58,13 @@ def faster(m):
 
 
 class Model:
-    def __init__(self, P):
+    def __init__(self, P, ghost=False):
         self.P = P
+        self.ghost = ghost                  # acompanha o histórico de modos de cada nó (P4)
 
     def init(self):
-        return (node0(), node0(), (), ())   # nós A, B; quadros em trânsito A->B, B->A
+        s = (node0(), node0(), (), ())      # nós A, B; quadros em trânsito A->B, B->A
+        return s + ((1, 1),) if self.ghost else s
 
     # ------------------------------------------------------------- um nó, um tick
     def step_node(self, me, is_a, inbox, choice):
@@ -186,7 +192,7 @@ class Model:
 
     # ------------------------------------------------------------- sucessores
     def successors(self, s):
-        A, B, ab, ba = s
+        A, B, ab, ba = s[:4]
         P = self.P
         res = set()
         loss_ab = list(itertools.product([0, 1], repeat=len(ab)))
@@ -202,7 +208,10 @@ class Model:
                     nA, outA = self.step_node(A, True, inb_a, ca)
                     for cb in b_choices:
                         nB, outB = self.step_node(B, False, inb_b, cb)
-                        res.add((nA, nB, tuple(outA), tuple(outB)))
+                        t = (nA, nB, tuple(outA), tuple(outB))
+                        if self.ghost:
+                            t += ((s[4][0] | (1 << nA[1]), s[4][1] | (1 << nB[1])),)
+                        res.add(t)
         return res
 
 
@@ -214,8 +223,8 @@ def operating(s):
     return agree(s) and s[0][0] == DATA and s[1][0] == DATA
 
 
-def explore(P, limit=3_000_000):
-    M = Model(P)
+def explore(P, limit=3_000_000, ghost=False):
+    M = Model(P, ghost)
     s0 = M.init()
     idx = {s0: 0}
     states = [s0]
@@ -239,8 +248,18 @@ def explore(P, limit=3_000_000):
     return states, edges
 
 
+def p4_violation(states):
+    """Primeiro estado em que um nó tem âncora de um modo em que o par nunca esteve (ou None)."""
+    for s in states:
+        (A, B), (sa, sb) = s[:2], s[4]
+        for x, seen_peer in ((A, sb), (B, sa)):
+            if x[3] > 0 and not (seen_peer >> x[3]) & 1:
+                return s
+    return None
+
+
 def analyze(P):
-    states, edges = explore(P)
+    states, edges = explore(P, ghost=True)
     n = len(states)
     dis = [not agree(s) for s in states]
     # P1: ciclo no subgrafo de desacordo (Tarjan iterativo simplificado via DFS de cores)
@@ -304,10 +323,14 @@ def analyze(P):
     s1 = any(s[0][0] == DATA and s[1][0] == DATA and s[0][3] != s[1][3] and s[0][3] >= 0 and s[1][3] >= 0
              for s in states)
     s_dis_valid = any(not agree(s) and s[0][0] == DATA and s[1][0] == DATA for s in states)
+    v4 = p4_violation(states)
     out = {"estados": n, "P1_sem_desacordo_permanente": p1, "P2_maior_desacordo_ticks": bound,
            "P3_recuperacao_sempre_possivel": p3,
            "S1_ancoras_divergentes_alcancaveis": s1,
-           "desacordo_com_ambos_em_DATA_alcancavel": s_dis_valid}
+           "desacordo_com_ambos_em_DATA_alcancavel": s_dis_valid,
+           "P4_ancora_confirmada_pelo_par": v4 is None}
+    if v4 is not None:
+        out["contraexemplo_P4"] = fmt(v4)
     if cycle_witness:
         v, w = cycle_witness
         out["contraexemplo"] = {"de": fmt(states[v]), "para": fmt(states[w])}
@@ -315,7 +338,7 @@ def analyze(P):
 
 
 def fmt(s):
-    A, B, ab, ba = s
+    A, B, ab, ba = s[:4]
     f = lambda x: {"estado": ST_NAMES[x[0]], "modo": x[1], "ancora": x[3], "silencio": x[7]}
     return {"A": f(A), "B": f(B), "A->B": [m[0] for m in ab], "B->A": [m[0] for m in ba]}
 
@@ -326,7 +349,7 @@ if __name__ == "__main__":
 
 # ---------------------------------------------------------------- cadeia de Markov
 def prob_successors(M, s, p_loss, propose=False):
-    A, B, ab, ba = s
+    A, B, ab, ba = s[:4]
     out = {}
     for la in itertools.product([0, 1], repeat=len(ab)):
         pa = 1.0

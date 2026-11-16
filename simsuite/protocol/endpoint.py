@@ -12,6 +12,7 @@ Regras da v1:
     troca em instante combinado, janela de validação bidirecional);
   - DEGRADAÇÃO unilateral por escada pré-acordada: potência máxima -> modo de
     recuperação R -> modo base; o receptor desce por silêncio;
+  - o instante de troca é RELATIVO (delay_ms do COMMIT, contado do fim da transmissão do COMMIT, docs/07 §4);
   - âncora e contador gravados só depois da validação (ou no COMMIT, para ablação);
   - todo controle autenticado; quadros com MIC inválido ou contador repetido descartados;
   - alarme de rollback repetido sem queda de SNR (possível jamming).
@@ -19,6 +20,18 @@ Regras da v1:
 import math
 from dataclasses import dataclass, field, replace
 from .modes import DATA_BYTES, ACK_BYTES, CTRL_BYTES
+
+EPS = 1e-9          # tolerância de ponto flutuante nos prazos (os instantes caem na grade de ms do núcleo C)
+
+
+def _due(now, t):
+    return now >= t - EPS
+
+
+def _over(x, limit):
+    """x > limit com a mesma tolerância (x e limit caem na grade de ms)."""
+    return x > limit + EPS
+
 
 BASE, DATA, NEG, PEND, VALID, RECOV = "BASE", "DATA", "NEGOCIANDO", "AGUARDA_COMMIT", "VALIDANDO", "RECUPERACAO"
 
@@ -79,7 +92,8 @@ class Endpoint:
         self.modes, self.base, self.rec = modes, base, rec
         self.cfg, self.rng, self.noise_rise, self.cap = cfg, rng, noise_rise, cap
         self.role_a = nid < peer
-        self.nvm = {"anchor": None, "ctr_block": 0}
+        self.nvm = {"anchor": None, "ctr_block": 0, "peer_blk": 0}   # registro em NVM (docs/07 §5)
+        self._nv_dirty = False
         self.stats = dict(trocas=0, rollbacks=0, degradacoes=0, quedas_base=0, neg_ok=0,
                           neg_fail=0, neg_recusa=0, desc_silencio=0, alarmes=0, rejeitados=0,
                           tx_ctrl=0, entregues=0, gerados=0, perdidos=0)
@@ -110,14 +124,15 @@ class Endpoint:
         self.next_hello = now + self.rng.uniform(0, self.cfg.hello_interval)
         self.next_hb = now + self.cfg.hb_interval
         self.ctr = self.nvm["ctr_block"] * 64 + 64   # salta para o próximo bloco
-        self.peer_ctr = -1
+        self.peer_ctr = self.nvm["peer_blk"] * 64    # piso do contador do par (gravado a cada bloco de 64)
         self.rollback_times = []
         self.freeze_until = now
         self.speed = 0.0
         self.degraded = False
         self.peer_speed = 0.0
-        self.peer_rx_seq = set()
+        self.rx_any, self.rx_top, self.rx_map = False, 0, 0     # janela de 32 números de sequência (docs/07)
         self.bad = {}
+        self.ok_since_p = 0
         self._now = now
         self._now_hint = now
 
@@ -130,10 +145,52 @@ class Endpoint:
     def _cap(self, m):
         return min(self.cap, m.cap)
 
-    def _frame(self, kind, nbytes, mode=None, **body):
+    def _bump_ctr(self):
         self.ctr += 1
         if self.ctr % 64 == 0:
             self.nvm["ctr_block"] = self.ctr // 64
+            self._nv_dirty = True
+        return self.ctr
+
+    def _persist_act(self):
+        self.nvm["ctr_block"] = self.ctr // 64          # o registro grava o bloco corrente (seguro: >= usado)
+        self._nv_dirty = False
+        a = self.nvm["anchor"]
+        return ("persist", {"anchor": a.name if a else None, "ctr_block": self.nvm["ctr_block"],
+                            "peer_blk": self.nvm["peer_blk"]})
+
+    def _flush(self, acts):
+        """Acrescenta o registro de NVM se um contador cruzou um bloco durante o evento."""
+        if self._nv_dirty:
+            self._nv_dirty = False
+            acts.append(self._persist_act())
+        return acts
+
+    def _seq_is_new(self, seq):
+        """Janela de 32 números de sequência (igual a seq_is_new do núcleo C)."""
+        seq &= 0xFF
+        if not self.rx_any:
+            self.rx_any, self.rx_top, self.rx_map = True, seq, 1
+            return True
+        d = (seq - self.rx_top) & 0xFF
+        if d == 0:
+            return False
+        if d < 128:
+            self.rx_map = 0 if d >= 32 else ((self.rx_map << d) & 0xFFFFFFFF)
+            self.rx_map |= 1
+            self.rx_top = seq
+            return True
+        d = (self.rx_top - seq) & 0xFF
+        if d < 32:
+            if self.rx_map & (1 << d):
+                return False
+            self.rx_map |= 1 << d
+            return True
+        self.rx_top, self.rx_map = seq, 1
+        return True
+
+    def _frame(self, kind, nbytes, mode=None, **body):
+        self._bump_ctr()
         m = mode or self.mode
         body["v"] = round(self.speed, 1)        # velocidade GNSS (perfil móvel)
         return Frame(kind, self.id, self.peer, m, self._cap(m) if kind != "DATA" else self.p,
@@ -191,6 +248,9 @@ class Endpoint:
         self.speed = v
 
     def on_app(self, now):
+        return self._flush(self._on_app(now))
+
+    def _on_app(self, now):
         self._now_hint = now
         self.stats["gerados"] += 1
         self._enqueue()
@@ -213,17 +273,27 @@ class Endpoint:
     def _enqueue(self, hb=False):
         self.seq += 1
         if len(self.queue) >= 10:
-            self.queue.pop(0)
+            # fila cheia: descarta o mais antigo que não esteja em voo (igual ao núcleo C)
+            self.queue.pop(1 if self.out is not None and len(self.queue) > 1 else 0)
             self.stats["perdidos"] += 1
         self.queue.append((self.seq, hb))
 
     def on_tx_done(self, frame, now):
-        if frame.kind == "DATA" and self.out and self.out["seq"] == frame.seq:
-            wait = frame.mode.toa(ACK_BYTES) + (0.45 if frame.mode.fhss else 0.05) + 0.15
+        return self._flush(self._on_tx_done(frame, now))
+
+    def _on_tx_done(self, frame, now):
+        if frame.kind == "DATA" and self.out and self.out["seq"] == frame.seq and frame.mode == self.mode:
+            wait = frame.mode.toa_q(ACK_BYTES) + (0.45 if frame.mode.fhss else 0.05) + 0.15
             self.out["deadline"] = now + wait
+        elif (frame.kind == "COMMIT" and self.pending and self.pending["role"] == "A"
+              and self.pending.get("committed") and self.pending.get("instant") is None):
+            self.pending["instant"] = now + frame.body["delay"]
         return []
 
     def on_rx(self, f, rssi, snr, now):
+        return self._flush(self._on_rx(f, rssi, snr, now))
+
+    def _on_rx(self, f, rssi, snr, now):
         self._now_hint = now
         acts = []
         if f.dst not in (self.id, -1) or f.src != self.peer:
@@ -232,6 +302,9 @@ class Endpoint:
             self.stats["rejeitados"] += 1
             return [("log", {"ev": "rejeitado", "tipo": f.kind})]
         self.peer_ctr = f.ctr
+        if f.ctr // 64 > self.nvm["peer_blk"]:           # grava o piso do par a cada bloco de 64
+            self.nvm["peer_blk"] = f.ctr // 64
+            self._nv_dirty = True
         if f.mode != self.mode:
             return acts
         self.peer_heard = now
@@ -240,19 +313,19 @@ class Endpoint:
         g = rssi - f.p_dbm
         self.g_me = g if self.g_me is None else (1 - self.cfg.ema_a) * self.g_me + self.cfg.ema_a * g
         self.snr_hist.append(snr)
-        self.peer_speed = f.body.get("v", 0.0)
+        if f.kind != "ACK":                  # o ACK não leva a velocidade (docs/07 §4)
+            self.peer_speed = f.body.get("v", 0.0)
         k = f.kind
         if k == "HELLO":
             if self.state == BASE and not self.role_a and not f.body.get("reply"):
                 # descoberta bidirecional: responde a HELLO para o proponente também ouvir
                 acts.append(("tx", self._frame("HELLO", CTRL_BYTES, reply=True)))
                 self.stats["tx_ctrl"] += 1
-            if self.state == BASE and self.role_a and self.pending is None and now >= self.neg_block \
-                    and now >= self.freeze_until and not self._frozen():
+            if self.state == BASE and self.role_a and self.pending is None and _due(now, self.neg_block) \
+                    and _due(now, self.freeze_until) and not self._frozen():
                 acts += self._propose(now, initial=True)
         elif k == "DATA":
-            if f.seq not in self.peer_rx_seq:
-                self.peer_rx_seq.add(f.seq)
+            if self._seq_is_new(f.seq):
                 if not f.body.get("hb"):
                     self.stats["entregues"] += 1
             ack = self._frame("ACK", ACK_BYTES, seq=f.seq, g=g)
@@ -291,18 +364,18 @@ class Endpoint:
             if (self.pending and self.pending["role"] == "B"
                     and f.body.get("cand") == self.pending["cand"].name):
                 self.pending["committed"] = True
-                self.pending["instant"] = f.body["instant"]
+                self.pending["instant"] = now + f.body["delay"]       # relativo ao fim do COMMIT (= agora)
                 acts.append(("log", {"ev": "commit_rx"}))
         return acts
 
     # ----------------------------------------------------------------- negociação
     def _candidate(self, initial=False):
         cur_b = self.mode.budget(self.noise_rise)
-        cur_toa = self.mode.toa(DATA_BYTES)
+        cur_toa = self.mode.toa_us(DATA_BYTES)
         best = None
         for i, m in enumerate(self.modes):
             # só modos mais rápidos e no máximo max_budget_jump dB menos robustos (um "passo")
-            if not initial and (m.toa(DATA_BYTES) >= cur_toa * 0.9 or
+            if not initial and (m.toa_us(DATA_BYTES) * 10 >= cur_toa * 9 or
                                 m.budget(self.noise_rise) < cur_b - self.cfg.max_budget_jump):
                 continue
             if self.bad.get(m.name, -1) > self._now:
@@ -317,9 +390,8 @@ class Endpoint:
         cand = target or self._candidate(initial)
         if cand is None or cand == self.mode:
             return []
-        inst = now + self.cfg.instant_delay + 2 * self.mode.toa(CTRL_BYTES)
         self.pending = {"cand": cand, "role": "A", "t0": now, "deadline": now + self.cfg.vote_timeout +
-                        2 * self.mode.toa(CTRL_BYTES)}
+                        2 * self.mode.toa_q(CTRL_BYTES)}
         self.state = NEG if self.state != BASE else self.state
         self.stats["tx_ctrl"] += 1
         return [("tx", self._frame("PROPOSE", CTRL_BYTES, cand=cand.name)),
@@ -334,7 +406,7 @@ class Endpoint:
         self.stats["tx_ctrl"] += 1
         if ok:
             self.pending = {"cand": cand, "role": "B", "committed": False,
-                            "deadline": now + self.cfg.vote_timeout + 3 * self.mode.toa(CTRL_BYTES) +
+                            "deadline": now + self.cfg.vote_timeout + 3 * self.mode.toa_q(CTRL_BYTES) +
                             self.cfg.instant_delay}
             if self.state != BASE:
                 self.state = PEND
@@ -346,11 +418,11 @@ class Endpoint:
         if not f.body.get("yes"):
             self.stats["neg_recusa"] += 1
             return self._neg_fail(now)
-        inst = now + self.cfg.instant_delay
-        self.pending["instant"] = inst
+        self.pending["instant"] = None          # definido em on_tx_done: fim do COMMIT + instant_delay
         self.pending["committed"] = True
         self.stats["tx_ctrl"] += 1
-        return [("tx", self._frame("COMMIT", CTRL_BYTES, cand=self.pending["cand"].name, instant=inst))]
+        return [("tx", self._frame("COMMIT", CTRL_BYTES, cand=self.pending["cand"].name,
+                                   delay=self.cfg.instant_delay))]
 
     def _neg_fail(self, now):
         self.stats["neg_fail"] += 1
@@ -377,8 +449,8 @@ class Endpoint:
         self.next_hb = now + self.rng.uniform(0.2, 2.0)
         self.p = self._cap(cand)
         if self.cfg.persist_at == "commit" or not self.cfg.validation:
-            acts.append(("persist", {"anchor": cand.name}))
             self.nvm["anchor"] = cand
+            acts.append(self._persist_act())
         return acts
 
     def _validated(self, now):
@@ -389,7 +461,7 @@ class Endpoint:
         acts = [("log", {"ev": "validado", "modo": self.mode.name})]
         if self.cfg.persist_at == "validation":
             self.nvm["anchor"] = self.mode
-            acts.append(("persist", {"anchor": self.mode.name}))
+            acts.append(self._persist_act())
         return acts
 
     def _rollback(self, now, why):
@@ -417,7 +489,7 @@ class Endpoint:
         cands = [x for x in self.modes if x.budget(self.noise_rise) >= b - 1e-9]
         if not cands:
             return None
-        return min(cands, key=lambda x: (x.toa(DATA_BYTES), -x.budget(self.noise_rise)))
+        return min(cands, key=lambda x: (x.toa_us(DATA_BYTES), -x.budget(self.noise_rise)))
 
     def _descend(self, now, why):
         if self.mode == self.base:
@@ -435,7 +507,7 @@ class Endpoint:
         return self._set_mode(self.base, BASE, now, why)
 
     def _power_trim(self):
-        self.ok_since_p = getattr(self, "ok_since_p", 0) + 1
+        self.ok_since_p += 1
         if not self.cfg.power_control or self.ok_since_p < 10 or self.state != DATA:
             return []
         p2 = self.p - 2
@@ -446,11 +518,14 @@ class Endpoint:
 
     # ----------------------------------------------------------------- tempo
     def on_timer(self, now):
+        return self._flush(self._on_timer(now))
+
+    def _on_timer(self, now):
         self._now_hint = now
         acts = []
         c = self.cfg
         # ACK expirado
-        if self.out and self.out["deadline"] is not None and now >= self.out["deadline"]:
+        if self.out and self.out["deadline"] is not None and _due(now, self.out["deadline"]):
             self.fail_streak += 1
             self.consec_ok = 0
             if self.state == VALID:
@@ -471,41 +546,40 @@ class Endpoint:
             if self.state == DATA and self.fail_streak >= c.fail_streak_degrade and self.p >= self._cap(self.mode):
                 return acts + self._descend(now, "falhas")
         # retransmissão após recuo aleatório
-        if self.out and self.out.get("resend_at") is not None and now >= self.out["resend_at"]:
+        if self.out and self.out.get("resend_at") is not None and _due(now, self.out["resend_at"]):
             f = replace(self.out["frame"], p_dbm=self.p, mode=self.mode)
-            self.ctr += 1
-            f.ctr = self.ctr
-            f.body = dict(f.body, val=(self.state == DATA))
+            f.ctr = self._bump_ctr()
+            f.body = dict(f.body, val=(self.state == DATA), v=round(self.speed, 1))
             self.out = {"seq": self.out["seq"], "att": self.out["att"] + 1, "deadline": None, "frame": f}
             acts.append(("tx", f))
         # validação expirada
-        if self.state == VALID and now - self.val["t0"] > c.t_valid:
+        if self.state == VALID and _over(now - self.val["t0"], c.t_valid):
             return acts + self._rollback(now, "validacao_expirou")
         # negociação: voto ou commit não chegou
         if self.pending:
             pd = self.pending
-            if pd.get("committed") and now >= pd["instant"]:
+            if pd.get("committed") and pd.get("instant") is not None and _due(now, pd["instant"]):
                 acts += self._switch(now)
-            elif not pd.get("committed") and now >= pd["deadline"]:
+            elif not pd.get("committed") and _due(now, pd["deadline"]):
                 acts += self._neg_fail(now)
         # silêncio
         if c.silence_descent:
-            if self.state in (DATA,) and now - self.peer_heard > c.t_silence:
+            if self.state in (DATA,) and _over(now - self.peer_heard, c.t_silence):
                 self.stats["desc_silencio"] += 1
                 acts += self._descend(now, "silencio")
-            elif self.state == RECOV and now - self.peer_heard > c.t_recovery:
+            elif self.state == RECOV and _over(now - self.peer_heard, c.t_recovery):
                 self.stats["desc_silencio"] += 1
                 acts += self._descend(now, "silencio_rec")
         # base: HELLO periódico
-        if self.state == BASE and self.role_a and self.pending is None and now >= self.neg_block \
-                and now >= self.freeze_until and self.consec_ok >= 5 and self.out is None and not self._frozen():
+        if self.state == BASE and self.role_a and self.pending is None and _due(now, self.neg_block) \
+                and _due(now, self.freeze_until) and self.consec_ok >= 5 and self.out is None and not self._frozen():
             acts += self._propose(now, initial=True)
-        if self.state == BASE and now >= self.next_hello and now - self.peer_heard > 3 * c.hello_interval:
+        if self.state == BASE and _due(now, self.next_hello) and _over(now - self.peer_heard, 3 * c.hello_interval):
             self.next_hello = now + c.hello_interval * self.rng.uniform(0.7, 1.3)
             self.stats["tx_ctrl"] += 1
             acts.append(("tx", self._frame("HELLO", CTRL_BYTES)))
         # heartbeat
-        if self.state in (DATA, RECOV, VALID) and now >= self.next_hb and not (self.state == VALID and not self.role_a):
+        if self.state in (DATA, RECOV, VALID) and _due(now, self.next_hb) and not (self.state == VALID and not self.role_a):
             self.next_hb = now + (4.0 if self.state == VALID else c.hb_interval) * self.rng.uniform(0.75, 1.25)
             if not self.queue and self.out is None:
                 self._enqueue(hb=True)
@@ -514,14 +588,14 @@ class Endpoint:
         anc = self.nvm["anchor"]
         if (self.state == DATA and self.role_a and self.pending is None and self.out is None
                 and self.degraded and anc is not None and anc != self.mode
-                and self.consec_ok >= 10 and now - self.entered >= c.cooldown_back
-                and now >= self.neg_block and now >= self.freeze_until and not self._frozen()
+                and self.consec_ok >= 10 and _due(now - self.entered, c.cooldown_back)
+                and _due(now, self.neg_block) and _due(now, self.freeze_until) and not self._frozen()
                 and self._margin(anc) >= self._need_up(-2.0) and self.bad.get(anc.name, -1) <= now):
             acts += self._propose(now, target=anc)
         # aceleração
         elif (self.state == DATA and self.role_a and self.pending is None and self.out is None
-                and self.consec_ok >= c.n_up and now - self.last_change >= c.cooldown_up
-                and now >= self.neg_block and now >= self.freeze_until):
+                and self.consec_ok >= c.n_up and _due(now - self.last_change, c.cooldown_up)
+                and _due(now, self.neg_block) and _due(now, self.freeze_until)):
             if not self._frozen():
                 acts += self._propose(now)
         if self.state not in (NEG, PEND):

@@ -28,7 +28,7 @@ tem **no máximo 24 B no ar**, incluindo autenticação.
 | ctr16 | 16 | 16 bits baixos do contador de TX de 32 bits (anti-replay) |
 | MIC | 32 | autenticação truncada sobre cabeçalho + corpo, com nonce (src, ctr32) e chave de id `key_id` |
 
-Tamanho **fixo por tipo**: DATA 24 B, ACK 14 B, HELLO/PROPOSE/VOTE/COMMIT 20 B. Tamanho diferente do esperado
+Tamanho **fixo por tipo**: DATA 24 B, ACK 14 B, HELLO/PROPOSE/VOTE/COMMIT 16 B. Tamanho diferente do esperado
 para o tipo: descartar.
 
 ## 3. Orçamento
@@ -37,7 +37,7 @@ para o tipo: descartar.
 |---|---|---|---|---|---|
 | DATA | 8 | 12 | 4 | **24** | 370,7 |
 | ACK | 8 | 2 | 4 | 14 | 288,8 |
-| controle | 8 | 8 | 4 | 20 | 370,7 (mesmo custo do DATA: 20 B e 24 B têm o mesmo número de símbolos) |
+| controle | 8 | 4 | 4 | **16** | 329,7 (era 20 B e 370,7 ms; compactado em 15/11/2026: 11% menos tempo no ar por mensagem) |
 
 O doc 03 (E8) propunha 13 B de sobrecarga com campo de grupo (1 B) e 11 B de corpo. A v0 usa **12 B de
 sobrecarga** (sem grupo no cabeçalho; grupos usam faixa de `dst`, Fase 6) e entrega **9 B de payload** por DATA.
@@ -46,15 +46,23 @@ sobrecarga** (sem grupo no cabeçalho; grupos usam faixa de `dst`, Fase 6) e ent
 
 | Tipo | Corpo (bytes) |
 |---|---|
-| DATA (12) | `seq` u8, `dflags` u8 (bit0 VAL, bit1 HB), `speed` u8 (0,5 m/s), `payload` 9 |
+| DATA (12) | `seq` u8, `dflags` u8, `speed` u8 (0,5 m/s), `payload` 9 |
 | ACK (2) | `seq` u8, `gain` u8 (`0xFF` = desconhecido; senão ganho = -60 - gain × 0,5 dB) |
-| HELLO (8) | `flags` u8 (bit0 REPLY), `speed` u8, reservado 6 (zero) |
-| PROPOSE (8) | `cand` u8 (byte de modo), `speed` u8, reservado 6 |
-| VOTE (8) | `cand` u8, `yes` u8, `speed` u8, reservado 5 |
-| COMMIT (8) | `cand` u8, `delay_ms` u16, `speed` u8, reservado 4 |
+| HELLO (4) | `flags` u8 (bit0 REPLY), `speed` u8, reservado 2 (zero) |
+| PROPOSE (4) | `cand` u8 (byte de modo), `speed` u8, reservado 2 |
+| VOTE (4) | `cand` u8, `yes` u8, `speed` u8, reservado 1 |
+| COMMIT (4) | `cand` u8, `delay_ms` u16, `speed` u8 |
 
-`delay_ms` do COMMIT é relativo ao fim da transmissão do COMMIT (os nós não compartilham relógio). O simulador
-Python usa instante absoluto: é uma diferença conhecida, a alinhar na Fase 2.
+`dflags` do DATA: bit0 **VAL** (o remetente está validado neste modo), bit1 **HB** (heartbeat, sem payload de
+aplicação), bits 2-7 **potência de TX**: `p_dbm = código - 9` (código 0 a 37, de -9 a 28 dBm, passo de 1 dB). O
+receptor precisa da potência para medir o ganho do enlace (`RSSI - p_dbm`). Quadros que não são DATA saem na
+potência do teto do modo (`min(teto do nó, teto do modo)`), que os dois lados conhecem; **os dois nós assumem o
+mesmo teto** (nó mais fraco no par é pendência).
+
+`delay_ms` do COMMIT é **relativo ao fim da transmissão do COMMIT** (os nós não compartilham relógio): quem
+transmite conta a partir do `TX_DONE` do COMMIT; quem recebe, a partir do fim da recepção. O simulador Python usa
+o mesmo critério desde 15/11/2026 (antes usava um instante absoluto). `ACK`: o ganho que o receptor mediu no DATA;
+o transmissor o usa para saber o ganho no sentido contrário.
 
 **Byte de modo:** `(SF-5) << 5 | BWcode << 3 | (CR-1) << 1 | FHSS`, com BWcode 0 = 125, 1 = 250, 2 = 500 kHz.
 
@@ -66,8 +74,13 @@ Python usa instante absoluto: é uma diferença conhecida, a alinhar na Fase 2.
 - O último contador do par só avança depois do MIC válido.
 - O contador de TX é gravado em NVM em **blocos de 64**. Depois de um reinício o contador salta para
   `bloco × 64 + 64`, acima de tudo que já foi usado. Cada retransmissão usa um contador novo.
-- **Pendência (Fase 1):** o último contador do par ainda não é gravado em NVM; após reinício do receptor,
-  quadros antigos ainda não vistos nesta execução poderiam ser aceitos. O núcleo já aceita `peer_ctr_floor`.
+- **Registro em NVM** (uma gravação atômica por evento, nunca mais): `{âncora, bloco do contador de TX, piso do
+  contador do par}`. Grava-se quando algum dos dois contadores cruza um múltiplo de 64 e quando a âncora muda.
+  O **piso do par** é o último múltiplo de 64 visto; depois de um reinício o receptor só aceita contador acima
+  dele, e a reconstrução de 16 para 32 bits parte dele. Consequências: (1) um replay de quadro **até 63 contadores
+  acima do piso** que o receptor já tinha visto antes do reinício ainda é aceito (limite do esquema de blocos;
+  reduzir o bloco encurta a janela e aumenta o desgaste da flash); (2) se o par transmitir mais de 32767 quadros
+  enquanto o receptor está desligado, a reconstrução falha e é preciso ressincronizar (rechavear, pendência 2).
 
 ## 6. Cripto
 
@@ -78,17 +91,26 @@ teste (FNV-1a com chave) existe só nos testes e **não é segurança**.
 
 ## 7. Diferenças em relação ao simulador (`endpoint.py`)
 
-| Item | Simulador | Núcleo C v0 |
+Desde 15/11/2026 o núcleo C implementa também a negociação (PROPOSE/VOTE/COMMIT), a validação, o rollback, a descida
+por silêncio e o controle de potência, e é **equivalente** ao simulador: o teste de equivalência
+(`simsuite/tests/test_equivalencia.py`, docs/09 §8) roda os dois por bytes reais e compara quadro a quadro.
+Diferenças que restam, todas de representação:
+
+| Item | Simulador | Núcleo C |
 |---|---|---|
-| ACK | 12 B | 14 B (agora também no simulador) |
-| Número de sequência inicial | 0 após reinício | aleatório (evita ser tomado por duplicata do par) |
-| Fila cheia | descarta o mais antigo | descarta o mais antigo que não está em voo |
+| Tempo | segundos em ponto flutuante | ms inteiros; tempo no ar arredondado ao ms para cima |
+| Número de sequência | inteiro sem limite internamente; 8 bits no fio | 8 bits, com janela de 32 para duplicatas |
+| Número de sequência inicial | 0 após reinício | aleatório (o par não confunde com duplicata) |
+| Cálculo | `double` | `float`; `sqrt` por Newton (sem libm) |
+| Parâmetros | `Config` | `legua_params` (mesmos campos; perfis nomeados em `legua_params_profile`) |
 | Velocidade | em todo quadro | em DATA, HELLO, PROPOSE, VOTE, COMMIT (não no ACK) |
-| Negociação | completa | Fase 2 |
 
 ## 8. Pendências
 
 1. Colisão de endereços curtos (16 bits) e como derivar do identificador.
-2. Escolha do algoritmo de MIC e do formato de chave/rotação (`key_id`).
+2. Escolha do algoritmo de MIC e do formato de chave/rotação (`key_id`); ressincronização depois de uma ausência
+   longa (contador do par fora da janela de 32767).
 3. Fragmentação (flag FRAG) e payload maior que 9 B.
-4. Compactar controle de 20 para 14–16 B, se o corpo reservado não for usado: no SF10/125, 16 B leva 330 ms e 14 B leva 289 ms, contra 371 ms hoje (ganho de 11% a 22% de tempo no ar por mensagem de controle).
+4. (feito em 15/11/2026) Controle compactado de 20 para 16 B. Ir a 14 B exigiria tirar a velocidade ou o `yes`
+   do corpo (ganho extra de 12% no tempo no ar do controle); não vale enquanto o perfil móvel usa a velocidade.
+5. Potência de TX diferente por nó (teto assimétrico): o receptor hoje supõe o mesmo teto nos dois lados.

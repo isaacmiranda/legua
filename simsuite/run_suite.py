@@ -20,7 +20,7 @@ RES = os.path.join(HERE, "results")
 MAPA = [
     ("Fase 0", "Textos da Anatel, OCD, UTE, LGPD, nome", "Não", "—", "Decisão jurídica e regulatória; a suíte só codifica a leitura atual em core/regulatory.py"),
     ("Fase 1", "Verificação formal (TLA+/UPPAAL/PRISM)", "Sim", "formal", "Verificador de estados explícito + cadeia de Markov em Python (sem TLC/PRISM instalados)"),
-    ("Fase 2", "Simulação e validação cruzada", "Sim", "modos, todos", "DES com protocolo de dois lados + modelos de malha"),
+    ("Fase 2", "Simulação e validação cruzada", "Sim", "modos, todos, xsim, equiv", "DES com protocolo de dois lados + modelos de malha; núcleo C equivalente ao Python (equiv); regras do LoRaSim portadas (xsim)"),
     ("B1", "Calibração RSSI/potência por unidade", "Não", "—", "Medida física; a suíte usa 25,6 dBm medidos pela Heltec como referência"),
     ("B2", "Curvas PDR × atenuação", "Parcial", "B2", "Modelo de PER; prevê onde medir (degraus de 1 dB em torno do limiar)"),
     ("B3", "Custo do plano de controle", "Sim", "B3", "Lógica do protocolo + tempo no ar; energia depende da curva de corrente (B8)"),
@@ -91,6 +91,12 @@ def job(name, escala, outdir=RES):
             r = mesh(escala)
         elif name == "fase7":
             r = fase7_demo(outdir)
+        elif name == "xsim":
+            from .analysis.lorasim import comparar
+            r = comparar(rapido=(escala != "full"))
+        elif name == "equiv":
+            from .tests.equiv_harness import resumo
+            r = resumo(150 if escala == "full" else 30)
         else:
             raise KeyError(name)
         r = {"cenario": name, "escala": escala, "segundos": round(time.time() - t0, 1), "resultado": r}
@@ -156,7 +162,7 @@ def fase7_demo(outdir=RES):
 
 
 ALL = ["modos", "amostras", "formal", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11",
-       "F", "F6", "F7", "M", "T23", "T456", "fase7"]
+       "F", "F6", "F7", "M", "T23", "T456", "fase7", "xsim", "equiv"]
 
 
 def main():

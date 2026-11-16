@@ -20,7 +20,7 @@ def _make(*alvos):
 
 def test_tamanhos_do_formato():
     assert wire.FRAME_LEN[wire.T_DATA] == 24 and wire.FRAME_LEN[wire.T_ACK] == 14
-    assert all(wire.FRAME_LEN[t] == 20 for t in (wire.T_HELLO, wire.T_PROPOSE, wire.T_VOTE, wire.T_COMMIT))
+    assert all(wire.FRAME_LEN[t] == 16 for t in (wire.T_HELLO, wire.T_PROPOSE, wire.T_VOTE, wire.T_COMMIT))
     assert wire.DATA_PAYLOAD == wire.BODY_LEN[wire.T_DATA] - 3
     # o DATA de 24 B é a parede do SF10/125 com salto
     assert toa_s(10, 125, wire.FRAME_LEN[wire.T_DATA]) <= 0.4
@@ -77,3 +77,20 @@ def test_nucleo_c_passa_testes():
     r = _make("test")
     assert r.returncode == 0, r.stdout + r.stderr
     assert "codec:" in r.stdout and "sim: ok" in r.stdout
+
+
+@precisa_cc
+def test_tabela_de_modos_br2026_em_sincronia():
+    r = subprocess.run(["python3", "tools/gen_modetab.py", "--conferir"], cwd=RAIZ, capture_output=True, text=True,
+                       env={**os.environ, "PYTHONPATH": RAIZ})
+    assert r.returncode == 0, "rode: make -C core vectors"
+
+
+@precisa_cc
+def test_fuzz_com_sanitizadores():
+    """Entradas hostis (bytes aleatórios, quadros adulterados, MIC válido com campos absurdos) em todos os estados."""
+    r = _make("fuzz")
+    if "cannot find -lasan" in r.stderr or "libasan" in r.stderr:
+        pytest.skip("sem libasan/libubsan")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "fuzz: ok" in r.stdout

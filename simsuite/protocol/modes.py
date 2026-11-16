@@ -11,8 +11,22 @@ from ..core.regulatory import BR2026, NO_RULE
 # Tamanhos do formato v0 (docs/07; simsuite/protocol/wire.py): cabeçalho 8 + corpo + MIC 4.
 DATA_BYTES = 24      # corpo 12 (parede de 24 B no SF10/125)
 ACK_BYTES = 14       # corpo 2 (seq + ganho); era 12 antes da especificação v0
-CTRL_BYTES = 20      # corpo 8, com bytes reservados (candidato a compactar)
+CTRL_BYTES = 16      # corpo 4 (compactado de 20 B em 15/11/2026; docs/07)
 HW_MAX_DBM = 28.0    # Heltec V4 (FEM); medido 25,6 dBm para 27 configurados [SEC]
+
+
+def toa_us_int(sf, bw_khz, nbytes, cr):
+    """Espelho de `legua_toa_us` (core/src/toa.c): inteiros, tsym = 2^sf*1000/bw µs."""
+    tsym = (1 << sf) * 1000 // bw_khz
+    de = 1 if tsym > 16000 else 0
+    if sf >= 7:
+        num, den = 8 * nbytes - 4 * sf + 28 + 16, 4 * (sf - 2 * de)
+    else:
+        num, den = 8 * nbytes + 16 - 4 * sf + 20, 4 * sf
+    sym = 0 if num <= 0 else ((num + den - 1) // den) * (cr + 4)
+    nsym = 8 + sym
+    quarters = (8 * 4 + 17 if sf >= 7 else 8 * 4 + 25) + 4 * nsym
+    return quarters * tsym // 4
 
 
 @dataclass(frozen=True)
@@ -31,6 +45,14 @@ class Mode:
 
     def toa(self, nbytes):
         return toa_s(self.sf, self.bw, nbytes, self.cr)
+
+    def toa_us(self, nbytes):
+        """Tempo no ar em µs com a mesma aritmética inteira do núcleo C (`legua_toa_us`)."""
+        return toa_us_int(self.sf, int(self.bw), nbytes, self.cr)
+
+    def toa_q(self, nbytes):
+        """Tempo no ar arredondado para cima ao ms, em s: a granularidade dos prazos do núcleo C."""
+        return ((self.toa_us(nbytes) + 999) // 1000) / 1000.0
 
     def budget(self, noise_rise=0.0):
         return self.cap - self.sens(noise_rise)

@@ -53,12 +53,14 @@ def write_report(res, mapa, escala):
         L += ["## Tamanhos de amostra", "", _t(get("amostras")["tabela"], ["Objetivo", "n mínimo"]), ""]
     if get("formal"):
         f = get("formal")
+        p4 = lambda v: "–" if v.get("P4_ancora_confirmada_pelo_par") is None else (
+            "sim" if v["P4_ancora_confirmada_pelo_par"] else "**NÃO**")
         rows = [(k, v["estados"], "sim" if v["P1_sem_desacordo_permanente"] else "**NÃO**",
-                 v["P2_maior_desacordo_ticks"], "sim" if v["P3_recuperacao_sempre_possivel"] else "**NÃO**")
+                 v["P2_maior_desacordo_ticks"], "sim" if v["P3_recuperacao_sempre_possivel"] else "**NÃO**", p4(v))
                 for k, v in f["ablacoes"].items()]
         L += ["## Fase 1: verificação formal (modelo abstrato, perdas adversárias)", "",
               _t(rows, ["Variante", "Estados", "P1 sem desacordo permanente", "P2 maior desacordo (ticks)",
-                        "P3 recuperação sempre possível"]), ""]
+                        "P3 recuperação sempre possível", "P4 âncora confirmada pelo par"]), ""]
         ce = f["ablacoes"].get("sem_descida_por_silencio", {}).get("contraexemplo")
         if ce:
             L += [f"Contraexemplo sem descida por silêncio: A em {ce['de']['A']['estado']} no modo {ce['de']['A']['modo']}, "

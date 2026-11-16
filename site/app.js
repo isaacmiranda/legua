@@ -545,12 +545,13 @@
     var ab = d.formal.ablacoes, mk = d.formal.rodada_markov;
     var names = { referencia: "referência", sem_descida_por_silencio: "sem descida por silêncio", sem_validacao: "sem validação", ancora_no_commit: "âncora no COMMIT", dois_reboots: "dois reboots" };
     var tab = tableCard("Verificação de estados (modelo abstrato, perdas adversárias)",
-      "P1: sem desacordo permanente. P2: maior desacordo transitório, em ticks. P3: a recuperação é sempre possível. Cada linha remove ou altera um mecanismo do protocolo.",
-      ["Variante", "Estados", "P1", "P2 (ticks)", "P3"],
+      "P1: sem desacordo permanente. P2: maior desacordo transitório, em ticks. P3: a recuperação é sempre possível. P4: toda âncora gravada é de um modo em que o par já esteve. Cada linha remove ou altera um mecanismo do protocolo.",
+      ["Variante", "Estados", "P1", "P2 (ticks)", "P3", "P4"],
       keys(ab).map(function (k) { var r = ab[k];
         return [names[k] || k, nf(r.estados, 0), r.P1_sem_desacordo_permanente ? { pill: "ok", text: "vale" } : { pill: "bad", text: "viola" },
-          r.P2_maior_desacordo_ticks == null ? "–" : r.P2_maior_desacordo_ticks, r.P3_recuperacao_sempre_possivel ? { pill: "ok", text: "vale" } : { pill: "bad", text: "viola" }]; }),
-      [false, true, false, true, false]);
+          r.P2_maior_desacordo_ticks == null ? "–" : r.P2_maior_desacordo_ticks, r.P3_recuperacao_sempre_possivel ? { pill: "ok", text: "vale" } : { pill: "bad", text: "viola" },
+          r.P4_ancora_confirmada_pelo_par == null ? "–" : (r.P4_ancora_confirmada_pelo_par ? { pill: "ok", text: "vale" } : { pill: "bad", text: "viola" })]; }),
+      [false, true, false, true, false, false]);
     var S = ordSeries([{ id: "F", label: "Fica na configuração nova (F)", short: "Fica em F" }, { id: "deg", label: "Degrada", short: "Degrada" },
       { id: "des", label: "Desacordo transitório", short: "Desacordo" }, { id: "d8", label: "Desacordo > 8 ticks", short: "> 8 ticks" }]);
     var keysM = ["P_F", "P_degradou", "P_houve_desacordo", "P_desacordo_maior_8"];
@@ -566,6 +567,47 @@
         rows: mk.map(function (r, i) { return [fmtPct(r.p_perda)].concat(S.map(function (s) { return fmtPct(s.vals[i]); })).concat([nf(r.ticks_esperados, 1)]); }) }; }
     });
     mount(panel, [tab, chart]);
+  }
+
+  function panelValidacao(panel) {
+    var x = d.xsim, e = d.equiv, cards = [];
+    if (e) {
+      var ex = e.exercitado || {};
+      cards.push(tableCard("Núcleo C × simulador Python (equivalência)",
+        "Mesmos cenários nos quatro pares (Py-Py, C-C, Py-C, C-Py), por bytes reais do formato de fio. Os rastros precisam ser idênticos: quadros byte a byte, trocas de modo, gravações em NVM e estatísticas. Py-C e C-Py provam também a interoperabilidade.",
+        ["Medida", "Valor"],
+        [["Cenários aleatórios (sementes " + e.sementes[0] + " a " + e.sementes[1] + ")", nf(e.cenarios, 0)], ["Divergências entre os pares", e.divergencias === 0 ? { pill: "ok", text: "0" } : { pill: "bad", text: String(e.divergencias) }],
+         ["Eventos comparados", nf(e.eventos_comparados, 0)], ["Trocas de modo negociadas", nf(ex.trocas, 0)], ["Validações que terminaram em rollback", nf(ex.rollbacks, 0)],
+         ["Degradações pela escada", nf(ex.degradacoes, 0)], ["Quedas ao modo base", nf(ex.quedas_base, 0)], ["Descidas por silêncio", nf(ex.desc_silencio, 0)],
+         ["Votos recusados / negociações falhas", nf(ex.neg_recusa, 0) + " / " + nf(ex.neg_fail, 0)], ["Quadros rejeitados (replay, MIC)", nf(ex.rejeitados, 0)],
+         ["Variantes do protocolo", keys(e.variantes).map(function (k) { return k + " " + e.variantes[k]; }).join(", ")]], [false, true]));
+    }
+    if (x) {
+      var pts = x.aloha.pontos;
+      var S = ordSeries([{ id: "a", label: "ALOHA puro (analítico)", short: "analítico" }, { id: "l", label: "Regras do LoRaSim (porte)", short: "LoRaSim" }, { id: "q", label: "Simulador desta suíte", short: "aqui" }]);
+      var kk = ["pdr_analitico", "pdr_lorasim", "pdr_aqui"];
+      S.forEach(function (s, i) { s.vals = pts.map(function (r) { return r[kk[i]]; }); });
+      cards.push(card({
+        title: "Colisão em estrela: PDR × número de nós",
+        note: "SF" + x.aloha.sf + "/" + x.aloha.bw + ", " + x.aloha.payload_B + " B (" + nf(x.aloha.tempo_no_ar_ms, 1) + " ms no ar), um envio a cada " + x.aloha.intervalo_medio_s + " s em média, potências iguais, " + x.aloha.horas_por_semente + " h por semente (3 sementes). O LoRaSim tem uma exceção: o pacote que chega nos últimos símbolos de preâmbulo do outro sobrevive, então perde um pouco menos.",
+        legend: function () { return legend(S); },
+        build: function (host) { lineChart(host, { xs: pts.map(function (r) { return r.nos; }), series: S, yFmt: fmtPct, ymin: 0.5, ymax: 1.0,
+          yTick: function (v) { return nf(100 * v, 0) + "%"; }, xFmt: function (v) { return nf(v, 0) + " nós"; }, xTick: function (v) { return nf(v, 0); },
+          xTitle: "nós na estrela", aria: "PDR × número de nós, três modelos" }); },
+        table: function () { return { head: ["Nós", "Carga G", "Analítico", "LoRaSim (porte)", "Aqui"], num: [true, true, true, true, true],
+          rows: pts.map(function (r) { return [nf(r.nos, 0), nf(r.G, 3), fmtPct(r.pdr_analitico), fmtPct(r.pdr_lorasim), fmtPct(r.pdr_aqui)]; }) }; }
+      }));
+      var cr = x.captura.resultado;
+      cards.push(tableCard("Captura (metade dos nós " + x.captura.diferenca_de_potencia_dB + " dB mais forte)", x.captura.nos + " nós na mesma estrela. O forte sobrevive à sobreposição; o fraco, não.",
+        ["Modelo", "PDR dos fortes", "PDR dos fracos"],
+        [["LoRaSim (porte)", fmtPct(cr.lorasim.pdr_fortes), fmtPct(cr.lorasim.pdr_fracos)], ["Aqui", fmtPct(cr.aqui.pdr_fortes), fmtPct(cr.aqui.pdr_fracos)]], [false, true, true]));
+      var ta = x.tempo_no_ar, sn = x.sensibilidade;
+      cards.push(tableCard("Tempo no ar e sensibilidade", "Tempo no ar: " + nf(ta.combinacoes, 0) + " combinações de SF, BW, CR e tamanho; " + (ta.combinacoes_sf_bw_diferentes.length ? "só diferem SF" + ta.combinacoes_sf_bw_diferentes.map(function (c) { return c[0] + "/" + c[1]; }).join(", ") + " (regra do LDRO: a Semtech manda ligar acima de 16 ms; o LoRaSim só liga em 125 kHz com SF11/12)." : "todas iguais."),
+        ["SF", "BW (kHz)", "LoRaSim (dBm, SX1272 medido)", "Aqui (dBm, modelo SX1262)", "Diferença (dB)"],
+        sn.linhas.filter(function (r) { return r.bw === 125; }).map(function (r) { return [r.sf, r.bw, nf(r.lorasim_dbm, 2), nf(r.aqui_dbm, 2), nf(r.diferenca_db, 2)]; }).concat([["todas as 18", "", "", "média |Δ| " + nf(sn.diferenca_media_abs_db, 2), "máx " + nf(sn.maior_diferenca_db, 2)]]),
+        [true, true, true, true, true]));
+    }
+    mount(panel, cards);
   }
 
   function panelSeguranca(panel) {
@@ -952,9 +994,9 @@
         des: ["Estabilidade custa energia: no residencial 3 km, fade_k 3 gasta " + fmtMj(R[f3].mj_por_pacote_mediana) + " contra " + fmtMj(R[at].mj_por_pacote_mediana) + " da Légua atual e " + fmtMj(R[fx].mj_por_pacote_mediana) + " do SF10 fixo.",
           "Com margem alta a Légua passa a gastar mais que o modo fixo: a vantagem de energia some.",
           "A margem de 14 dB (" + fmtMj(A[m14].mj_por_pacote_mediana) + " no urbano denso) é um meio-termo sem justificativa teórica."],
-        apl: ["Perfil estável: aplicações em que oscilar entre modos é inaceitável (ordenação, alarmes, auditoria de comunicação).",
-          "Perfil econômico (fade_k = 0): sensores a bateria em enlaces folgados, aceitando oscilar no limite.",
-          "O integrador escolhe o perfil por instalação; a biblioteca expõe o parâmetro."],
+        apl: ["Perfil `estavel` (fade_k = 3): aplicações em que oscilar entre modos é inaceitável (ordenação, alarmes, auditoria de comunicação).",
+          "Perfil `padrao` (fade_k = 0, margem 8 dB): sensores a bateria em enlaces folgados, aceitando oscilar no limite. Perfil `cauteloso` (margem fixa de 14 dB): meio-termo sem estatística.",
+          "Os três perfis existem no simulador (`simsuite/protocol/perfis.py`) e no núcleo C (`legua_params_profile`), com um teste que confere que são iguais; o integrador escolhe por instalação."],
         cri: ["Só dois enlaces e dois ambientes; não generaliza para outros desvanecimentos.",
           "fade_k é heurística; controles com histerese temporal ou por estimador de quantil não foram testados.",
           "Estas diferenças dependem do canal estimado e precisam de confirmação na bancada e no campo."]
@@ -962,23 +1004,47 @@
     },
     formal: function () {
       var ab = d.formal.ablacoes, mk = d.formal.rodada_markov, ref = ab.referencia, sd = ab.sem_descida_por_silencio, dr = ab.dois_reboots;
+      var sv = ab.sem_validacao, ac = ab.ancora_no_commit;
       var m10 = mk[2], m30 = mk[4];
+      var temP4 = ref.P4_ancora_confirmada_pelo_par != null;
       return {
-        car: ["Na referência (" + nf(ref.estados, 0) + " estados), P1 e P3 valem e o maior desacordo transitório é de " + ref.P2_maior_desacordo_ticks + " ticks.",
+        car: ["Na referência (" + nf(ref.estados, 0) + " estados), P1 e P3 valem e o maior desacordo transitório é de " + ref.P2_maior_desacordo_ticks + " ticks." + (temP4 ? " P4 (âncora confirmada pelo par) também vale." : ""),
           "Sem a descida por silêncio, P1 e P3 são violadas: o verificador acha o ciclo A em DATA no modo 2, B no base, repetido para sempre.",
+          temP4 ? "Sem a validação e com a âncora gravada no COMMIT, P1 e P3 continuam valendo, mas P4 é violada: o verificador acha A com a âncora num modo em que B nunca esteve." : "Sem a validação e com a âncora no COMMIT, P1 continua valendo.",
           "Com 10% de perda por quadro a rodada de aceleração termina no modo novo em " + fmtPct(m10.P_F) + " dos casos e degrada em " + fmtPct(m10.P_degradou) + "; com 30%, " + fmtPct(m30.P_F) + " e " + fmtPct(m30.P_degradou) + "."],
         van: ["Dá uma resposta exata (exaustiva) para o modelo abstrato, não uma amostra.",
           "A ablação identifica o mecanismo indispensável (descida por silêncio) e dá um contraexemplo executável.",
-          "Os cenários de dois reboots e de âncora no COMMIT mantêm P1 (desacordo máximo " + dr.P2_maior_desacordo_ticks + " ticks com dois reboots)."],
+          "Dois reboots mantêm P1 (desacordo máximo " + dr.P2_maior_desacordo_ticks + " ticks)." + (temP4 ? " P4 separa os dois mecanismos de segurança (validação e âncora tardia) da descida por silêncio, que P1 e P3 já cobrem." : "")],
         des: ["O modelo é abstrato (ticks discretos, dois nós, perdas adversárias); não é o código C nem o tempo real.",
           "Cobre só um adversário de perda; jamming adaptativo e relógio fora de sincronia não entram.",
           "Com perda de 20 a 30% a rodada de aceleração raramente termina no modo novo e a degradação predomina (Markov)."],
         apl: ["Especificação executável para a Fase 2 no núcleo C: cada contraexemplo vira teste de regressão.",
           "Critério de aceite do protocolo: P1 e P3 em todas as variantes de implementação.",
           "Base para os modelos TLA+/UPPAAL/PRISM do plano, que ainda não existem."],
-        cri: ["Sem validação e com a âncora no COMMIT, P1 continua valendo: o modelo não mostra o que esses mecanismos protegem, então ele não justifica por si só a validação nem a âncora tardia. Falta uma propriedade que as discrimine (por exemplo nunca persistir um modo inutilizável).",
+        cri: [temP4 ? "P1 e P3 valem sem a validação e com a âncora no COMMIT; só P4 as discrimina. P4 usa um histórico fantasma (o par já esteve no modo) e não garante que o par ainda o aceite: A pode gravar um modo que B já abandonou (Dois Generais; o estado é alcançável na referência e P1 o resolve). Além disso, o maior desacordo transitório é menor sem a validação (" + sv.P2_maior_desacordo_ticks + " contra " + ref.P2_maior_desacordo_ticks + " ticks): o modelo não captura o ganho de voltar rápido ao modo anterior em vez de cair ao base." : "Sem validação e com a âncora no COMMIT, P1 continua valendo: o modelo não mostra o que esses mecanismos protegem. Falta uma propriedade que as discrimine.",
           "A verificação é em Python, de estados explícitos; não usa TLC, UPPAAL nem PRISM.",
           "Provar o modelo não prova o código; a equivalência entre o C e o Python é trabalho da Fase 2."]
+      };
+    },
+    validacao: function () {
+      var x = d.xsim, e = d.equiv, ex = e.exercitado || {}, pts = x.aloha.pontos, ult = pts[pts.length - 1], cr = x.captura.resultado, ta = x.tempo_no_ar, sn = x.sensibilidade;
+      return {
+        car: ["Núcleo C e simulador Python: " + nf(e.cenarios, 0) + " cenários aleatórios nos quatro pares (Py-Py, C-C, Py-C, C-Py), " + nf(e.eventos_comparados, 0) + " eventos comparados e " + (e.divergencias === 0 ? "nenhuma divergência" : e.divergencias + " divergência(s)") + ". Os cenários exercitam " + nf(ex.trocas, 0) + " trocas de modo, " + nf(ex.rollbacks, 0) + " rollbacks, " + nf(ex.desc_silencio, 0) + " descidas por silêncio e " + nf(ex.rejeitados, 0) + " quadros rejeitados.",
+          "Colisão em estrela com " + nf(ult.nos, 0) + " nós: PDR " + fmtPct(ult.pdr_aqui) + " aqui, " + fmtPct(ult.pdr_analitico) + " pelo ALOHA analítico e " + fmtPct(ult.pdr_lorasim) + " pelas regras do LoRaSim (a exceção do preâmbulo faz o LoRaSim perder menos).",
+          "Tempo no ar igual ao do LoRaSim em todas as combinações, exceto " + (ta.combinacoes_sf_bw_diferentes.length ? ta.combinacoes_sf_bw_diferentes.map(function (c) { return "SF" + c[0] + "/" + c[1]; }).join(", ") + " (regra do LDRO)" : "nenhuma") + "; na captura, fortes " + fmtPct(cr.aqui.pdr_fortes) + " e fracos " + fmtPct(cr.aqui.pdr_fracos) + " aqui, contra " + fmtPct(cr.lorasim.pdr_fortes) + " e " + fmtPct(cr.lorasim.pdr_fracos) + " no LoRaSim."],
+        van: ["Mostra que o formato de fio e a máquina de estados do C fazem o que a referência faz, inclusive entre os dois (Py-C e C-Py), sem depender de inspeção.",
+          "O teste é sensível: um parâmetro diferente num dos lados faz os rastros divergirem (há um teste que confere isso).",
+          "O simulador de eventos reproduz a expressão analítica do ALOHA e concorda com as regras do LoRaSim dentro de ~1 ponto percentual."],
+        des: ["A equivalência cobre a lógica do protocolo e o fio, não o modelo de rádio: o canal do teste é simplificado (um canal, sem salto, sem colisão de terceiros, sem escuta antes de transmitir).",
+          "O LoRaSim original é Python 2 e não foi executado: o que se compara é um porte à mão das regras de `loraDir.py`. Um erro de porte é possível.",
+          "Só tempo no ar, colisão e captura em estrela foram comparados; Meshtasticator e as topologias de malha não.",
+          "A tabela de sensibilidade do LoRaSim é medida num SX1272 e a daqui vem do SX1262: diferença média de " + nf(sn.diferenca_media_abs_db, 1) + " dB (máxima " + nf(sn.maior_diferenca_db, 1) + " dB), o que desloca os limiares de alcance."],
+        apl: ["Teste de regressão: qualquer mudança em `endpoint.py` ou `endpoint.c` que quebre a equivalência derruba o CI.",
+          "Autoriza usar o núcleo C no firmware com a garantia de que os resultados de simulação descrevem o mesmo protocolo.",
+          "Ponto de partida para validar contra outros simuladores e, depois, contra a bancada."],
+        cri: ["C usa float e Python usa double: um empate de limiar poderia divergir. Nenhum apareceu, mas isso não prova que não existe.",
+          "O canal do teste usa a mesma curva de PER do simulador; a equivalência não valida essa curva (é calibração de bancada).",
+          "Simulação contra simulação não substitui medida: dois modelos podem errar juntos."]
       };
     },
     seg: function () {
@@ -1115,7 +1181,8 @@
     { id: "campo", t: "Campo fixo", f: panelCampo, need: ["F"] }, { id: "mob", t: "Mobilidade", f: panelMob, need: ["M"] },
     { id: "alcance", t: "Alcance e deriva", f: panelAlcance, need: ["B2", "B9", "B10"] }, { id: "acordo", t: "Acordo e falhas", f: panelAcordo, need: ["B3", "B4", "B5", "F6", "B6"] },
     { id: "sintonia", t: "Sintonia (F7)", f: panelSintonia, need: ["F7"] },
-    { id: "formal", t: "Verificação formal", f: panelFormal, need: ["formal"] }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca, need: ["B7", "B11"] },
+    { id: "formal", t: "Verificação formal", f: panelFormal, need: ["formal"] },
+    { id: "validacao", t: "Validação cruzada", f: panelValidacao, need: ["xsim", "equiv"] }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca, need: ["B7", "B11"] },
     { id: "modos", t: "Modos", f: panelModos, need: ["modos"] }, { id: "malha", t: "Grupos e malha", f: panelMalha, need: ["T23", "T456"] },
     { id: "escalas", t: "Escalas e orçamento", f: panelEscalas, need: [], anyScale: true },
     { id: "estimativas", t: "Estimativas", f: panelEstimativas, need: [], anyScale: true }

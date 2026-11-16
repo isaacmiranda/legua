@@ -64,8 +64,17 @@ def test_channel_plan_excludes_forbidden_band():
 def test_formal_reference_and_ablation():
     ref = analyze(Params())
     assert ref["P1_sem_desacordo_permanente"] and ref["P3_recuperacao_sempre_possivel"]
+    assert ref["P4_ancora_confirmada_pelo_par"]
     abl = analyze(Params(silence_descent=False))
     assert not abl["P1_sem_desacordo_permanente"]
+
+
+def test_formal_p4_discrimina_validacao_e_ancora_tardia():
+    """P1 e P3 valem sem esses mecanismos; só P4 (âncora de um modo em que o par já esteve) os separa."""
+    for p in (Params(validation=False), Params(persist_at_commit=True)):
+        r = analyze(p)
+        assert r["P1_sem_desacordo_permanente"] and r["P3_recuperacao_sempre_possivel"]
+        assert not r["P4_ancora_confirmada_pelo_par"] and "contraexemplo_P4" in r
 
 
 def test_markov_no_loss_always_succeeds():

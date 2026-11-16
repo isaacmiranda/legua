@@ -6,6 +6,8 @@ PY="${PYTHON:-$HOME/.venvs/legua/bin/python}"
 LOW="nice -n 15 ionice -c 2 -n 7"
 echo "== núcleo C (make -j1 test) =="
 $LOW make -j1 -C core test
+echo "== núcleo C com sanitizadores (make fuzz) =="
+$LOW make -j1 -C core fuzz
 echo "== pytest =="
 PYTHONPATH=. $LOW "$PY" -m pytest -q simsuite/tests
 if [ "${1:-}" = "--suite" ]; then

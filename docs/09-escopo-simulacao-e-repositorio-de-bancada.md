@@ -141,7 +141,77 @@ escala de todas as abas; seções sem resultado na escala escolhida mostram o qu
 vêm dos dados da escala escolhida e as críticas apontam o que o modelo não cobre (por exemplo, que os baselines de
 terceiros são modelos nossos e que o BR-2026 está nao_verificado).
 
-## 8. Próximos passos de simulação
+## 8. Núcleo C: Fase 2 e equivalência com o simulador
+
+**O que o núcleo C faz agora** (`core/src/endpoint.c`, 15/11/2026): descoberta (HELLO), negociação
+PROPOSE/VOTE/COMMIT com instante de troca relativo, janela de validação, âncora gravada só depois da validação,
+rollback, escada de degradação, descida por silêncio, controle de potência, alarme de rollbacks repetidos (possível
+jamming), perfil móvel, margem proporcional ao desvio do SNR (`fade_k`) e registro de NVM com o piso do contador do
+par. Continua C99 puro, sem alocação, sem E/S e sem biblioteca de terceiros; a tabela de modos entra pelo integrador
+(`docs/08` §2).
+
+**Teste de equivalência** (`simsuite/tests/equiv_harness.py`, `test_equivalencia.py`; cenário `equiv` da suíte). Um
+DES mínimo de dois nós, com canal determinístico, dirige cada ponta por um adaptador:
+o `Endpoint` do Python **atrás do formato de fio real** (os quadros viram bytes de `wire.py` e voltam) ou o núcleo
+C carregado como biblioteca (`core/tests/pyshim.c`, via ctypes). O mesmo cenário roda nos quatro pares Py-Py, C-C,
+Py-C e C-Py e os rastros têm de ser **idênticos**: cada quadro transmitido (bytes, modo, potência), cada troca de
+modo, cada gravação em NVM e as estatísticas. Py-C e C-Py provam também a interoperabilidade do formato de fio.
+Cenários dirigidos (enlace bom, degradação e silêncio, reinício, replay e MIC forjado, jammer, rollbacks repetidos que
+disparam o alarme) mais cenários aleatórios reprodutíveis (variantes: normal, âncora no COMMIT, sem validação, só
+recuperação, móvel, sem silêncio, passo curto, `fade_k`; apagões, reinícios, replays, velocidades, ruído e teto de
+potência diferentes). Em 15/11/2026: **280 cenários aleatórios sem divergência** (sementes 0 a 149 e 200 a 329) e
+mais os dirigidos; o teste confirma a própria sensibilidade (um parâmetro diferente faz os rastros divergirem).
+
+**Robustez** (`make -C core fuzz`, ASan e UBSan): bytes aleatórios, quadros truncados e adulterados e quadros com MIC
+**válido** e campos absurdos (modo inexistente, voto 255, atraso enorme, potência 54 dBm) em todos os estados, com
+invariantes conferidas depois de cada chamada (índices na tabela, potência no intervalo, fila no limite, ações sem
+estouro, contador de TX crescente). 192 mil chamadas sem violação.
+
+**O que a equivalência NÃO cobre:** o modelo de rádio. O canal do teste usa a mesma curva de PER do simulador e não
+tem salto, colisão de terceiros nem escuta antes de transmitir; ela prova que o C **faz o mesmo que o Python**, não que
+o Python descreve a realidade. `float` (C) contra `double` (Python) pode, em tese, divergir num empate de limiar; nenhum
+apareceu.
+
+**Mudanças no simulador para chegar à equivalência** (todas deixam o comportamento mais fiel ao fio; os resultados
+foram regenerados):
+
+| Mudança | Efeito |
+|---|---|
+| instante de troca relativo ao fim do COMMIT (antes absoluto) | a troca ocorre ~0,35 s depois |
+| prazos com o tempo no ar arredondado ao ms | < 1 ms |
+| fila cheia descarta o mais antigo que não está em voo (antes descartava o primeiro, mesmo em voo) | só sob saturação |
+| duplicata por janela de 32 sequências, em 8 bits (antes um conjunto sem limite) | contagem estável após 256 pacotes |
+| o ACK não carrega a velocidade | `peer_speed` não zera no ACK |
+| ganho do ACK em passos de 0,5 dB; potência de TX no DATA em passos de 1 dB; velocidade em 0,5 m/s | quantização do fio |
+| DATA enviado antes de uma troca de modo não arma prazo de ACK | evita prazo errado |
+| tolerância de 1 ns nos prazos (`_due`, `_over`) | só estabilidade numérica |
+| registro de NVM com piso do contador do par; gravação por bloco de 64 nos dois contadores | acrescenta gravações raras (~a cada 64 quadros) com 80 ms de parada |
+| contador de retransmissão passa pelo mesmo bloco de NVM | corrige uma gravação omitida |
+
+## 9. Validação simulação × simulação (LoRaSim)
+
+`simsuite/analysis/lorasim.py` (cenário `xsim`) compara o simulador de eventos desta suíte com as regras do **LoRaSim**
+(Bor, Roedig, Voigt, Alonso, MSWiM 2016; `github.com/mcbor/lorasim`, commit `1eddb96`). O LoRaSim é **Python 2 e não
+foi executado**: as funções `airtime`, `checkcollision`, `powerCollision`, `timingCollision` e `transmit` foram
+**portadas à mão** para um laço próprio, então um erro de porte é possível. Para não depender só do porte, cada
+comparação inclui também a expressão analítica do ALOHA puro. Resultados (escala rápida, 3 sementes de 1 h):
+
+- **Tempo no ar:** idêntico em 4320 combinações (SF7 a SF12, BW 125/250/500, CR 1 a 4, 1 a 60 B), exceto **SF12/250**: o
+  LoRaSim só liga a otimização de baixa taxa (LDRO) em 125 kHz com SF11/12, e aqui vale a regra da Semtech (símbolo
+  acima de 16 ms), que inclui SF12/250. A diferença é do LoRaSim (simplificação), não daqui.
+- **Colisão em estrela, potências iguais:** o simulador desta suíte acompanha a expressão analítica do ALOHA (por
+  exemplo 0,827 contra 0,828 com 100 nós); o porte do LoRaSim fica ~1,3 ponto acima (0,841), por causa da exceção do
+  preâmbulo: o pacote que chega nos últimos símbolos do preâmbulo do outro sobrevive.
+- **Captura:** com metade dos nós 10 dB mais forte, os fortes e os fracos têm PDR parecido nos dois (diferença de
+  menos de 1 ponto, de novo pela exceção do preâmbulo).
+- **Sensibilidade (informativo):** a tabela do LoRaSim é medida num SX1272; a daqui vem do limiar de SNR e da figura de
+  ruído do SX1262. A diferença média é de ~3,9 dB (máxima 6,5 dB). Isso desloca os limiares de alcance e é uma das
+  razões para a bancada calibrar `SNR_THR` e `NF_DB`.
+
+**Não feito:** o **Meshtasticator** (simulador de malha do Meshtastic): precisa de ambiente próprio e só serviria para
+as topologias T4–T6, cujos baselines já são modelos comportamentais nossos; fica como próximo passo.
+
+## 10. Próximos passos de simulação
 
 1. Fase 2 no núcleo C: PROPOSE/VOTE/COMMIT, validação e rollback, com teste de equivalência contra `endpoint.py`.
 2. (feito em 15/11/2026) Escala `full` rodada e publicada no site; repetir quando o protocolo mudar.

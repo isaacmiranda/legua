@@ -1,7 +1,7 @@
 """Formato de pacote v0 da Légua (docs/07). Referência executável do codec do núcleo C.
 
 Cabeçalho de 8 B + corpo + MIC de 4 B. Tamanhos fixos por tipo: DATA 24 B, ACK 14 B,
-controle (HELLO/PROPOSE/VOTE/COMMIT) 20 B. Big-endian.
+controle (HELLO/PROPOSE/VOTE/COMMIT) 16 B. Big-endian.
 
 O MIC aqui é um hash com chave **só para teste** (FNV-1a de 32 bits). Produto real usa
 AES-CMAC ou CCM truncado a 4 B, fornecido pelo porte (docs/08). Não é segurança.
@@ -17,8 +17,8 @@ HDR_LEN = 8
 MIC_LEN = 4
 
 T_HELLO, T_DATA, T_ACK, T_PROPOSE, T_VOTE, T_COMMIT = 1, 2, 3, 4, 5, 6
-BODY_LEN = {T_HELLO: 8, T_DATA: 12, T_ACK: 2, T_PROPOSE: 8, T_VOTE: 8, T_COMMIT: 8}
-FRAME_LEN = {t: HDR_LEN + n + MIC_LEN for t, n in BODY_LEN.items()}   # 20, 24, 14, 20, 20, 20
+BODY_LEN = {T_HELLO: 4, T_DATA: 12, T_ACK: 2, T_PROPOSE: 4, T_VOTE: 4, T_COMMIT: 4}
+FRAME_LEN = {t: HDR_LEN + n + MIC_LEN for t, n in BODY_LEN.items()}   # 16, 24, 14, 16, 16, 16
 
 F_ACKREQ, F_FRAG = 0x01, 0x02          # flags (byte 1); bits 2-3 = id da chave; 4-7 reservados
 DATA_PAYLOAD = 9
@@ -96,14 +96,10 @@ def _vetores(seed=7):
             body = bytes(rng.randrange(256) for _ in range(n))
             if t != T_DATA:           # campos reservados zerados nos controles
                 body = bytearray(body)
-                if t in (T_HELLO,):
-                    body[2:] = bytes(6)
-                elif t == T_PROPOSE:
-                    body[2:] = bytes(6)
+                if t in (T_HELLO, T_PROPOSE):
+                    body[2:] = bytes(2)
                 elif t == T_VOTE:
-                    body[3:] = bytes(5)
-                elif t == T_COMMIT:
-                    body[4:] = bytes(4)
+                    body[3:] = bytes(1)
                 body = bytes(body)
             src, dst = rng.randrange(1, 0xFFFE), rng.randrange(1, 0xFFFE)
             out.append((ctr, pack(t, src, dst, ctr, body, flags=rng.choice((0, F_ACKREQ, F_ACKREQ | 0x04)))))

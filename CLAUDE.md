@@ -8,11 +8,17 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
 
 ## Estado atual
 - `simsuite/` (Python): suíte de simulação, referência executável do protocolo.
-- `core/` (C99): **Fase 0** pronta: codec do pacote v0, tempo no ar, DATA/ACK com retransmissão, simulador de dois
-  nós, contratos de rádio e de porte. **Ainda não existem:** negociação PROPOSE/VOTE/COMMIT, driver SX1262, porte
-  ESP32, exemplos Arduino/ESP-IDF, cripto real (só MIC de teste).
+- `core/` (C99): **Fases 0 e 2** prontas: codec do pacote v0 (controle de 16 B), tempo no ar, DATA/ACK, descoberta,
+  negociação PROPOSE/VOTE/COMMIT, validação, âncora, rollback, escada, silêncio, potência, perfil móvel, `fade_k`,
+  registro de NVM (âncora, bloco do contador, piso do par). É **equivalente a `simsuite/protocol/endpoint.py`**: o
+  teste de equivalência compara os rastros byte a byte nos quatro pares Py/C. **Ainda não existem:** driver SX1262,
+  porte ESP32, exemplos Arduino/ESP-IDF, cripto real (só MIC de teste), CAD/LBT.
 - Formato do pacote: `docs/07`; interfaces: `docs/08`. `simsuite/protocol/wire.py` e `core/src/frame.c` devem
-  concordar (vetores em `core/tests/vectors/`; `make -C core vectors` regenera).
+  concordar (vetores em `core/tests/vectors/`; `make -C core vectors` regenera, junto com a tabela de modos
+  `core/profiles/br2026.h` gerada por `tools/gen_modetab.py`).
+- **Mexeu em `endpoint.py` ou `endpoint.c`?** Os dois têm de continuar equivalentes: rode
+  `PYTHONPATH=. python3 -m pytest -q simsuite/tests/test_equivalencia.py` (`LEGUA_EQUIV_SEEDS=200` para varrer mais) e
+  `make -C core fuzz`. Parâmetro novo no protocolo = campo em `Config` **e** em `legua_params` (e no `pyshim.c`).
 - **Escopo (docs/09):** este repositório é só **simulação, protocolo e especificação**. Os experimentos práticos com as
   Heltec e o firmware (drivers SX1262, portes ESP32-S3, exemplos, bancada) vão para um repositório separado, a criar
   depois com `/anthropic-skills:aiclp-kit-bancada-vm`. Não criar drivers, portes nem scripts de bancada aqui. Os
@@ -23,14 +29,15 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   orçamento de tempo e aba de **Estimativas** (estimador analítico no navegador, `site/estimator.js`, com referência
   Python em `simsuite/analysis/estimator.py` e teste de paridade). Gerar dados: `~/.venvs/legua/bin/python tools/build_site.py`
   (precisa do venv: importa numpy). Abrir `site/index.html` direto também funciona.
-- Próximo passo (simulação): Fase 2 no núcleo C com teste de equivalência contra `endpoint.py`; validação sim×sim
-  (docs/09, §8). A escala `full` já foi rodada (66 min, `--procs 1`); repetir se o protocolo mudar.
+- Próximo passo (simulação): validação sim×sim com o Meshtasticator (o LoRaSim já foi comparado: docs/09, §9);
+  decidir onde o `core/` mora. A escala `full` leva ~1 h 10 min com `--procs 1`; repetir se o protocolo mudar.
 
 ## Comandos
 ```bash
 python3 -m venv ~/.venvs/legua && ~/.venvs/legua/bin/pip install -r requirements.txt   # o pip do sistema é bloqueado (PEP 668)
 PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 28 testes (inclui núcleo C e site), ~20 s
-make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós
+make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós, biblioteca de teste
+make -j1 -C core fuzz                                               # robustez com ASan e UBSan (~1 min)
 ~/.venvs/legua/bin/python tools/build_site.py                       # atualiza site/data.js (após rodar a suíte)
 PYTHONPATH=. python3 -m simsuite.analysis.orcamento                 # orçamento de tempo da escala full
 PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 1  # escala longa em results_full/ (~66 min); recusa se a estimativa passar de 8 h (--limite-horas, --forcar)
@@ -40,13 +47,16 @@ PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s, ger
 ```
 
 ## Mapa do código
-`core/`: `include/legua/{legua,port,radio}.h`, `src/{frame,toa,endpoint}.c`, `tests/` (codec, simulador, tabela de ToA).
+`core/`: `include/legua/{legua,port,radio}.h`, `src/{frame,toa,endpoint}.c`, `profiles/br2026.h` (gerado), `tests/` (codec,
+simulador, tabela de ToA, fuzz, `pyshim.c` = ponte ctypes para o teste de equivalência).
 
 ### `simsuite/`
 - `core/` rádio (ToA, sensibilidade, LDRO, Doppler), canais, mobilidade, regulação BR-2026, simulador de eventos (DES).
 - `protocol/endpoint.py` máquina de estados do protocolo (BASE/DATA/NEGOCIANDO/AGUARDA_COMMIT/VALIDANDO/RECUPERACAO).
   É o modelo do que o núcleo C99 deve fazer. `protocol/modes.py` tem a tabela de modos.
-- `formal/checker.py` verificação de estados explícita (propriedades P1 a P3, ablações) e cadeia de Markov.
+- `formal/checker.py` verificação de estados explícita (propriedades P1 a P4, ablações) e cadeia de Markov.
+  P4 (âncora de um modo em que o par já esteve) é a que separa a validação e a âncora tardia; P1 e P3 não as justificam.
+- `protocol/perfis.py` perfis nomeados da sintonia F7 (`padrao`, `estavel`, `cauteloso`), iguais em `legua_params_profile`.
 - `scenarios/` bancada (B2–B11), campo (F1–F6), mobilidade (M1–M7). `baselines/` modelos de malha de terceiros.
 - `analysis/` estatística, telemetria JSONL, relatório. `run_suite.py` orquestra tudo.
 
