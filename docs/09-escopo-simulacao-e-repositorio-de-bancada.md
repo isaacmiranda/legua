@@ -112,6 +112,12 @@ medido:
 | demais (B5, B6, B11, T23, amostras, fase7, tabelas) | | 28 | 28 | 0,99 | |
 | **Total** | **569** | **4100** | **3956** | **0,96** | relógio de parede: 3965 s |
 
+**Rodada de 2026-11-16 (após o núcleo C, o P4 e a validação cruzada)**, medida, sem previsão congelada: total 4578 s
+(1 h 16 min), 19 cenários e o relatório, todos ok. F7 2050 s, M 724 s, F 585 s, T456 224 s, F6 202 s, B4 149 s,
+formal 171 s (o P4 e o histórico fantasma dobraram o espaço de estados: 179.393 estados), equiv 170 s (150 sementes,
+525.412 eventos comparados, 0 divergências), xsim 124 s. O custo do formal e dos dois cenários novos soma ~8 min; o
+limite de 8 h segue folgado.
+
 **Limite de 8 horas.** Combinado com o autor: se a estimativa de uma rodada da escala longa passar de 8 h, ela fica
 para depois. O `run_suite` aplica isso sozinho: na escala `full` ele calcula o orçamento dos cenários pedidos antes de
 começar e recusa (código de saída 2) se passar de `--limite-horas` (padrão 8). `--so` roda um subconjunto e `--forcar`

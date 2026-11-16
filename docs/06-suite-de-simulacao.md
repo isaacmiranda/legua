@@ -33,7 +33,7 @@ Código: pacote `simsuite` (Python + numpy/scipy/matplotlib), 20 cenários, test
 
 ## 3. Resultados da escala rápida (indicativos)
 
-**Formal.** Referência: 101.161 estados, P1 (sem desacordo permanente) e P3 (recuperação sempre possível) verdadeiras, maior desacordo 38 ticks. Sem descida por silêncio, P1 e P3 falham (contraexemplo: A em DATA, B em BASE) — a descida por silêncio é obrigatória. Markov com 10% de perda: 64% das rodadas ficam no modo novo de primeira, 22% passam por desacordo transitório.
+**Formal.** Referência: 179.393 estados (com histórico fantasma), P1 (sem desacordo permanente), P3 (recuperação sempre possível) e P4 (âncora de um modo em que o par já esteve) verdadeiras, maior desacordo 38 ticks. Sem validação ou com âncora no COMMIT, P4 falha (P1 e P3 seguem verdadeiras). Sem descida por silêncio, P1 e P3 falham (contraexemplo: A em DATA, B em BASE) — a descida por silêncio é obrigatória. Markov com 10% de perda: 64% das rodadas ficam no modo novo de primeira, 22% passam por desacordo transitório.
 
 **B4 falhas.** ~300 negociações por caso, 0 desacordos permanentes (limite superior 95% ≈ 0,01; a escala completa com 3.000 leva a ≈ 0,001). Maior episódio de desacordo cresce com reboots.
 
@@ -119,3 +119,9 @@ PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 1  # amostras d
 PYTHONPATH=. python3 -m pytest -q simsuite/tests
 ~/.venvs/legua/bin/python tools/build_site.py                       # atualiza o site de resultados
 ```
+
+## Validação cruzada e equivalência (rodada longa de 2026-11-16)
+- **Núcleo C × simulador:** 150 cenários aleatórios nos quatro pares Py-Py, C-C, Py-C e C-Py, 525.412 eventos comparados, 0 divergências.
+- **sim×sim (LoRaSim, regras portadas à mão, original não executado):** tempo no ar idêntico exceto SF12/250 (regra de LDRO); PDR ALOHA próximo do analítico; erro médio de sensibilidade 3,87 dB contra a tabela SX1272.
+- **Controle de 16 B** (era 20 B): tempo no ar de controle em SF10/125 de 329,7 ms (era 370,7 ms).
+- Resultados de simulação com parâmetros estimados, escala full; não são previsão de campo.

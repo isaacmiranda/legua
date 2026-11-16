@@ -39,6 +39,7 @@ PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 28 testes 
 make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós, biblioteca de teste
 make -j1 -C core fuzz                                               # robustez com ASan e UBSan (~1 min)
 ~/.venvs/legua/bin/python tools/build_site.py                       # atualiza site/data.js (após rodar a suíte)
+python3 tools/build_consolidado.py                                  # atualiza site/consolidado.html (resultados, discussões, trabalhos futuros)
 PYTHONPATH=. python3 -m simsuite.analysis.orcamento                 # orçamento de tempo da escala full
 PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 1  # escala longa em results_full/ (~66 min); recusa se a estimativa passar de 8 h (--limite-horas, --forcar)
 tools/ci_local.sh [--suite]                                         # tudo, em 1 job e baixa prioridade
