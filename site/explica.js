@@ -79,22 +79,11 @@
         tx(180, 118, "leia linha por linha: cada caso se compara com os outros", { a: "middle" }));
     },
     "curva-distancia": function () {
-      return wrap(360, 146, "Curvas de taxa de entrega contra distância: modo rápido cai cedo, modo robusto cai tarde, a Légua acompanha o melhor",
-        axes("distância entre os nós →", "taxa de entrega") + ln(44, 24, 348, 24, "var(--grid)", 1) + tx(40, 27, "100%", { a: "end" }) +
-        path("M44 26 C 90 26 110 30 130 110 L 150 118", S2, 2) + path("M44 40 C 160 40 230 44 270 70 C 300 90 320 110 340 118", S3, 2) +
+      return wrap(360, 170, "Curvas de taxa de entrega contra distância: modo rápido cai cedo, modo robusto cai tarde, a Légua acompanha o melhor",
+        axes("distância entre os nós →", "taxa de entrega") + ln(44, 24, 348, 24, "var(--grid)", 1) + tx(50, 20, "100%") +
+        path("M44 26 C 90 26 110 30 125 80 C 132 104 140 116 160 118", S2, 2) + path("M44 40 C 160 40 230 44 270 70 C 300 90 320 110 340 118", S3, 2) +
         path("M44 26 C 110 26 130 30 160 36 C 220 44 260 62 290 82 C 315 100 328 112 340 118", S1, 2.6) +
-        tx(100, 92, "modo rápido", { c: S2 }) + tx(150, 60, "modo robusto", { c: S3 }) + tx(200, 12, "Légua: troca de modo conforme o enlace", { a: "middle", c: S1, b: 1 }));
-    },
-    "acordo-seq": function () {
-      var y = 38;
-      return wrap(360, 206, "Sequência: A propõe, B vota, A confirma, os dois trocam de modo no instante combinado e validam; se falhar, voltam ao modo anterior",
-        rect(30, 8, 60, 20, "var(--surface)", { s: "var(--text-3)" }) + tx(60, 22, "Nó A", { a: "middle", b: 1 }) + rect(270, 8, 60, 20, "var(--surface)", { s: "var(--text-3)" }) + tx(300, 22, "Nó B", { a: "middle", b: 1 }) +
-        ln(60, 28, 60, 168, "var(--grid)", 1.5, 1) + ln(300, 28, 300, 168, "var(--grid)", 1.5, 1) +
-        arrow(62, y + 8, 296, y + 20, S1) + tx(180, y + 6, "1 PROPOSE: “vamos para o modo X?”", { a: "middle" }) +
-        arrow(298, y + 46, 66, y + 58, S3) + tx(180, y + 42, "2 VOTE: “sim” (ou “não”)", { a: "middle" }) +
-        arrow(62, y + 84, 296, y + 96, S1) + tx(180, y + 80, "3 COMMIT: “trocamos em t = agora + atraso”", { a: "middle" }) +
-        rect(40, y + 108, 280, 22, S4, { op: 0.22, s: S4 }) + tx(180, y + 123, "4 troca no instante combinado → janela de validação", { a: "middle" }) +
-        tx(40, y + 150, "5a deu certo: o modo novo vira âncora", { c: OK, b: 1 }) + tx(40, y + 166, "5b falhou: rollback ao modo anterior", { c: BAD, b: 1 }));
+        circ(52, 158, 4, S2) + tx(60, 162, "modo rápido") + circ(142, 158, 4, S3) + tx(150, 162, "modo robusto") + circ(244, 158, 4, S1) + tx(252, 162, "Légua (troca de modo)"));
     },
     "rollback": function () {
       return wrap(360, 120, "Linha do tempo: modo antigo, tentativa do modo novo, validação falha e volta ao modo antigo",
@@ -121,11 +110,11 @@
         circ(24, 106, 4, BAD) + tx(34, 110, "sem enlace = quase nada chegou (PDR < 2%): o enlace não fecha"));
     },
     "estrela-malha": function () {
-      return wrap(360, 140, "Topologias: estrela com um centro e vários nós; malha com nós que repassam pacotes",
+      return wrap(360, 150, "Topologias: estrela com um centro e vários nós; malha com nós que repassam pacotes",
         circ(70, 70, 12, S1) + [[20, 24], [20, 116], [120, 24], [120, 116]].map(function (p) { return ln(70, 70, p[0], p[1], "var(--text-3)", 1.4) + circ(p[0], p[1], 7, "var(--surface)", "var(--text-2)"); }).join("") +
-        tx(70, 138, "estrela", { a: "middle", b: 1 }) + tx(86, 66, "centro", {}) +
+        tx(70, 146, "estrela", { a: "middle", b: 1 }) + tx(70, 48, "centro", { a: "middle" }) +
         [[230, 30], [310, 30], [270, 70], [230, 112], [310, 112]].map(function (p, i, a) { return (i < 4 ? ln(p[0], p[1], a[i + 1][0], a[i + 1][1], "var(--text-3)", 1.2) : "") + circ(p[0], p[1], 7, i == 2 ? S1 : "var(--surface)", i == 2 ? S1 : "var(--text-2)"); }).join("") +
-        ln(230, 30, 230, 112, "var(--text-3)", 1.2) + ln(310, 30, 310, 112, "var(--text-3)", 1.2) + tx(270, 138, "malha (repasse)", { a: "middle", b: 1 }));
+        ln(230, 30, 230, 112, "var(--text-3)", 1.2) + ln(310, 30, 310, 112, "var(--text-3)", 1.2) + tx(270, 146, "malha (repasse)", { a: "middle", b: 1 }));
     },
     "estados-formal": function () {
       return wrap(360, 150, "Duas máquinas de estados, A e B, com mensagens que podem se perder; o verificador explora todas as possibilidades",
@@ -138,8 +127,8 @@
       return wrap(360, 130, "Linha do tempo de pacotes: quando dois pacotes se sobrepõem no ar há colisão, e o mais forte pode sobreviver (captura)",
         ln(20, 100, 345, 100, "var(--text-3)", 1.2) + tx(184, 122, "tempo →", { a: "middle" }) +
         rect(30, 70, 70, 20, S1, { op: 0.35, s: S1 }) + tx(65, 84, "pacote 1", { a: "middle" }) +
-        rect(150, 40, 80, 20, S2, { op: 0.35, s: S2 }) + tx(160, 54, "fraco", {}) + rect(190, 70, 80, 20, S3, { op: 0.45, s: S3 }) + tx(244, 84, "forte", {}) +
-        rect(190, 36, 40, 58, "none", { s: BAD }) + tx(230, 14, "colisão: o pacote forte (≥ 6 dB acima)", { c: BAD }) + tx(230, 28, "pode sobreviver; o fraco se perde", { c: BAD }));
+        rect(150, 40, 80, 20, S2, { op: 0.35, s: S2 }) + tx(160, 54, "fraco", {}) + rect(190, 70, 80, 20, S3, { op: 0.45, s: S3 }) + tx(236, 84, "forte", {}) +
+        rect(190, 36, 40, 58, "none", { s: BAD }) + tx(350, 14, "colisão: o pacote forte (≥ 6 dB acima)", { a: "end", c: BAD }) + tx(350, 28, "pode sobreviver; o fraco se perde", { a: "end", c: BAD }));
     },
     "teto-potencia": function () {
       return wrap(360, 130, "Dois nós com tetos de potência diferentes: o nó fraco limita os modos que o par consegue usar",
@@ -161,9 +150,9 @@
     },
     "estimativa": function () {
       return wrap(360, 100, "Fluxo: parâmetros do setup alimentam um modelo analítico que estima a entrega por modo",
-        rect(14, 30, 90, 40, "var(--surface)", { s: "var(--text-3)" }) + tx(59, 54, "seu setup", { a: "middle", b: 1 }) + arrow(106, 50, 134, 50) +
-        rect(136, 30, 100, 40, "var(--surface)", { s: S1 }) + tx(186, 54, "modelo do canal", { a: "middle" }) + arrow(238, 50, 266, 50) +
-        rect(268, 30, 80, 40, "var(--surface)", { s: S3 }) + tx(308, 54, "entrega × modo", { a: "middle", b: 1 }) +
+        rect(8, 30, 82, 40, "var(--surface)", { s: "var(--text-3)" }) + tx(49, 54, "seu setup", { a: "middle", b: 1 }) + arrow(92, 50, 110, 50) +
+        rect(112, 30, 112, 40, "var(--surface)", { s: S1 }) + tx(168, 54, "modelo do canal", { a: "middle" }) + arrow(226, 50, 244, 50) +
+        rect(246, 30, 106, 40, "var(--surface)", { s: S3 }) + tx(299, 54, "entrega × modo", { a: "middle", b: 1 }) +
         tx(180, 92, "distância, antena, potência, ambiente", { a: "middle" }));
     },
     "modos": function () {
@@ -176,7 +165,7 @@
       return wrap(360, 110, "A mesma sequência de eventos entra em duas implementações (Python e C) e as saídas são comparadas byte a byte",
         rect(14, 36, 80, 38, "var(--surface)", { s: "var(--text-3)" }) + tx(54, 59, "eventos", { a: "middle" }) + arrow(96, 48, 140, 30) + arrow(96, 62, 140, 84) +
         rect(142, 12, 90, 30, "var(--surface)", { s: S1 }) + tx(187, 31, "Python", { a: "middle" }) + rect(142, 70, 90, 30, "var(--surface)", { s: S2 }) + tx(187, 89, "C99", { a: "middle" }) +
-        arrow(234, 28, 274, 50) + arrow(234, 86, 274, 62) + rect(276, 36, 76, 38, "var(--surface)", { s: OK }) + tx(314, 52, "iguais?", { a: "middle", b: 1 }) + tx(314, 66, "0 divergências", { a: "middle", c: OK }));
+        arrow(234, 28, 256, 46) + arrow(234, 86, 256, 64) + rect(258, 34, 96, 42, "var(--surface)", { s: OK }) + tx(306, 52, "iguais?", { a: "middle", b: 1 }) + tx(306, 67, "0 divergências", { a: "middle", c: OK }));
     }
   };
 
