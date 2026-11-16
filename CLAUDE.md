@@ -32,7 +32,7 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
 - Site: `site/explica.js` tem as explicações em linguagem simples (uma por cartão, casada pelo título), os diagramas SVG, o guia
   interativo da aba "Comece aqui" e o glossário. Cartão novo no `app.js` = entrada nova em `EX` (o teste `test_explica.py` confere).
 - Validação sim×sim: LoRaSim e Meshtasticator com os **originais executados** (docs/09 §9.1; clones em `~/.cache/ext/`,
-  `simpy==3.0.10` opcional). Rascunho de artigo em `docs/10`. Licença: Apache-2.0 (`LICENSE`). Cenário `P` = varredura de potência de TX. Roteamento por
+  `simpy==3.0.10` opcional). Rascunho de artigo em `docs/10`. Licença: Apache-2.0 (`LICENSE`). Cenário `P` = varredura de potência de TX; `V` e `S` = varreduras da janela de validação e do silêncio. Roteamento por
   inundação do Meshtastic: decidido não comparar (docs/09 §9.1). Próximo: onde o `core/` mora e o algoritmo de MIC. A escala `full` leva ~1 h 10 min com `--procs 1`; repetir se o protocolo mudar.
 
 ## Comandos

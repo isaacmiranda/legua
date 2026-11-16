@@ -686,6 +686,30 @@
     mount(panel, [c1, c2, c3]);
   }
 
+  function panelMecanismos(panel) {
+    var V = d.V, S = d.S;
+    function cv(r) { return r.pdr < 0.02 ? "sem enlace" : fmtPdr(r.pdr) + " · " + nf(r.rollbacks_por_hora, 2) + " rb/h"; }
+    var cards = [];
+    keys(V.k_f).forEach(function (dk) {
+      var rows = []; V.k_valid.forEach(function (k) { rows.push(["k = " + k].concat(V.f_valid.map(function (f) { return cv(V.k_f[dk]["k" + k + "/f" + f]); }))); });
+      cards.push(tableCard("Janela de validação: ACKs (k) × falhas (f), enlace de " + dk,
+        "Ambiente " + V.ambiente.replace(/_/g, " ") + ", " + V.T_h + " h por semente, " + V.sementes.length + " sementes. Cada célula: PDR · rollbacks por hora (inclui os falsos). Padrão do protocolo: k = 3, f = 3.",
+        ["k (ACKs para confirmar)"].concat(V.f_valid.map(function (f) { return "f = " + f; })), rows, [false].concat(V.f_valid.map(function () { return true; }))));
+    });
+    var tv = keys(V.t_valid), tcols = keys(V.t_valid[tv[0]]);
+    cards.push(tableCard("Janela de validação: duração da janela", "Mesmo enlace e sementes; k = 3, f = 3. Janela curta demais desfaz modos bons.",
+      ["Enlace"].concat(tcols), tv.map(function (dk) { return [dk].concat(tcols.map(function (c) { return cv(V.t_valid[dk][c]); })); }), [false].concat(tcols.map(function () { return true; }))));
+    keys(S.celulas).forEach(function (dk) {
+      var tss = keys(S.celulas[dk]), apps = keys(S.celulas[dk][tss[0]]);
+      cards.push(tableCard("Descida por silêncio: tempo de silêncio × intervalo da aplicação, enlace de " + dk,
+        "Cada célula: PDR · quedas ao modo base na rodada inteira. Padrão do protocolo: silêncio de 90 s; o heartbeat sai após 60 s sem tráfego.",
+        ["Silêncio (s)"].concat(S.app_s.map(function (a) { return "aplicação a cada " + a + " s"; })),
+        tss.map(function (t) { return [t.replace("ts", "") + " s"].concat(apps.map(function (a) { var r = S.celulas[dk][t][a]; return fmtPdr(r.pdr) + " · " + r.quedas_base + " quedas"; })); }),
+        [false].concat(apps.map(function () { return true; }))));
+    });
+    mount(panel, cards);
+  }
+
   var GRUPOS = { L: "Légua", F: "modos fixos", O: "outros" };
   function tetoStats(T, cen, g) {
     // PDR: média sobre as células do grupo. Energia: mediana só das células com enlace (PDR >= 2%) em TODOS os tetos,
@@ -970,6 +994,21 @@
   function pp(a, b) { return nf(100 * Math.abs(a - b), 1); }              // diferença em pontos percentuais
   function rel(a, b) { return nf(100 * Math.abs(a / b - 1), 0) + "%"; }   // diferença relativa
   var DISC = {
+    mecanismos: function () {
+      var V = d.V, S = d.S, dk = keys(V.k_f)[0], kf = V.k_f[dk];
+      return {
+        car: ["Duas varreduras de um mecanismo de cada vez, com o resto no padrão: a janela de validação (k ACKs confirmam, f falhas desfazem, duração da janela) e o tempo de silêncio antes de descer um degrau.",
+          "Enlaces marginais de " + V.dists_km.join(" e ") + " km, onde o ACK se perde de verdade; " + V.T_h + " h por semente, " + V.sementes.length + " sementes."],
+        van: ["Com f ≥ 3 os rollbacks falsos ficam raros (a " + dk + ", k = 3: " + nf(kf["k3/f3"].rollbacks_por_hora, 2) + " por hora contra " + nf(kf["k3/f1"].rollbacks_por_hora, 2) + " com f = 1); o padrão k = 3, f = 3 está na faixa segura.",
+          "Silêncio de 90 s ou mais evita as descidas falsas mesmo com tráfego esparso; 180 s e 300 s dão o mesmo resultado, porque o heartbeat limita o silêncio observável."],
+        des: ["Janela de 15 s desfaz modos bons (mais rollbacks e PDR menor); com f = 1 um único fracasso já desfaz o modo.",
+          "Silêncio de 30 s ou 60 s com aplicação esparsa derruba o par ao modo base várias vezes sem motivo, e o PDR cai."],
+        apl: ["Regra de sintonia: t_silence ≥ 1,5 × hb_interval; janela de validação de pelo menos 45 s; f ≥ 3.", "Justificar os padrões do protocolo com números, em vez de só dizer que são razoáveis."],
+        cri: ["Não use a escala rápida para ajustar k e f: com 2 h e 2 sementes o ruído é do tamanho do efeito (k = 1 parecia ótimo na rápida e não é na longa).",
+          "A 3 km o efeito do silêncio some sob o ruído do enlace marginal; a regra vale para enlace bom e médio.",
+          "Só dois enlaces e um ambiente; os valores ótimos podem mudar com o ambiente."]
+      };
+    },
     tetos: function () {
       var T = ESC[scale].tetos;
       if (!T) return { car: ["Sem dados."], van: [], des: [], apl: [], cri: [] };
@@ -1305,6 +1344,7 @@
     { id: "alcance", t: "Alcance e deriva", f: panelAlcance, need: ["B2", "B9", "B10"] }, { id: "acordo", t: "Acordo e falhas", f: panelAcordo, need: ["B3", "B4", "B5", "F6", "B6"] },
     { id: "sintonia", t: "Sintonia (F7)", f: panelSintonia, need: ["F7"] },
     { id: "potencia", t: "Potência de TX", f: panelPotencia, need: ["P"] },
+    { id: "mecanismos", t: "Mecanismos (V, S)", f: panelMecanismos, need: ["V", "S"] },
     { id: "tetos", t: "Teto × cenários", f: panelTetos, need: [], anyScale: true },
     { id: "formal", t: "Verificação formal", f: panelFormal, need: ["formal"] },
     { id: "validacao", t: "Validação cruzada", f: panelValidacao, need: ["xsim", "equiv"] }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca, need: ["B7", "B11"] },
