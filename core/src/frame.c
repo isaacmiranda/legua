@@ -56,7 +56,8 @@ int legua_frame_encode(const legua_frame *f, uint32_t ctr32, uint8_t key_id,
     put16(out + 4, f->dst);
     put16(out + 6, (uint16_t)ctr32);
     memcpy(out + LEGUA_HDR_LEN, f->body, f->body_len);
-    mic = env->mic(env->ctx, key_id, f->src, ctr32, out, (size_t)(len - LEGUA_MIC_LEN));
+    if (env->mic(env->ctx, (uint8_t)(key_id & 3u), f->src, ctr32, out, (size_t)(len - LEGUA_MIC_LEN), &mic) < 0)
+        return -2;
     out[len - 4] = (uint8_t)(mic >> 24); out[len - 3] = (uint8_t)(mic >> 16);
     out[len - 2] = (uint8_t)(mic >> 8);  out[len - 1] = (uint8_t)mic;
     return len;
@@ -87,8 +88,9 @@ int legua_frame_verify(const uint8_t *raw, size_t len, uint32_t ctr32, const leg
         return 0;
     got = ((uint32_t)raw[len - 4] << 24) | ((uint32_t)raw[len - 3] << 16) |
           ((uint32_t)raw[len - 2] << 8) | raw[len - 1];
-    want = env->mic(env->ctx, (uint8_t)((raw[1] >> 2) & 3u), get16(raw + 2), ctr32, raw,
-                    len - LEGUA_MIC_LEN);
+    if (env->mic(env->ctx, (uint8_t)((raw[1] >> 2) & 3u), get16(raw + 2), ctr32, raw,
+                 len - LEGUA_MIC_LEN, &want) < 0)
+        return 0;
     return got == want;
 }
 

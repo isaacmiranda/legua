@@ -64,9 +64,13 @@ do integrador; o driver nunca transmite acima dele. SX1262 primeiro; SX127x só 
 
 ## 5. Ambiente criptográfico (`legua_env`)
 
-`mic(ctx, key_id, src, ctr32, data, len)` e `rand32(ctx)`. Em produto, `mic` usa AES (hardware do ESP32-S3 ou
-mbedTLS, no porte). Nada de terceiros no núcleo.
+`mic(ctx, key_id, src, ctr32, data, len, &out)` e `rand32(ctx)`. `mic` grava o MIC de 32 bits em `out` e devolve 0,
+ou um valor negativo se não houver chave para `key_id`. Nesse caso o codec recusa: `legua_frame_encode` devolve <0
+e `legua_frame_verify` devolve 0. O algoritmo v0 é AES-128-CMAC truncado a 4 B (`docs/07` §6). O núcleo traz uma
+implementação de referência opcional em `legua/mic_cmac.h` (`legua_keyring_set`, `legua_keyring_mic`). Em produto,
+o porte pode usá-la ou trocar o AES pelo hardware do ESP32-S3 ou pelo mbedTLS, conferindo contra
+`core/tests/vectors/mic.txt`. Nada de terceiros no núcleo.
 
 ## 6. Fora do escopo da v0
 
-Escolha de canal e salto, telemetria JSONL, driver SX1262, MIC real, CAD/LBT e coexistência. A negociação (PROPOSE/VOTE/COMMIT), a validação, a âncora e o rollback já estão no núcleo (Fase 2, equivalente ao simulador).
+Escolha de canal e salto, telemetria JSONL, driver SX1262, provisionamento e rotação de chaves, CAD/LBT e coexistência. A negociação (PROPOSE/VOTE/COMMIT), a validação, a âncora e o rollback já estão no núcleo (Fase 2, equivalente ao simulador).

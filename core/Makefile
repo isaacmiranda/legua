@@ -2,11 +2,12 @@
 CC      ?= gcc
 CFLAGS  ?= -std=c99 -O1 -g -Wall -Wextra -Wpedantic -Werror -Wshadow -Wconversion -Iinclude
 BUILD   := build
-SRC     := src/frame.c src/toa.c src/endpoint.c
+SRC     := src/frame.c src/toa.c src/endpoint.c src/mic_cmac.c
 OBJ     := $(SRC:src/%.c=$(BUILD)/%.o)
-TESTS   := $(BUILD)/test_codec $(BUILD)/test_sim $(BUILD)/toa_table $(BUILD)/test_edge
+TESTS   := $(BUILD)/test_codec $(BUILD)/test_sim $(BUILD)/toa_table $(BUILD)/test_edge $(BUILD)/test_mic
 SHIM    := $(BUILD)/liblegua_shim.so
 VECTORS := tests/vectors/frames.txt
+MICVEC  := tests/vectors/mic.txt
 
 .PHONY: all test clean vectors fuzz
 all: $(TESTS) $(SHIM)
@@ -15,7 +16,7 @@ all: $(TESTS) $(SHIM)
 $(SHIM): tests/pyshim.c $(SRC) include/legua/legua.h tests/testenv.h | $(BUILD)
 	$(CC) $(CFLAGS) -shared -fPIC -Wno-unused-function tests/pyshim.c $(SRC) -o $@
 
-$(BUILD)/%.o: src/%.c include/legua/legua.h | $(BUILD)
+$(BUILD)/%.o: src/%.c include/legua/legua.h include/legua/mic_cmac.h | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/%: tests/%.c $(OBJ) tests/testenv.h | $(BUILD)
@@ -33,9 +34,11 @@ test: $(TESTS) $(SHIM)
 	$(BUILD)/test_codec $(VECTORS)
 	$(BUILD)/test_sim
 	$(BUILD)/test_edge
+	$(BUILD)/test_mic $(MICVEC)
 
 vectors:
 	cd .. && PYTHONPATH=. python3 -m simsuite.protocol.wire --vetores core/$(VECTORS)
+	cd .. && PYTHONPATH=. python3 -m simsuite.protocol.mic --vetores core/$(MICVEC)
 	cd .. && PYTHONPATH=. python3 tools/gen_modetab.py
 
 clean:

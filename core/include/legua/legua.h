@@ -56,11 +56,13 @@ int legua_mode_unpack(uint8_t id, legua_mode *m);
 uint32_t legua_toa_us(const legua_mode *m, unsigned nbytes);
 
 /* ---- Cripto injetada pelo porte (sem biblioteca de terceiros no núcleo) ----
- * mic() devolve o MIC de 32 bits sobre data[0..len) (cabeçalho+corpo) para a chave key_id,
- * origem src e contador completo ctr32. Em produto: AES-CMAC/CCM truncado a 4 B. */
+ * mic() calcula o MIC de 32 bits sobre data[0..len) (cabeçalho+corpo) para a chave key_id, origem src e
+ * contador completo ctr32, e o grava em *out. Devolve 0, ou <0 se não há chave para key_id (o quadro é
+ * descartado na recepção e não sai na transmissão). Algoritmo v0: AES-128-CMAC truncado a 4 B (docs/07 §6);
+ * implementação de referência em legua/mic_cmac.h (legua_keyring_mic). */
 typedef struct {
-    uint32_t (*mic)(void *ctx, uint8_t key_id, uint16_t src, uint32_t ctr32,
-                    const uint8_t *data, size_t len);
+    int (*mic)(void *ctx, uint8_t key_id, uint16_t src, uint32_t ctr32,
+               const uint8_t *data, size_t len, uint32_t *out);
     uint32_t (*rand32)(void *ctx);  /* aleatório para recuo de retransmissão */
     void *ctx;
 } legua_env;
@@ -68,10 +70,10 @@ typedef struct {
 /* ---- Codec ---- */
 int legua_frame_len(uint8_t type);                              /* tamanho total ou -1 */
 int legua_frame_encode(const legua_frame *f, uint32_t ctr32, uint8_t key_id,
-                       const legua_env *env, uint8_t *out);     /* tamanho ou <0 */
+                       const legua_env *env, uint8_t *out);     /* tamanho ou <0 (formato ou sem chave) */
 /* Decodifica e valida versão, tipo, tamanho e flags reservadas. Não confere MIC. */
 int legua_frame_decode(const uint8_t *raw, size_t len, legua_frame *f);
-/* Confere o MIC com o contador completo já reconstruído. 1 = válido. */
+/* Confere o MIC com o contador completo já reconstruído. 1 = válido; 0 = inválido ou sem chave. */
 int legua_frame_verify(const uint8_t *raw, size_t len, uint32_t ctr32,
                        const legua_env *env);
 /* Reconstrói ctr32 a partir de ctr16 e do último aceito. 0 se repetido ou antigo. */

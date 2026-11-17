@@ -3,8 +3,8 @@
 Cabeçalho de 8 B + corpo + MIC de 4 B. Tamanhos fixos por tipo: DATA 24 B, ACK 14 B,
 controle (HELLO/PROPOSE/VOTE/COMMIT) 16 B. Big-endian.
 
-O MIC aqui é um hash com chave **só para teste** (FNV-1a de 32 bits). Produto real usa
-AES-CMAC ou CCM truncado a 4 B, fornecido pelo porte (docs/08). Não é segurança.
+O MIC aqui é um hash com chave **só para teste** (FNV-1a de 32 bits), usado pela simulação e pelo teste de
+equivalência. Não é segurança. O MIC v0 real é AES-128-CMAC truncado a 4 B (docs/07 §6, `mic.py`).
 
 Uso:  python3 -m simsuite.protocol.wire --vetores core/tests/vectors/frames.txt
 """

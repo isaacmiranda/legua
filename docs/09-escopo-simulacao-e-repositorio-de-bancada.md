@@ -28,7 +28,7 @@ injeção de falhas), medições e a campanha de campo. O material de preparo da
 |---|---|---|
 | Fase 0 (regulação, OCD, UTE, LGPD) | `regulatory.py` codifica a leitura atual | decisão jurídica; confirma homologação da Heltec V4 |
 | Fase 1 (formal) | feito: P1 e P3 valem; contraexemplo sem descida por silêncio | — |
-| Fase 2 (simulação e validação cruzada) | feito para o par; falta validar contra Meshtasticator e LoRaSim | — |
+| Fase 2 (simulação e validação cruzada) | feito para o par; camada física validada contra os originais do Meshtasticator e do LoRaSim (§9.1); roteamento por inundação fora do escopo por decisão | — |
 | B1 calibração RSSI/potência | usa 25,6 dBm da Heltec como referência | **medir por unidade** |
 | B2 PDR × atenuação | curvas do modelo indicam onde medir | **curva real**, passos de 1 dB |
 | B3 custo do plano de controle | feito (tempo no ar, energia estimada) | energia real depende de B8 |
@@ -80,9 +80,14 @@ medição, **todo resultado daqui vale só para comparar e dimensionar**.
 
 ## 5. Decisões em aberto
 
-1. **Onde o `core/` mora.** Hoje fica aqui, como referência executável do formato e da máquina de estados, com
-   teste cruzado contra o Python. O firmware vai precisar dele (como submódulo, cópia versionada ou pacote). Decidir
-   qual repositório é a fonte da verdade antes de a Fase 2 em C crescer.
+1. **Onde o `core/` mora: decidido em 17/11/2026.** Enquanto o protocolo mudar, o `core/` **fica aqui**, junto do
+   `endpoint.py`, e toda mudança no C passa pelo teste de equivalência. O repositório de bancada o consome como
+   **submódulo git fixado numa tag** deste repositório (`core-vX.Y.Z`), nunca como cópia editável. Correção que a
+   bancada precisar no núcleo vem para cá, passa pela equivalência e sai numa tag nova. Quando o protocolo congelar e
+   a biblioteca for publicada (Arduino, componente ESP-IDF), o `core/` vai para um repositório próprio (`legua-core`),
+   que este e o de bancada passam a usar. Alternativas descartadas: levar o `core/` para o repositório de firmware
+   (perde a equivalência com o Python) e criar o repositório próprio já agora (três repositórios para coordenar
+   enquanto o formato ainda muda).
 2. **Licença:** decidida em 16/11/2026, o código é livre sob **Apache-2.0** (arquivo `LICENSE`, README). Contribuições com DCO.
 3. **Como a bancada consome o analisador** (`simsuite/analysis/`): pacote Python instalável ou cópia.
 
@@ -262,15 +267,21 @@ mirar malha.
 
 ## 10. Próximos passos de simulação
 
-1. Fase 2 no núcleo C: PROPOSE/VOTE/COMMIT, validação e rollback, com teste de equivalência contra `endpoint.py`.
+1. (feito em 15 e 16/11/2026) Fase 2 no núcleo C: PROPOSE/VOTE/COMMIT, validação e rollback, com teste de
+   equivalência contra `endpoint.py` (§8).
 2. (feito em 15/11/2026) Escala `full` rodada e publicada no site; repetir quando o protocolo mudar.
 3. (feito em 16/11/2026, camada física) Validação simulação × simulação contra Meshtasticator e LoRaSim, com os
-   originais executados (§9.1). Falta só a comparação do roteamento por inundação.
+   originais executados (§9.1). A comparação do roteamento por inundação ficou fora por decisão (§9.1).
 4. (feito) Controle compactado para 16 B.
 4b. (feito em 16/11/2026) Varredura da potência de TX (cenário `P`, docs/06): teto simétrico, teto assimétrico e
    controle de potência. Falta levar o teto do vizinho ao cálculo da margem (hoje cada nó usa o próprio teto) e medir a
    curva de corrente do PA na bancada, da qual depende o mínimo de energia.
-5. Aplicar o resultado da sintonia (F7) como perfil nomeado, se fizer sentido para o produto.
+5. (feito em 16/11/2026) Resultado da sintonia (F7) aplicado como perfis nomeados `padrao`, `estavel` e `cauteloso`
+   (`simsuite/protocol/perfis.py` e `legua_params_profile` no núcleo C, conferidos pelo teste de equivalência).
+6. (feito em 16/11/2026) Algoritmo do MIC: AES-128-CMAC truncado a 4 B, com referência em C e Python e vetores
+   (docs/07 §6). Falta provisionar e rotacionar chaves e limitar falhas de MIC (docs/07, pendência 2).
+7. (decidido em 17/11/2026) O `core/` fica aqui até o protocolo congelar; a bancada o usa como submódulo numa tag
+   (§5, item 1).
 
 ### Varreduras já feitas e o que falta (16/11/2026)
 

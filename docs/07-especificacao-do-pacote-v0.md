@@ -84,12 +84,40 @@ o transmissor o usa para saber o ganho no sentido contrário.
 
 ## 6. Cripto
 
-O núcleo não traz cripto: o porte entrega `mic()` em `legua_env`. Proposta para produto: AES-CMAC ou CCM,
-truncado a 4 B (a escolha é decisão aberta; o MIC de 4 B é aceitável pelo limite de 24 B e porque o canal é de
-baixa taxa, mas o risco de forja é 2^-32 por tentativa). Não há chave padrão nem chave derivada do MAC. O MIC de
-teste (FNV-1a com chave) existe só nos testes e **não é segurança**.
+**Algoritmo do MIC v0 (decidido em 16/11/2026): AES-128-CMAC truncado a 32 bits.**
 
-**Análise do MIC de 4 B (insumo para a decisão; a escolha é do autor).** Contas feitas aqui, a conferir com um
+```
+B0  = 0x4C | 0x01 | key_id | src (2 B) | ctr32 (4 B) | len | 00 00 00 00 00 00      (16 B, big-endian)
+MIC = os 4 primeiros bytes de AES-CMAC(K[key_id], B0 || cabeçalho || corpo)
+```
+
+- `0x4C` ('L') separa o domínio; `0x01` é a função "MIC v0". O valor `0x02` fica reservado para uma cifra futura
+  (AES-CTR com a mesma chave), que terá de usar um bloco inicial diferente.
+- `ctr32` é o contador **completo**: os 16 bits altos não vão no ar, mas entram no MIC. Uma reconstrução errada falha
+  aqui (§5). `len` é o tamanho de cabeçalho + corpo (12 ACK, 16 controle, 20 DATA).
+- Custo: o controle tem 32 B de entrada, dois blocos exatos, e três chamadas de AES contando a subchave (que o
+  `legua_cmac_init` calcula uma vez por chave). O DATA tem três blocos. No ESP32-S3, o AES em hardware ou o mbedTLS
+  do porte fazem isso em microssegundos.
+- **Chaves:** `key_id` (2 bits) escolhe uma de até 4 chaves de 128 bits provisionadas pelo integrador. **Não há chave
+  padrão nem chave derivada do MAC.** `key_id` sem chave carregada não assina nem aceita: `mic()` devolve erro e o
+  quadro é descartado, qualquer que seja o MIC que ele traz (um valor fixo devolvido no lugar seria forja trivial,
+  porque quem escolhe o `key_id` do quadro é o atacante). O formato de provisionamento e a rotação seguem abertos
+  (pendência 2).
+- **Implementação de referência:** `core/include/legua/mic_cmac.h` e `core/src/mic_cmac.c` (C99, sem terceiros,
+  `legua_keyring_mic` tem a assinatura de `legua_env.mic`) e `simsuite/protocol/mic.py` (Python puro). Os dois
+  conferem a FIPS-197 e a RFC 4493 e concordam nos 36 quadros de `core/tests/vectors/mic.txt` (`make -C core vectors`
+  regenera). O AES em software usa tabela de substituição e **não é de tempo constante**; num porte com AES em
+  hardware, prefira o hardware e confira contra os mesmos vetores.
+- **Por que CMAC, e não CCM nem Ascon:** o payload de 9 B não pede sigilo, e o CMAC é só autenticação, com a menor
+  superfície (sem nonce de cifra a gerir). É o MIC do LoRaWAN, é norma (NIST SP 800-38B) e tem AES em hardware no
+  ESP32-S3 e em quase todo MCU. O CCM com tag de 4 B traria sigilo que ninguém pediu e exigiria nonce único por
+  chave. O Ascon (NIST SP 800-232, 2025) é leve, mas a norma final traz AEAD, hash e XOF, sem MAC autônomo, e não tem
+  hardware nos alvos.
+- A simulação e o teste de equivalência continuam usando o MIC de teste (FNV-1a com chave, em `wire.py` e
+  `core/tests/testenv.h`), que **não é segurança**: o comportamento do protocolo não depende do algoritmo, e o AES em
+  Python puro deixaria a escala longa muito mais lenta.
+
+**Análise do MIC de 4 B (tamanho mantido em 4 B na decisão acima).** Contas feitas aqui, a conferir com um
 criptógrafo antes de fixar o formato:
 
 | Cenário | Tentativas por segundo | Tempo médio até uma forja aceita (2^31 tentativas) |
@@ -126,7 +154,9 @@ Diferenças que restam, todas de representação:
 ## 8. Pendências
 
 1. Colisão de endereços curtos (16 bits) e como derivar do identificador.
-2. Escolha do algoritmo de MIC e do formato de chave/rotação (`key_id`) (insumos em §6). A **ressincronização depois
+2. (algoritmo decidido em 16/11/2026: AES-128-CMAC truncado, §6) Falta o formato de provisionamento e de rotação
+   das chaves (`key_id`), e o requisito de limitar falhas de MIC (*n* falhas em *T* segundos travam a aceleração,
+   §6), que muda o protocolo e entra junto em `endpoint.py` e `endpoint.c`. A **ressincronização depois
    de uma ausência longa** foi verificada na simulação (teste `test_ausencia_longa_ressincroniza`, nos quatro
    pares Py/C): com 15 min a 12 h sem enlace, com ou sem reinício de um dos nós ao voltar, os dois voltam a DATA no
    mesmo modo em 0,3 a 7 min (descida por silêncio até o modo base, HELLO e nova negociação). O que continua

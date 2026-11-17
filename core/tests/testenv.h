@@ -5,8 +5,8 @@
 
 typedef struct { uint32_t s; } test_rng;
 
-static uint32_t test_mic(void *ctx, uint8_t key_id, uint16_t src, uint32_t ctr32,
-                         const uint8_t *data, size_t len)
+static int test_mic(void *ctx, uint8_t key_id, uint16_t src, uint32_t ctr32,
+                    const uint8_t *data, size_t len, uint32_t *out)
 {
     uint32_t h = 0x811C9DC5u;
     size_t i;
@@ -18,7 +18,8 @@ static uint32_t test_mic(void *ctx, uint8_t key_id, uint16_t src, uint32_t ctr32
     for (i = 0; i < 16; i++) { h ^= (uint8_t)i; h *= 0x01000193u; }          /* chave 00..0f */
     for (i = 0; i < 6; i++) { h ^= pre[i]; h *= 0x01000193u; }
     for (i = 0; i < len; i++) { h ^= data[i]; h *= 0x01000193u; }
-    return h;
+    *out = h;
+    return 0;
 }
 
 static uint32_t test_rand32(void *ctx)

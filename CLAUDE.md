@@ -12,7 +12,10 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   negociação PROPOSE/VOTE/COMMIT, validação, âncora, rollback, escada, silêncio, potência, perfil móvel, `fade_k`,
   registro de NVM (âncora, bloco do contador, piso do par). É **equivalente a `simsuite/protocol/endpoint.py`**: o
   teste de equivalência compara os rastros byte a byte nos quatro pares Py/C. **Ainda não existem:** driver SX1262,
-  porte ESP32, exemplos Arduino/ESP-IDF, cripto real (só MIC de teste), CAD/LBT.
+  porte ESP32, exemplos Arduino/ESP-IDF, provisionamento/rotação de chaves, CAD/LBT.
+- **MIC v0:** AES-128-CMAC truncado a 4 B (docs/07 §6). Referência opcional em `core/src/mic_cmac.c` e
+  `simsuite/protocol/mic.py`, vetores em `core/tests/vectors/mic.txt`. A simulação e a equivalência usam o MIC de
+  teste (FNV-1a), que não é segurança. `mic()` devolve <0 sem chave e o codec recusa.
 - Formato do pacote: `docs/07`; interfaces: `docs/08`. `simsuite/protocol/wire.py` e `core/src/frame.c` devem
   concordar (vetores em `core/tests/vectors/`; `make -C core vectors` regenera, junto com a tabela de modos
   `core/profiles/br2026.h` gerada por `tools/gen_modetab.py`).
@@ -23,7 +26,8 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   Heltec e o firmware (drivers SX1262, portes ESP32-S3, exemplos, bancada) vão para um repositório separado, a criar
   depois com `/anthropic-skills:aiclp-kit-bancada-vm`. Não criar drivers, portes nem scripts de bancada aqui. Os
   resultados daqui valem só para comparar e dimensionar até a bancada devolver a calibração (docs/09, §4).
-  Onde o `core/` mora no fim é decisão pendente.
+  **`core/` fica aqui** até o protocolo congelar; a bancada usa como submódulo numa tag `core-vX.Y.Z` (docs/09 §5).
+  Depois vai para um repositório próprio (`legua-core`).
 - **Site de resultados** (`site/`, GitHub Pages, publicado por `.github/workflows/pages.yml`): mostra as escalas rápida
   (`simsuite/results/`) e longa (`simsuite/results_full/`, ignorada pelo git), com seletor de escala, aba de comparação,
   orçamento de tempo e aba de **Estimativas** (estimador analítico no navegador, `site/estimator.js`, com referência
@@ -33,12 +37,12 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   interativo da aba "Comece aqui" e o glossário. Cartão novo no `app.js` = entrada nova em `EX` (o teste `test_explica.py` confere).
 - Validação sim×sim: LoRaSim e Meshtasticator com os **originais executados** (docs/09 §9.1; clones em `~/.cache/ext/`,
   `simpy==3.0.10` opcional). Rascunho de artigo em `docs/10`. Licença: Apache-2.0 (`LICENSE`). Cenário `P` = varredura de potência de TX; `V` e `S` = varreduras da janela de validação e do silêncio. Roteamento por
-  inundação do Meshtastic: decidido não comparar (docs/09 §9.1). Próximo: onde o `core/` mora e o algoritmo de MIC. A escala `full` leva ~1 h 10 min com `--procs 1`; repetir se o protocolo mudar.
+  inundação do Meshtastic: decidido não comparar (docs/09 §9.1). Próximo: limite de falhas de MIC e rotação de chaves. A escala `full` leva ~1 h 10 min com `--procs 1`; repetir se o protocolo mudar.
 
 ## Comandos
 ```bash
 python3 -m venv ~/.venvs/legua && ~/.venvs/legua/bin/pip install -r requirements.txt   # o pip do sistema é bloqueado (PEP 668)
-PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 28 testes (inclui núcleo C e site), ~20 s
+PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 66 testes (inclui núcleo C, MIC e site), ~20 s
 make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós, biblioteca de teste
 make -j1 -C core fuzz                                               # robustez com ASan e UBSan (~1 min)
 ~/.venvs/legua/bin/python tools/build_site.py                       # atualiza site/data.js (após rodar a suíte)
@@ -51,7 +55,7 @@ PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s, ger
 ```
 
 ## Mapa do código
-`core/`: `include/legua/{legua,port,radio}.h`, `src/{frame,toa,endpoint}.c`, `profiles/br2026.h` (gerado), `tests/` (codec,
+`core/`: `include/legua/{legua,port,radio}.h`, `src/{frame,toa,endpoint,mic_cmac}.c`, `include/legua/mic_cmac.h`, `profiles/br2026.h` (gerado), `tests/` (codec,
 simulador, tabela de ToA, fuzz, `pyshim.c` = ponte ctypes para o teste de equivalência).
 
 ### `simsuite/`
