@@ -39,12 +39,12 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   interativo da aba "Comece aqui" e o glossário. Cartão novo no `app.js` = entrada nova em `EX` (o teste `test_explica.py` confere).
 - Validação sim×sim: LoRaSim e Meshtasticator com os **originais executados** (docs/09 §9.1; clones em `~/.cache/ext/`,
   `simpy==3.0.10` opcional). Rascunho de artigo em `docs/10`. Licença: Apache-2.0 (`LICENSE`). Cenário `P` = varredura de potência de TX; `V` e `S` = varreduras da janela de validação e do silêncio. Roteamento por
-  inundação do Meshtastic: decidido não comparar (docs/09 §9.1). Próximo: ressincronização autenticada do contador do par (docs/07, pendência 2). A escala `full` leva ~1 h 10 min com `--procs 1`; repetir se o protocolo mudar.
+  inundação do Meshtastic: decidido não comparar (docs/09 §9.1). Próximo: ressincronização autenticada do contador do par (desenho em docs/07 §6.3; implementar após decisão do autor, muda o formato de fio). A escala `full` leva ~1 h 10 min com `--procs 1`; repetir se o protocolo mudar.
 
 ## Comandos
 ```bash
 python3 -m venv ~/.venvs/legua && ~/.venvs/legua/bin/pip install -r requirements.txt   # o pip do sistema é bloqueado (PEP 668)
-PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 66 testes (inclui núcleo C, MIC e site), ~20 s
+PYTHONPATH=. python3 -m pytest -q simsuite/tests                    # 69 testes (inclui núcleo C, MIC e site), ~20 s
 make -j1 -C core test                                               # núcleo C99: codec, simulador de 2 nós, biblioteca de teste
 make -j1 -C core fuzz                                               # robustez com ASan e UBSan (~1 min)
 ~/.venvs/legua/bin/python tools/build_site.py                       # atualiza site/data.js (após rodar a suíte)

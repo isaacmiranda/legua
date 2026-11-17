@@ -205,6 +205,34 @@ quadro autêntico com k+1:   k <- k+1, ant <- 0       (segue o par e aposenta a 
   carregada tarde e quadros autênticos montados com a chave anterior) nos quatro pares Py/C, mais dois testes
   dirigidos (`test_rotacao_*`).
 
+### 6.3 Ressincronização do contador do par (desenho, 17/11/2026; **não implementado**)
+
+Problema: o par transmitiu mais de 32767 quadros enquanto o receptor estava fora do ar ou fora de alcance, sem o
+receptor reiniciar. A reconstrução de 16 para 32 bits (§5) erra, todo quadro do par falha no MIC e o enlace não
+volta sozinho. Testar candidatos para os 16 bits altos custaria até 65536 CMACs por quadro e multiplicaria por 2^16
+a chance de uma falsificação passar; descartado.
+
+Proposta, em desafio e resposta (o receptor perdido é quem pede):
+- **RESYNC** (tipo 7, 16 B, corpo = `nonce` aleatório de 32 bits do pedinte). Vai com o contador de TX do próprio
+  pedinte, que o par reconstrói normalmente.
+- **RESYNC_RSP** (tipo 8, 16 B, corpo = `ctr32` de TX atual do respondente). O `nonce` **não vai no ar**: entra no MIC
+  como dado extra depois do corpo (`CMAC(B0 || cabeçalho || corpo || nonce)`). Só quem conhece o nonce recém-sorteado
+  valida, e uma resposta antiga falha porque o nonce é outro. O pedinte confere `low16(ctr32) == ctr16` e, com o MIC
+  válido, **sobe** o piso do par para `ctr32` (nunca desce) e grava o registro de NVM.
+- **Gatilho:** `mic_fail_n` falhas de MIC seguidas com `src` igual ao par, sem nenhum quadro válido dele na janela.
+  Pedidos com recuo exponencial (mínimo `t_resync_min`, dobrando até um teto), um por vez, nonce novo a cada pedido.
+  O respondente atende no máximo um pedido por `t_resync_min`.
+- **Segurança:** o que o atacante ganha com RESYNC é uma resposta que ele não consegue ler nem usar sem a chave; a
+  resposta só vale para o nonce pendente, uma vez, dentro de `t_resync_timeout`. Um único candidato por quadro, então
+  a chance de falsificação segue 2^-32 por tentativa. O custo para o respondente é um quadro por pedido autenticado.
+  As falhas que levam ao pedido já contam no alarme de MIC (§6): a negociação fica congelada até a volta.
+- **Não resolve:** par que perdeu a NVM e voltou com contador **menor** (parece replay; só reprovisionando, §6.1) e
+  chave divergente (§6.2).
+- **Custo no formato:** dois tipos novos e um parâmetro de MIC (dado extra), o que muda o formato de fio, os vetores
+  e a tabela de tamanhos. Por isso fica como decisão do autor antes de implementar em `wire.py`, `frame.c`,
+  `endpoint.py` e `endpoint.c`. Testes previstos: ausência com mais de 32767 quadros nos quatro pares Py/C, resposta
+  repetida recusada, pedido sem resposta com recuo, e fuzz dos dois tipos.
+
 ## 7. Diferenças em relação ao simulador (`endpoint.py`)
 
 Desde 15/11/2026 o núcleo C implementa também a negociação (PROPOSE/VOTE/COMMIT), a validação, o rollback, a descida
@@ -230,7 +258,7 @@ Diferenças que restam, todas de representação:
    pares Py/C): com 15 min a 12 h sem enlace, com ou sem reinício de um dos nós ao voltar, os dois voltam a DATA no
    mesmo modo em 0,3 a 7 min (descida por silêncio até o modo base, HELLO e nova negociação). O que continua
    aberto é o contador do par fora da janela de 32767 (ausência de mais de 32767 quadros sem reinício do par), que
-   exige um procedimento de ressincronização autenticado.
+   exige um procedimento de ressincronização autenticado (desenho em §6.3, aguardando decisão).
 3. Fragmentação (flag FRAG) e payload maior que 9 B.
 4. (feito em 15/11/2026) Controle compactado de 20 para 16 B. Ir a 14 B exigiria tirar a velocidade ou o `yes`
    do corpo (ganho extra de 12% no tempo no ar do controle); não vale enquanto o perfil móvel usa a velocidade.
