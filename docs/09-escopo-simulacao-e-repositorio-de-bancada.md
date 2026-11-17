@@ -299,8 +299,15 @@ mirar malha.
    originais executados (§9.1). A comparação do roteamento por inundação ficou fora por decisão (§9.1).
 4. (feito) Controle compactado para 16 B.
 4b. (feito em 16/11/2026) Varredura da potência de TX (cenário `P`, docs/06): teto simétrico, teto assimétrico e
-   controle de potência. Falta levar o teto do vizinho ao cálculo da margem (hoje cada nó usa o próprio teto) e medir a
-   curva de corrente do PA na bancada, da qual depende o mínimo de energia.
+   controle de potência. O teto do vizinho passou a valer no cálculo da margem em 17/11/2026 (docs/07 §4). Medição antes e depois, 2 h, 3
+   sementes, urbano residencial, A a 28 dBm e B a 14 dBm, 1 km: rollbacks 33 → 0, PDR 0,961 → 0,993, energia mediana
+   1533 → 993 mJ por pacote; com B a 8 dBm, rollbacks 32 → 0, PDR 0,970 → 0,993, energia 2007 → 1677 mJ. A 2 km, onde o
+   enlace no modo base já não fecha, nada muda. Cenário `P` inteiro (escala rápida, antes → depois): com teto simétrico,
+   resultado idêntico (conferido também em B6, F, F6, V, S e M); no assimétrico os rollbacks por hora caem a 0 em todas as
+   células que tinham (de até 6,5), o PDR sobe até 3 pontos e a energia por pacote cai em 11 das 13 células com
+   enlace; as duas exceções (4 km com B a 14 e a 20 dBm) variam dentro do ruído do enlace marginal (PDR 0,929 → 0,923
+   com B a 20 dBm; energia +2%). Falta medir a curva de corrente do PA na bancada, da qual depende o
+   mínimo de energia.
 5. (feito em 16/11/2026) Resultado da sintonia (F7) aplicado como perfis nomeados `padrao`, `estavel` e `cauteloso`
    (`simsuite/protocol/perfis.py` e `legua_params_profile` no núcleo C, conferidos pelo teste de equivalência).
 6. (feito em 16/11/2026) Algoritmo do MIC: AES-128-CMAC truncado a 4 B, com referência em C e Python e vetores

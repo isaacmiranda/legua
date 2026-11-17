@@ -10,7 +10,7 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
 - `simsuite/` (Python): suíte de simulação, referência executável do protocolo.
 - `core/` (C99): **Fases 0 e 2** prontas: codec do pacote v0 (controle de 16 B), tempo no ar, DATA/ACK, descoberta,
   negociação PROPOSE/VOTE/COMMIT, validação, âncora, rollback, escada, silêncio, potência, perfil móvel, `fade_k`,
-  registro de NVM (âncora, bloco do contador, piso do par). É **equivalente a `simsuite/protocol/endpoint.py`**: o
+  registro de NVM (âncora, bloco do contador, piso do par), teto de TX do par nos controles (margem do pior sentido). É **equivalente a `simsuite/protocol/endpoint.py`**: o
   teste de equivalência compara os rastros byte a byte nos quatro pares Py/C. **Ainda não existem:** driver SX1262,
   porte ESP32, exemplos Arduino/ESP-IDF, guarda das chaves no porte, CAD/LBT.
 - **MIC v0:** AES-128-CMAC truncado a 4 B (docs/07 §6). Referência opcional em `core/src/mic_cmac.c` e

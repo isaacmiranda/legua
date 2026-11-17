@@ -48,16 +48,23 @@ sobrecarga** (sem grupo no cabeçalho; grupos usam faixa de `dst`, Fase 6) e ent
 |---|---|
 | DATA (12) | `seq` u8, `dflags` u8, `speed` u8 (0,5 m/s), `payload` 9 |
 | ACK (2) | `seq` u8, `gain` u8 (`0xFF` = desconhecido; senão ganho = -60 - gain × 0,5 dB) |
-| HELLO (4) | `flags` u8 (bit0 REPLY), `speed` u8, reservado 2 (zero) |
-| PROPOSE (4) | `cand` u8 (byte de modo), `speed` u8, reservado 2 |
-| VOTE (4) | `cand` u8, `yes` u8, `speed` u8, reservado 1 |
+| HELLO (4) | `flags` u8 (bit0 REPLY), `speed` u8, `cap` u8, reservado 1 (zero) |
+| PROPOSE (4) | `cand` u8 (byte de modo), `speed` u8, `cap` u8, reservado 1 |
+| VOTE (4) | `cand` u8, `yes` u8, `speed` u8, `cap` u8 |
 | COMMIT (4) | `cand` u8, `delay_ms` u16, `speed` u8 |
 
 `dflags` do DATA: bit0 **VAL** (o remetente está validado neste modo), bit1 **HB** (heartbeat, sem payload de
 aplicação), bits 2-7 **potência de TX**: `p_dbm = código - 9` (código 0 a 37, de -9 a 28 dBm, passo de 1 dB). O
 receptor precisa da potência para medir o ganho do enlace (`RSSI - p_dbm`). Quadros que não são DATA saem na
-potência do teto do modo (`min(teto do nó, teto do modo)`), que os dois lados conhecem; **os dois nós assumem o
-mesmo teto** (nó mais fraco no par é pendência).
+potência do teto do modo (`min(teto do nó, teto do modo)`). **Teto do par (17/11/2026):** HELLO, PROPOSE e VOTE
+levam o teto de TX do nó em `cap` (u8 = `cap_dbm + 9`, mesma escala do código de potência do DATA). O receptor o guarda
+(`peer_cap`) e passa a (1) medir o ganho dos controles e do ACK com a potência real do par, `min(peer_cap, teto do
+modo)`, e não com a sua; (2) calcular a margem do **pior sentido**: o próprio TX no ganho eu→par e o TX do par no
+ganho par→eu, `min(cap_eu + g_eu→par, cap_par + g_par→eu) - sensibilidade`. Enquanto não ouviu nenhum dos três, supõe o
+mesmo teto e a conta é a de antes (`cap + min(g)`); com tetos iguais o resultado é idêntico bit a bit. Antes disso, com
+tetos diferentes, o ganho dos controles saía errado por `teto_par - teto_eu` e o proponente forte propunha modos que o
+par fraco recusava ou desfazia na validação (rollbacks em série): ver o cenário `P` (assimétrico) e a medição de
+17/11/2026 em docs/09 §10.
 
 `delay_ms` do COMMIT é **relativo ao fim da transmissão do COMMIT** (os nós não compartilham relógio): quem
 transmite conta a partir do `TX_DONE` do COMMIT; quem recebe, a partir do fim da recepção. O simulador Python usa
@@ -262,6 +269,7 @@ Diferenças que restam, todas de representação:
 3. Fragmentação (flag FRAG) e payload maior que 9 B.
 4. (feito em 15/11/2026) Controle compactado de 20 para 16 B. Ir a 14 B exigiria tirar a velocidade ou o `yes`
    do corpo (ganho extra de 12% no tempo no ar do controle); não vale enquanto o perfil móvel usa a velocidade.
-5. Potência de TX diferente por nó (teto assimétrico): o receptor hoje supõe o mesmo teto nos dois lados. No modelo
+5. (resolvido em 17/11/2026, §4: o teto do par viaja nos controles e a margem vale o pior sentido.) Potência de TX
+   diferente por nó (teto assimétrico): antes o receptor supunha o mesmo teto nos dois lados. No modelo
    formal, o caso extremo (B nunca aceita um modo mais rápido) mantém P1, P2 = 0 e P4: os dois ficam no modo base, sem
    aceleração (docs/06). O efeito sobre o orçamento de enlace (ganho do ACK, controle de potência) segue sem modelo.

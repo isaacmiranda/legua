@@ -94,12 +94,11 @@ def _vetores(seed=7):
     for t, n in sorted(BODY_LEN.items()):
         for ctr in (1, 65, 0xFFFF, 0x10000, 0x1FFFE, 0xABCD1234):
             body = bytes(rng.randrange(256) for _ in range(n))
-            if t != T_DATA:           # campos reservados zerados nos controles
+            if t in (T_HELLO, T_PROPOSE, T_VOTE):     # o byte antes reservado leva o teto de TX do nó (docs/07 §4)
                 body = bytearray(body)
-                if t in (T_HELLO, T_PROPOSE):
-                    body[2:] = bytes(2)
-                elif t == T_VOTE:
-                    body[3:] = bytes(1)
+                body[3 if t == T_VOTE else 2] = rng.randrange(0, 38)
+                if t != T_VOTE:
+                    body[3] = 0                        # o último byte de HELLO/PROPOSE segue reservado
                 body = bytes(body)
             src, dst = rng.randrange(1, 0xFFFE), rng.randrange(1, 0xFFFE)
             out.append((ctr, pack(t, src, dst, ctr, body, flags=rng.choice((0, F_ACKREQ, F_ACKREQ | 0x04)))))

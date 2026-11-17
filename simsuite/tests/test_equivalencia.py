@@ -188,3 +188,18 @@ def test_rotacao_sem_chave_no_par_e_recusada_ate_carregar(shim):
     t_fim = [t for t, n, _c, acts, _s in base["trace"] if n == 1 for a in acts if a[:1] == ("chave",) and a[2] == 0]
     assert t_fim and t_fim[0] > 1_200_000, "A só aposenta a chave 0 depois que B recebe a 1"
     assert base["final"][1][4] == 1 and base["final"][2][4] == 1
+
+
+@precisa_cc
+@pytest.mark.parametrize("caps", [(28.0, 14.0), (14.0, 28.0)])
+@pytest.mark.parametrize("ganho,acelera", [(-128.0, True), (-136.0, False)])
+def test_tetos_diferentes_o_par_decide_pelo_pior_sentido(shim, caps, ganho, acelera):
+    """docs/07 §4: HELLO, PROPOSE e VOTE levam o teto de TX do nó. Com tetos diferentes, cada ponta calcula a margem
+    do pior sentido (o próprio TX no ganho eu->par, o TX do par no ganho par->eu) e mede o ganho com a potência real
+    do par: ninguém propõe o que o par vai recusar (sem 'não'), nenhuma troca é desfeita, os dois ficam no mesmo modo."""
+    base = _confere(dict(cfg=FAST, gain=lambda t: ganho, T=1_800_000, chan_seed=1, cap=caps), f"tetos{caps}{ganho}")
+    for nid in (1, 2):
+        s = base["stats"][nid]
+        assert s["neg_fail"] == 0 and s["rollbacks"] == 0, (nid, s)
+        assert (s["trocas"] >= 1) == acelera, (nid, s)
+    assert base["final"][1][0] == base["final"][2][0]

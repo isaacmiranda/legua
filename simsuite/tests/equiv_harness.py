@@ -15,6 +15,7 @@ import ctypes
 import heapq
 import math
 import os
+import random
 from dataclasses import replace
 
 from ..core.radio import p_demod, noise_dbm, CR_GAIN_DB
@@ -108,11 +109,11 @@ def frame_to_raw(f, speed_q):
         gq = (-60.0 - b["g"]) * 2.0 + 0.5
         body = bytes([f.seq & 0xFF, 0 if gq <= 0 else (254 if gq >= 254 else int(gq))])
     elif t == wire.T_HELLO:
-        body = bytes([1 if b.get("reply") else 0, sp, 0, 0])
+        body = bytes([1 if b.get("reply") else 0, sp, b["cap"] + 9, 0])
     elif t == wire.T_PROPOSE:
-        body = bytes([NAME_ID[b["cand"]], sp, 0, 0])
+        body = bytes([NAME_ID[b["cand"]], sp, b["cap"] + 9, 0])
     elif t == wire.T_VOTE:
-        body = bytes([NAME_ID[b["cand"]], 1 if b["yes"] else 0, sp, 0])
+        body = bytes([NAME_ID[b["cand"]], 1 if b["yes"] else 0, sp, b["cap"] + 9])
     else:
         d = round(b["delay"] * 1000)
         body = bytes([NAME_ID[b["cand"]], d >> 8, d & 0xFF, sp])
@@ -152,11 +153,12 @@ def raw_to_frame(ep, raw, mode, keys=0x0F):
         seq = b[0]
         body = {} if b[1] == 0xFF else {"g": -60.0 - b[1] * 0.5}
     elif t == wire.T_HELLO:
-        body = {"reply": bool(b[0] & 1), "v": b[1] / 2.0}
+        body = {"reply": bool(b[0] & 1), "v": b[1] / 2.0, "cap": b[2] - 9}
     elif t == wire.T_PROPOSE:
-        body = {"cand": MODE_BY_ID[b[0]].name if b[0] in MODE_BY_ID else None, "v": b[1] / 2.0}
+        body = {"cand": MODE_BY_ID[b[0]].name if b[0] in MODE_BY_ID else None, "v": b[1] / 2.0, "cap": b[2] - 9}
     elif t == wire.T_VOTE:
-        body = {"cand": MODE_BY_ID[b[0]].name if b[0] in MODE_BY_ID else None, "yes": bool(b[1]), "v": b[2] / 2.0}
+        body = {"cand": MODE_BY_ID[b[0]].name if b[0] in MODE_BY_ID else None, "yes": bool(b[1]), "v": b[2] / 2.0,
+                "cap": b[3] - 9}
     else:
         body = {"cand": MODE_BY_ID[b[0]].name if b[0] in MODE_BY_ID else None,
                 "delay": ((b[1] << 8) | b[2]) / 1000.0, "v": b[3] / 2.0}
@@ -447,7 +449,7 @@ class Run:
             nid, peer = (1, 2) if i == 0 else (2, 1)
             cls = PyAdapter if kind == "py" else CAdapter
             kw = {"handle": i} if kind == "c" else {}
-            ad = cls(nid, peer, seeds[i], cfg, 0, noise_rise, nvm_cap, **kw)
+            ad = cls(nid, peer, seeds[i], cfg, 0, noise_rise, nvm_cap[i] if isinstance(nvm_cap, (tuple, list)) else nvm_cap, **kw)
             self.nodes[nid] = {"ad": ad, "txq": [], "busy": 0, "rx_mode": ad.snapshot()[1],
                                "wakes": set(), "app_rng": XorRng(777 + nid), "app_ms": app_ms, "last_rx": None,
                                "epoch": 0, "ctr_sent": 0}
@@ -734,9 +736,16 @@ def cenario_aleatorio(seed):
                 for _ in range(r.choice([0, 0, 2]) if var != "mic" else r.choice([4, 8]))],
         speeds=([(r.randint(100_000, T - 100_000), r.choice([1, 2]), r.choice([0.0, 0.5, 1.5, 3.0, 10.5]))
                  for _ in range(4)] if var == "mobile" else []),
-        noise_rise=r.choice([0.0, 0.0, 6.0]), cap=r.choice([28.0, 28.0, 22.0]),
+        noise_rise=r.choice([0.0, 0.0, 6.0]), cap=_tetos(seed),
         **(_eventos_de_chave(r, T) if var == "chave" else {}),
         app_ms=r.choice([(5_000, 15_000), (30_000, 41_000), (60_000, 90_000)]), chan_seed=seed + 5)
+
+
+def _tetos(seed):
+    """Teto de TX de cada nó. Gerador próprio: não mexe nos sorteios do resto do cenário. Metade das sementes tem
+    tetos diferentes (docs/07 §4: o teto do par viaja nos controles)."""
+    rc = random.Random(seed * 7919 + 13)
+    return rc.choice([(28.0, 28.0), (28.0, 28.0), (22.0, 22.0), (28.0, 14.0), (14.0, 28.0), (28.0, 8.0), (2.0, 28.0), (22.0, 10.0)])
 
 
 def rodar(sc, kinds):

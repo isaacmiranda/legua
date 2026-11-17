@@ -72,22 +72,35 @@ static uint32_t toa_ms_of(const legua_endpoint *ep, unsigned nbytes)
     return (legua_toa_us(&ep->mode, nbytes) + 999u) / 1000u;
 }
 
-/* Ganho do enlace: o menor entre os dois sentidos conhecidos. */
+/* Ganho do enlace: algum sentido conhecido. */
 static int have_g(const legua_endpoint *ep) { return ep->g_me_set || ep->g_peer_set; }
 
-static float g_min(const legua_endpoint *ep)
+/* Potência do par nos controles e no ACK do modo mi: o teto dele, se já o conhecemos; senão supõe o nosso. */
+static int peer_cap_of(const legua_endpoint *ep, uint8_t mi)
 {
-    if (ep->g_me_set && ep->g_peer_set)
-        return ep->g_me < ep->g_peer ? ep->g_me : ep->g_peer;
-    return ep->g_me_set ? ep->g_me : ep->g_peer;
+    int c = ent(ep, mi)->cap_dbm;
+    if (!ep->peer_cap_set)
+        return cap_of(ep, mi);
+    return c < ep->peer_cap ? c : ep->peer_cap;
 }
 
-/* Margem do modo mi com potência p (use_p) ou com o teto. -99 se o ganho é desconhecido. */
+/* Margem do pior sentido do modo mi: o nosso TX (potência p se use_p, senão o teto) com o ganho eu->par, e o TX do par
+ * com o ganho par->eu. Sem o teto do par, vale cap + min(g), como antes. -99 se o ganho é desconhecido. */
 static float margin_of(const legua_endpoint *ep, uint8_t mi, int use_p, int p)
 {
+    float g_out, g_in, mine, theirs;
     if (!have_g(ep))
         return -99.0f;
-    return (float)(use_p ? p : cap_of(ep, mi)) + g_min(ep) - sens_of(ep, mi);
+    g_out = ep->g_peer_set ? ep->g_peer : ep->g_me;       /* eu -> par */
+    g_in = ep->g_me_set ? ep->g_me : ep->g_peer;          /* par -> eu */
+    mine = (float)(use_p ? p : cap_of(ep, mi)) + g_out - sens_of(ep, mi);
+    {
+        int pc = peer_cap_of(ep, mi);
+        if (use_p && p < pc)
+            pc = p;                                   /* potência em teste: o par também é limitado a ela */
+        theirs = (float)pc + g_in - sens_of(ep, mi);
+    }
+    return mine < theirs ? mine : theirs;
 }
 
 /* Variância populacional do SNR nas últimas n amostras (0 se houver menos de 4). */
@@ -158,6 +171,13 @@ static void flush_nv(legua_endpoint *ep, legua_actions *acts)
 {
     if (ep->nv_dirty)
         act_persist(ep, acts);
+}
+
+/* Teto de TX deste nó no byte que antes era reservado de HELLO/PROPOSE/VOTE: cap_dbm - P_MIN_DBM (docs/07 §4). */
+static uint8_t cap_byte(const legua_endpoint *ep)
+{
+    int c = ep->cfg.cap_dbm - P_MIN_DBM;
+    return (uint8_t)(c < 0 ? 0 : (c > 254 ? 254 : c));
 }
 
 static uint8_t speed_byte(const legua_endpoint *ep)
@@ -438,7 +458,7 @@ static void propose(legua_endpoint *ep, uint32_t now, int initial, int target, l
     if (ep->state != LEGUA_S_BASE)
         ep->state = LEGUA_S_NEG;
     ep->st.tx_ctrl++;
-    ctrl_frame(ep, acts, LEGUA_T_PROPOSE, ent(ep, (uint8_t)cand)->mode_id, speed_byte(ep), 0, 0);
+    ctrl_frame(ep, acts, LEGUA_T_PROPOSE, ent(ep, (uint8_t)cand)->mode_id, speed_byte(ep), cap_byte(ep), 0);
     act_log(acts, LEGUA_LOG_PROPOSE, ent(ep, (uint8_t)cand)->mode_id);
 }
 
@@ -688,7 +708,7 @@ static void on_propose(legua_endpoint *ep, const legua_frame *f, uint32_t now, l
         if (ep->state != LEGUA_S_BASE)
             ep->state = LEGUA_S_PEND;
     }
-    ctrl_frame(ep, acts, LEGUA_T_VOTE, f->body[0], (uint8_t)(ok ? 1 : 0), speed_byte(ep), 0);
+    ctrl_frame(ep, acts, LEGUA_T_VOTE, f->body[0], (uint8_t)(ok ? 1 : 0), speed_byte(ep), cap_byte(ep));
 }
 
 static void on_vote(legua_endpoint *ep, const legua_frame *f, uint32_t now, legua_actions *acts)
@@ -752,8 +772,13 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
         uint32_t k = ep->state != LEGUA_S_VALID ? c->hb_interval_ms : c->hb_interval_ms / 10u;
         ep->next_hb = max_u32(ep->next_hb, now + k);
     }
-    /* potência do par: DATA a leva no quadro; os demais usam o teto do modo */
-    p_tx = f.type == LEGUA_T_DATA ? (int)((f.body[1] >> 2) & 0x3Fu) + P_MIN_DBM : cap_of(ep, ep->mode_i);
+    /* teto do par: HELLO, PROPOSE e VOTE o levam no corpo (byte antes reservado) */
+    if (f.type == LEGUA_T_HELLO || f.type == LEGUA_T_PROPOSE || f.type == LEGUA_T_VOTE) {
+        ep->peer_cap = (int8_t)((int)f.body[f.type == LEGUA_T_VOTE ? 3 : 2] + P_MIN_DBM);
+        ep->peer_cap_set = 1;
+    }
+    /* potência do par: DATA a leva no quadro; os demais usam o teto dele no modo (ou o nosso, se ainda não o conhecemos) */
+    p_tx = f.type == LEGUA_T_DATA ? (int)((f.body[1] >> 2) & 0x3Fu) + P_MIN_DBM : peer_cap_of(ep, ep->mode_i);
     rssi = (float)rx->rssi_x10 / 10.0f;
     snr = (float)rx->snr_x10 / 10.0f;
     g = rssi - (float)p_tx;
@@ -772,7 +797,7 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
     case LEGUA_T_HELLO:
         if (ep->state == LEGUA_S_BASE && !ep->role_a && !(f.body[0] & 1u)) {
             /* descoberta bidirecional: responde para o proponente também ouvir */
-            ctrl_frame(ep, acts, LEGUA_T_HELLO, 1u, speed_byte(ep), 0, 0);
+            ctrl_frame(ep, acts, LEGUA_T_HELLO, 1u, speed_byte(ep), cap_byte(ep), 0);
             ep->st.tx_ctrl++;
         }
         if (ep->state == LEGUA_S_BASE && ep->role_a && !ep->pend_active && reached(now, ep->neg_block) &&
@@ -945,7 +970,7 @@ static void on_timer_impl(legua_endpoint *ep, uint32_t now, legua_actions *acts)
         after(now - ep->peer_heard, 3u * c->hello_interval_ms)) {
         ep->next_hello = now + c->hello_interval_ms * rnd_range(ep, 700u, 1300u) / 1000u;
         ep->st.tx_ctrl++;
-        ctrl_frame(ep, acts, LEGUA_T_HELLO, 0, speed_byte(ep), 0, 0);
+        ctrl_frame(ep, acts, LEGUA_T_HELLO, 0, speed_byte(ep), cap_byte(ep), 0);
     }
     /* heartbeat */
     if ((ep->state == LEGUA_S_DATA || ep->state == LEGUA_S_RECOV || ep->state == LEGUA_S_VALID) &&

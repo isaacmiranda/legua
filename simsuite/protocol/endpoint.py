@@ -118,6 +118,7 @@ class Endpoint:
         self.state = DATA if a else BASE
         self.prev = a or self.base          # destino de rollback
         self.p = self._cap(self.mode)
+        self.peer_cap = None                 # teto de TX do par, aprendido em HELLO/PROPOSE/VOTE (docs/07 §4)
         self.peer_heard = now
         self.entered = now
         self.out = None                      # pacote aguardando ACK
@@ -210,6 +211,8 @@ class Endpoint:
         self._bump_ctr()
         m = mode or self.mode
         body["v"] = round(self.speed, 1)        # velocidade GNSS (perfil móvel)
+        if kind in ("HELLO", "PROPOSE", "VOTE"):
+            body["cap"] = int(round(self.cap))  # teto de TX deste nó, em dBm (byte reservado do controle, docs/07 §4)
         return Frame(kind, self.id, self.peer, m, self._cap(m) if kind != "DATA" else self.p,
                      seq=body.pop("seq", 0), ctr=self.ctr, nbytes=nbytes, body=body, key=self.key_cur)
 
@@ -225,22 +228,21 @@ class Endpoint:
         self.out = None          # o pacote pendente continua na fila e sai no novo modo
         return [("rx", mode), ("log", {"ev": "modo", "modo": mode.name, "estado": state, "motivo": why})]
 
-    def _g(self):
-        gs = [g for g in (self.g_me, self.g_peer) if g is not None]
-        return min(gs) if gs else None
+    def _peer_cap_m(self, m):
+        """Potência do par para quadros de controle e ACK no modo m: o teto dele, se já o conhecemos; senão supõe o nosso."""
+        return self._cap(m) if self.peer_cap is None else min(self.peer_cap, m.cap)
 
     def _margin(self, m, p=None):
-        g = self._g()
-        if g is None:
+        """Margem do pior sentido: o nosso TX com o ganho eu->par e o TX do par com o ganho par->eu (docs/07 §4).
+        Sem o teto do par, supõe o mesmo teto (e vale cap + min(g), como antes). Com uma potência p em teste (controle de
+        potência), o par também é limitado a p, como na conta antiga: com tetos iguais o resultado é idêntico."""
+        if self.g_me is None and self.g_peer is None:
             return -99
-        return (self._cap(m) if p is None else p) + g - m.sens(self.noise_rise)
-
-    def _min_power(self, m):
-        g = self._g()
-        if g is None or not self.cfg.power_control:
-            return self._cap(m)
-        need = self.cfg.margin_target - (g - m.sens(self.noise_rise))
-        return min(self._cap(m), max(-9.0, math.ceil(need / 2) * 2))
+        g_out = self.g_peer if self.g_peer is not None else self.g_me      # eu -> par
+        g_in = self.g_me if self.g_me is not None else self.g_peer         # par -> eu
+        mine = (self._cap(m) if p is None else p) + g_out - m.sens(self.noise_rise)
+        theirs = (self._peer_cap_m(m) if p is None else min(self._peer_cap_m(m), p)) + g_in - m.sens(self.noise_rise)
+        return min(mine, theirs)
 
     def _frozen(self):
         """Perfil móvel: congela a aceleração se algum lado se move ou o SNR oscila."""
@@ -327,12 +329,14 @@ class Endpoint:
             self.nvm["peer_blk"] = f.ctr // 64
             self._nv_dirty = True
         acts += self._key_seen(f.key)
+        if "cap" in f.body:
+            self.peer_cap = f.body["cap"]
         if f.mode != self.mode:
             return acts
         self.peer_heard = now
         if f.kind in ("DATA", "ACK"):
             self.next_hb = max(self.next_hb, now + self.cfg.hb_interval * (1.0 if self.state != VALID else 0.1))
-        g = rssi - f.p_dbm
+        g = rssi - (f.p_dbm if f.kind == "DATA" else self._peer_cap_m(self.mode))   # só o DATA leva a potência no quadro
         self.g_me = g if self.g_me is None else (1 - self.cfg.ema_a) * self.g_me + self.cfg.ema_a * g
         self.snr_hist.append(snr)
         if f.kind != "ACK":                  # o ACK não leva a velocidade (docs/07 §4)

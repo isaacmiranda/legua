@@ -245,6 +245,8 @@ typedef struct {
     uint8_t  bad_set[LEGUA_MAX_MODES];
     uint32_t bad_until[LEGUA_MAX_MODES];
     float    speed, peer_speed;
+    int8_t   peer_cap;              /* teto de TX do par, aprendido em HELLO/PROPOSE/VOTE (docs/07 §4) */
+    uint8_t  peer_cap_set;
     legua_stats st;
 } legua_endpoint;
 
