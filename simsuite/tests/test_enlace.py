@@ -236,3 +236,13 @@ def test_perda_cresce_com_a_altura_do_obstaculo_e_cai_com_o_mastro():
     dd, hh = _morro(10.0, 100, 60, 0.5, 0.7)
     mastros = [L.analisar_perfil(dd, hh, m, m, 4 / 3)["perda_difracao_db"] for m in (5, 20, 50, 100)]
     assert mastros == sorted(mastros, reverse=True)
+
+
+def test_slowfade_media_desvio_e_determinismo():
+    import numpy as np
+    from simsuite.core.des import SlowFade
+    f = SlowFade(6.0, 600.0, 1, 200000.0)
+    xs = np.array([f(t) for t in np.arange(0, 200000, 100.0)])
+    assert abs(xs.mean()) < 1.5 and 4.0 < xs.std() < 8.0
+    assert f(1234.5) == SlowFade(6.0, 600.0, 1, 200000.0)(1234.5)
+    assert SlowFade(6.0, 600.0, 2, 1000.0)(500.0) != f(500.0)

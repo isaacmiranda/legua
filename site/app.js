@@ -717,6 +717,11 @@
       var ak = keys(X.assimetria);
       cards.push(tableCard("Estresse: perda assimétrica entre os sentidos", cab + "Perda extra só de B para A; A para B fica intacto. Cada célula: PDR · trocas por hora · rollbacks por hora.",
         ["Perda extra B→A", "Resultado", "Desacordo (s/h)"], ak.map(function (k) { return [k, cx(X.assimetria[k]), nf(X.assimetria[k].desacordo_s_por_hora, 1)]; }), [false, true, true]));
+      if (X.lento) {
+        var lk = keys(X.lento);
+        cards.push(tableCard("Estresse: desvanecimento lento independente por sentido", cab + "Cada sentido tem seu próprio desvanecimento lento (média zero, correlação de 10 min); o rótulo é o desvio em dB. Cada célula: PDR · trocas por hora · rollbacks por hora.",
+          ["Desvio por sentido", "Resultado", "Desacordo (s/h)"], lk.map(function (k) { return [k, cx(X.lento[k]), nf(X.lento[k].desacordo_s_por_hora, 1)]; }), [false, true, true]));
+      }
       var tk = keys(X.teto_fade), fk = keys(X.teto_fade[tk[0]]);
       cards.push(tableCard("Estresse: teto de TX × fade_k", cab + "Teto simétrico e margem extra de aceleração proporcional à variabilidade do SNR (fade_k). Cada célula: PDR · trocas por hora · rollbacks por hora.",
         ["Teto"].concat(fk), tk.map(function (k) { return [k].concat(fk.map(function (f) { return cx(X.teto_fade[k][f]); })); }), [false].concat(fk.map(function () { return true; }))));

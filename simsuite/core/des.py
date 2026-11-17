@@ -64,6 +64,7 @@ class Sim:
         self.drop_rules = []
         self.ext_scale = ext_scale
         self.asym_db = {}              # {(src, dst): dB extras de perda só nesse sentido (enlace assimétrico)}
+        self.slow_db = {}              # {(src, dst): SlowFade}: desvanecimento lento independente por sentido
         self.deliveries = []           # (src, seq, t_gen, t_rx)
         self.tracker = None
         self.reason = {}
@@ -72,6 +73,10 @@ class Sim:
     # ------------------------------------------------------------- infra
     def add(self, node):
         self.nodes[node.id] = node
+
+    def _extra_db(self, src, dst, t):
+        f = self.slow_db.get((src, dst))
+        return self.asym_db.get((src, dst), 0.0) + (f(t) if f else 0.0)
 
     def link(self, a, b):
         return self.links[(a, b) if a < b else (b, a)]
@@ -198,7 +203,7 @@ class Sim:
                 why = "canal"
         if why is None:
             lk = self.link(sn.id, rn.id)
-            rssi = lk.rx_dbm(tx["t0"], f.p_dbm) - self.asym_db.get((sn.id, rn.id), 0.0)
+            rssi = lk.rx_dbm(tx["t0"], f.p_dbm) - self._extra_db(sn.id, rn.id, tx["t0"])
             snr = rssi - noise_dbm(f.mode.bw, self.env["noise_rise"])
             p_ok = p_demod(snr + CR_GAIN_DB[f.mode.cr], f.mode.sf) * \
                 p_ext_ok(self.env, tx["t1"] - tx["t0"], self.ext_scale, f.mode.cr)
@@ -218,7 +223,7 @@ class Sim:
                     continue
                 if a["t0"] < tx["t1"] and a["t1"] > tx["t0"]:
                     li = self.link(a["src"], rn.id)
-                    pi = li.rx_dbm(a["t0"], a["p"]) - self.asym_db.get((a["src"], rn.id), 0.0)
+                    pi = li.rx_dbm(a["t0"], a["p"]) - self._extra_db(a["src"], rn.id, a["t0"])
                     sir = rssi - pi
                     need = SAME_SF_CAPTURE_DB if a["f"].mode.sf == f.mode.sf else -DIFF_SF_ISOLATION_DB
                     if getattr(a["f"], "kind", "") == "JAM":
@@ -317,6 +322,28 @@ class Sim:
         if self.log:
             self.log.close()
             self.log = None
+
+
+class SlowFade:
+    """Desvanecimento lento (processo de Ornstein-Uhlenbeck, dB) de um sentido, independente do outro.
+    Média zero, desvio `sigma_db`, correlação `tau_s`. Amostrado a cada `dt` e interpolado; determinístico pela semente."""
+
+    def __init__(self, sigma_db, tau_s, seed, T_s, dt=5.0):
+        import numpy as _np
+        rng = _np.random.default_rng(seed)
+        n = int(T_s / dt) + 3
+        a = _np.exp(-dt / tau_s)
+        x = _np.empty(n)
+        x[0] = rng.normal() * sigma_db
+        w = rng.normal(size=n) * sigma_db * (1 - a * a) ** 0.5
+        for i in range(1, n):
+            x[i] = a * x[i - 1] + w[i]
+        self.x, self.dt = x, dt
+
+    def __call__(self, t):
+        i = min(max(t, 0.0) / self.dt, len(self.x) - 2)
+        k = int(i)
+        return float(self.x[k] + (i - k) * (self.x[k + 1] - self.x[k]))
 
 
 class AgreementTracker:

@@ -69,7 +69,7 @@ def estresse_sweep(escala="quick"):
     T, seeds = _grade(escala)
     d = 2.0
     out = {"ambiente": ENV, "dist_km": d, "T_h": T / 3600, "sementes": seeds, "relogio": {}, "assimetria": {},
-           "teto_fade": {}}
+           "teto_fade": {}, "lento": {}}
     ppms = [(0.0, 0.0), (10.0, -10.0), (50.0, -50.0), (100.0, -100.0)]
     for xt in ("tcxo", "xtal"):
         for a, b in ppms:
@@ -82,8 +82,10 @@ def estresse_sweep(escala="quick"):
     for cap in (20.0, 24.0, 28.0):
         out["teto_fade"][f"{cap:g} dBm"] = {f"fade_k {k:g}": _cell_x(d, Config(fade_k=k), T, seeds, cap=(cap, cap))
                                             for k in (0.0, 1.0, 2.0)}
+    for sg in (0.0, 3.0, 6.0, 9.0):                       # desvanecimento lento independente por sentido, tau = 10 min
+        out["lento"][f"{sg:g} dB"] = _cell_x(d, Config(), T, seeds, slow=(sg, 600.0) if sg else None)
     out["nota"] = ("relogio: erro ppm dos nós A e B em sinais opostos (rótulo = módulo). assimetria: perda extra só "
-                   "de B para A. teto_fade: teto de TX × fade_k. Referência = primeira coluna de cada grupo. "
+                   "de B para A. lento: desvanecimento lento (desvio em dB, correlação 10 min) independente em cada sentido. teto_fade: teto de TX × fade_k. Referência = primeira coluna de cada grupo. "
                    "No modelo, o cristal comum (xtal) a 28 dBm perde tudo por deriva térmica no pacote (ver B9): falha do "
                    "modelo de cristal, não do protocolo; a 14 dBm a deriva some. Parâmetros do canal e do cristal "
                    "estimados (docs/09 §4).")
