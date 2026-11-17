@@ -707,6 +707,20 @@
         tss.map(function (t) { return [t.replace("ts", "") + " s"].concat(apps.map(function (a) { var r = S.celulas[dk][t][a]; return fmtPdr(r.pdr) + " · " + r.quedas_base + " quedas"; })); }),
         [false].concat(apps.map(function () { return true; }))));
     });
+    var X = d.X;
+    if (X) {
+      function cx(r) { return r.pdr < 0.02 ? "sem enlace" : fmtPdr(r.pdr) + " · " + nf(r.trocas_por_hora, 2) + " trocas/h · " + nf(r.rollbacks_por_hora, 2) + " rb/h"; }
+      var cab = "Ambiente " + X.ambiente.replace(/_/g, " ") + ", " + X.dist_km + " km, " + X.T_h + " h por semente, " + X.sementes.length + " sementes. ";
+      var rk = keys(X.relogio);
+      cards.push(tableCard("Estresse: erro de relógio e cristal", cab + "Erro ppm dos dois nós em sinais opostos. Cada célula: PDR · trocas por hora · rollbacks por hora. O cristal comum a 28 dBm perde tudo por deriva térmica no modelo (B9); a 14 dBm a deriva some.",
+        ["Cristal / erro de relógio", "Resultado", "Energia (mJ/pacote)"], rk.map(function (k) { return [k, cx(X.relogio[k]), X.relogio[k].mj_por_pacote_mediana == null ? "–" : nf(X.relogio[k].mj_por_pacote_mediana, 0)]; }), [false, true, true]));
+      var ak = keys(X.assimetria);
+      cards.push(tableCard("Estresse: perda assimétrica entre os sentidos", cab + "Perda extra só de B para A; A para B fica intacto. Cada célula: PDR · trocas por hora · rollbacks por hora.",
+        ["Perda extra B→A", "Resultado", "Desacordo (s/h)"], ak.map(function (k) { return [k, cx(X.assimetria[k]), nf(X.assimetria[k].desacordo_s_por_hora, 1)]; }), [false, true, true]));
+      var tk = keys(X.teto_fade), fk = keys(X.teto_fade[tk[0]]);
+      cards.push(tableCard("Estresse: teto de TX × fade_k", cab + "Teto simétrico e margem extra de aceleração proporcional à variabilidade do SNR (fade_k). Cada célula: PDR · trocas por hora · rollbacks por hora.",
+        ["Teto"].concat(fk), tk.map(function (k) { return [k].concat(fk.map(function (f) { return cx(X.teto_fade[k][f]); })); }), [false].concat(fk.map(function () { return true; }))));
+    }
     mount(panel, cards);
   }
 

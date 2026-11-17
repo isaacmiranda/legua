@@ -56,3 +56,41 @@ def silencio_sweep(escala="quick"):
     out["nota"] = ("Padrão: t_silence = 90 s. app = intervalo entre pacotes da aplicação; com app maior que "
                    "t_silence o silêncio é normal e só o heartbeat (60 s) evita descidas falsas.")
     return out
+
+
+def estresse_sweep(escala="quick"):
+    """Cenário X: três estresses que a calibração real vai exercitar primeiro.
+
+    relogio: erro de relógio dos dois nós (ppm, sinais opostos) × cristal (tcxo ou xtal comum). O instante combinado
+      da troca depende de relógios que andam separados.
+    assimetria: perda extra só no sentido B->A (dB), com A->B intacto. A margem vale o pior sentido?
+    teto_fade: teto de TX simétrico × `fade_k` (margem extra pela variabilidade do SNR).
+    Mesmas sementes de canal em todas as células; a coluna `0 dB`/`0 ppm`/`fade_k 0` é a referência."""
+    T, seeds = _grade(escala)
+    d = 2.0
+    out = {"ambiente": ENV, "dist_km": d, "T_h": T / 3600, "sementes": seeds, "relogio": {}, "assimetria": {},
+           "teto_fade": {}}
+    ppms = [(0.0, 0.0), (10.0, -10.0), (50.0, -50.0), (100.0, -100.0)]
+    for xt in ("tcxo", "xtal"):
+        for a, b in ppms:
+            out["relogio"][f"{xt}/{abs(a):g} ppm"] = _cell_x(d, Config(), T, seeds, xtal=xt, clock_ppm=(a, b))
+    for a, b in (ppms[0], ppms[-1]):                      # cristal comum com TX a 14 dBm: sem deriva térmica no modelo
+        out["relogio"][f"xtal 14 dBm/{abs(a):g} ppm"] = _cell_x(d, Config(), T, seeds, xtal="xtal", clock_ppm=(a, b),
+                                                              cap=(14.0, 14.0))
+    for db in (0.0, 3.0, 6.0, 9.0, 12.0):
+        out["assimetria"][f"{db:g} dB"] = _cell_x(d, Config(), T, seeds, asym_db={(1, 0): db})
+    for cap in (20.0, 24.0, 28.0):
+        out["teto_fade"][f"{cap:g} dBm"] = {f"fade_k {k:g}": _cell_x(d, Config(fade_k=k), T, seeds, cap=(cap, cap))
+                                            for k in (0.0, 1.0, 2.0)}
+    out["nota"] = ("relogio: erro ppm dos nós A e B em sinais opostos (rótulo = módulo). assimetria: perda extra só "
+                   "de B para A. teto_fade: teto de TX × fade_k. Referência = primeira coluna de cada grupo. "
+                   "No modelo, o cristal comum (xtal) a 28 dBm perde tudo por deriva térmica no pacote (ver B9): falha do "
+                   "modelo de cristal, não do protocolo; a 14 dBm a deriva some. Parâmetros do canal e do cristal "
+                   "estimados (docs/09 §4).")
+    return out
+
+
+def _cell_x(d, cfg, T, seeds, **kw):
+    env = ENVS[ENV]
+    mk = lambda s, d=d: FixedLink(env, d, np.random.default_rng(1000 + s), T + 10)
+    return _run_cell(ENV, mk, dict(cfg=cfg), T, seeds, app=20.0, **kw)

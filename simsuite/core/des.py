@@ -63,6 +63,7 @@ class Sim:
         self.log = open(log_path, "w") if log_path else None
         self.drop_rules = []
         self.ext_scale = ext_scale
+        self.asym_db = {}              # {(src, dst): dB extras de perda só nesse sentido (enlace assimétrico)}
         self.deliveries = []           # (src, seq, t_gen, t_rx)
         self.tracker = None
         self.reason = {}
@@ -197,7 +198,7 @@ class Sim:
                 why = "canal"
         if why is None:
             lk = self.link(sn.id, rn.id)
-            rssi = lk.rx_dbm(tx["t0"], f.p_dbm)
+            rssi = lk.rx_dbm(tx["t0"], f.p_dbm) - self.asym_db.get((sn.id, rn.id), 0.0)
             snr = rssi - noise_dbm(f.mode.bw, self.env["noise_rise"])
             p_ok = p_demod(snr + CR_GAIN_DB[f.mode.cr], f.mode.sf) * \
                 p_ext_ok(self.env, tx["t1"] - tx["t0"], self.ext_scale, f.mode.cr)
@@ -217,7 +218,7 @@ class Sim:
                     continue
                 if a["t0"] < tx["t1"] and a["t1"] > tx["t0"]:
                     li = self.link(a["src"], rn.id)
-                    pi = li.rx_dbm(a["t0"], a["p"])
+                    pi = li.rx_dbm(a["t0"], a["p"]) - self.asym_db.get((a["src"], rn.id), 0.0)
                     sir = rssi - pi
                     need = SAME_SF_CAPTURE_DB if a["f"].mode.sf == f.mode.sf else -DIFF_SF_ISOLATION_DB
                     if getattr(a["f"], "kind", "") == "JAM":

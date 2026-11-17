@@ -37,6 +37,7 @@ MAPA = [
     ("F7", "Sintonia da aceleração", "Sim", "F7", "Margem fixa × proporcional ao desvio do SNR em enlace marginal: estabilidade × energia"),
     ("V", "Varredura da janela de validação", "Parcial", "P4", "k, f e tempo da janela: PDR, rollbacks (inclui falsos) e desacordo em enlace marginal"),
     ("S", "Varredura da descida por silêncio", "Parcial", "P1/P3", "t_silence × intervalo da aplicação: descidas falsas, PDR e desacordo"),
+    ("X", "Estresses: relógio, assimetria, teto × fade_k", "Parcial", "F7", "Erro de relógio × cristal, perda só num sentido e teto de TX × fade_k: PDR, trocas, rollbacks e desacordo"),
     ("P", "Varredura de potência de TX", "Parcial", "P", "Teto simétrico e assimétrico, controle de potência ligado/desligado: PDR e energia (corrente do PA estimada)"),
     ("M1–M7", "Mobilidade", "Parcial", "M", "Trajetórias, LoS/NLoS, Doppler; perfis fixo e móvel"),
     ("T1", "P2P contra presets", "Sim", "F (configurações)", "Mesmas sementes de canal para todas as configurações"),
@@ -88,6 +89,9 @@ def job(name, escala, outdir=RES):
         elif name == "S":
             from .scenarios.sweeps import silencio_sweep
             r = silencio_sweep(escala)
+        elif name == "X":
+            from .scenarios.sweeps import estresse_sweep
+            r = estresse_sweep(escala)
         elif name == "F6":
             from .scenarios.field import f6_long_duration
             r = f6_long_duration(escala)
@@ -178,7 +182,7 @@ def fase7_demo(outdir=RES):
 
 
 ALL = ["modos", "amostras", "formal", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11",
-       "F", "F6", "F7", "P", "V", "S", "M", "T23", "T456", "fase7", "xsim", "equiv"]
+       "F", "F6", "F7", "P", "V", "S", "X", "M", "T23", "T456", "fase7", "xsim", "equiv"]
 
 
 # cenários cujo resultado muda com o teto de TX (os demais são tabelas, verificação ou independem da potência)

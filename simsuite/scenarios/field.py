@@ -54,7 +54,7 @@ def configs(mobile=False, app=20.0):
 
 
 def _run_cell(env_id, link_maker, cfg_kw, T, seeds, app=20.0, tracks=(None, None), xtal="tcxo",
-              one_way=True, cap=28.0):
+              one_way=True, cap=28.0, clock_ppm=(10.0, -10.0), asym_db=None):
     blocks, energies, lats, st_acc, dis = [], [], [], {}, []
     for s in seeds:
         link = link_maker(s)
@@ -62,7 +62,9 @@ def _run_cell(env_id, link_maker, cfg_kw, T, seeds, app=20.0, tracks=(None, None
         if "factory" in cfg_kw:
             kw["endpoint_cls"] = cfg_kw["factory"]
         sim = make_pair(env_id, link, T, s * 7 + 1, cfg=cfg_kw.get("cfg"), app_interval=app,
-                        tracks=tracks, xtal=xtal, cap=cap, **kw)
+                        tracks=tracks, xtal=xtal, cap=cap, clock_ppm=clock_ppm, **kw)
+        if asym_db:
+            sim.asym_db = dict(asym_db)
         if one_way:
             sim.nodes[1].app_interval = None
         sim.start()

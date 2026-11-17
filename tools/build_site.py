@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 CENARIOS = ["modos", "formal", "B2", "B3", "B4", "B5", "B6", "B7", "B9", "B10", "B11",
-            "F", "F6", "F7", "P", "V", "S", "M", "T23", "T456", "xsim", "equiv"]
+            "F", "F6", "F7", "P", "V", "S", "X", "M", "T23", "T456", "xsim", "equiv"]
 
 
 def limpar(x):
