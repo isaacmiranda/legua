@@ -182,3 +182,30 @@ def test_leitura_de_hgt_e_perfil_entre_pontos():
     assert "nome do arquivo" in o["nome_ruim"] and "tamanho" in o["tamanho_ruim"]
     assert "60" in o["polar"] and "0,02" in o["curto"]
     assert o["hav"] == pytest.approx(111.19, abs=0.05)
+
+
+@pytest.mark.skipif(not shutil.which("node") or not shutil.which("gcc"), reason="sem node ou gcc")
+def test_trecho_c_gerado_compila_e_usa_o_enum_certo(tmp_path):
+    from simsuite.protocol.perfis import PERFIL_C
+    js = r"""
+    const G = require(process.argv[1] + '/perfil_c.js');
+    const out = {};
+    for (const n of Object.keys(G.PERFIS)) for (const cap of [-20, 0, 14.4, 28, 40]) out[n + '|' + cap] = G.gerar({ perfil: n, cap_dbm: cap, ruido_db: 6 });
+    console.log(JSON.stringify(out));
+    """
+    r = subprocess.run(["node", "-e", js, os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    gerado = json.loads(r.stdout)
+    enum = {0: "LEGUA_PROFILE_DEFAULT", 1: "LEGUA_PROFILE_STABLE", 2: "LEGUA_PROFILE_CAUTIOUS"}
+    for chave, texto in gerado.items():
+        nome, cap = chave.split("|")
+        assert enum[PERFIL_C[nome]] in texto
+        esperado = max(-9, min(28, round(float(cap))))
+        assert "cfg->cap_dbm = %d;" % esperado in texto
+        c = tmp_path / "t.c"
+        c.write_text(texto + "\nint main(void) { legua_config c; return meu_enlace_config(&c, 1, 2); }\n")
+        cc = subprocess.run(["gcc", "-std=c99", "-Wall", "-Wextra", "-Werror", "-fsyntax-only", "-I", os.path.join(RAIZ, "core", "include"),
+                             "-I", os.path.join(RAIZ, "core"), str(c)], capture_output=True, text=True)
+        assert cc.returncode == 0, (chave, cc.stderr)
+    with pytest.raises(Exception):
+        subprocess.run(["node", "-e", "require(process.argv[1]+'/perfil_c.js').gerar({perfil:'x'})", os.path.join(RAIZ, "site")], check=True, capture_output=True)

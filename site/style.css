@@ -174,3 +174,4 @@ th[title] { text-decoration: underline dotted var(--text-3); text-underline-offs
   .card, .stat { break-inside: avoid; box-shadow: none; border: 1px solid #999; background: #fff; }
   a[href]::after { content: ""; }
 }
+.codigo { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font: 12px/1.45 ui-monospace, monospace; white-space: pre; margin: 8px 0; }

@@ -893,7 +893,7 @@
     F5: { t: "F5 rural com relevo/mata", env: "rural_serra", d: 4, off: 0, sim: "F5 rural com relevo/mata" }
   };
   var SIMCFG = { "10|125|1|1": "Fixo SF10/125 salto (base)", "7|125|1|1": "Fixo SF7/125 salto (rápido)", "12|500|1|0": "Fixo SF12/500 digital" };
-  var plan = { preset: "F1", env: "urbano_denso", d: 1.0, off: 0, sf: 10, bw: 125, cr: 1, p: 28, retries: 3, interval: 60, load: 1, target: 0.95, sig: "0" };
+  var plan = { preset: "F1", env: "urbano_denso", d: 1.0, off: 0, sf: 10, bw: 125, cr: 1, p: 28, retries: 3, interval: 60, load: 1, target: 0.95, sig: "0", perfil: "padrao" };
 
   function fld(label, ctl, valNode) {
     return el("label", { class: "field" }, [el("span", {}, [document.createTextNode(label + ": "), valNode || null]), ctl]);
@@ -908,7 +908,7 @@
 
   // ---- estado do estimador no fragmento da URL (#estimativas/full?d=1.2&sf=10...), exportação e cópia.
   // Tudo local: nada é enviado a lugar nenhum; o fragmento da URL não vai ao servidor.
-  var PLAN_KEYS = ["preset", "env", "d", "off", "sf", "bw", "cr", "p", "retries", "interval", "load", "target", "sig"];
+  var PLAN_KEYS = ["preset", "env", "d", "off", "sf", "bw", "cr", "p", "retries", "interval", "load", "target", "sig", "perfil"];
   function planQuery() {
     return PLAN_KEYS.map(function (k) { return k + "=" + encodeURIComponent(String(plan[k])); }).join("&");
   }
@@ -922,7 +922,7 @@
     num("d", 0.05, 40); num("off", -25, 15); num("p", -9, 28); num("retries", 0, 6); num("interval", 1, 600);
     num("load", 0, 3); num("target", 0.5, 0.999);
     oneNum("sf", [7, 8, 9, 10, 11, 12]); oneNum("bw", [125, 250, 500]); oneNum("cr", [1, 2, 3, 4]);
-    one("sig", ["-1", "0", "1", "2"]);
+    one("sig", ["-1", "0", "1", "2"]); one("perfil", ["padrao", "estavel", "cauteloso"]);
   }
   function syncHash() {
     if (!curTab || curTab.id !== "estimativas") return;
@@ -1045,7 +1045,19 @@
           btn("Imprimir", function () { window.print(); }),
           el("a", { class: "btn", href: "enlace.html#" + ["env", "d", "sf", "bw", "cr", "p", "retries", "interval", "load"].map(function (k) { return (k === "d" ? "d" : k) + "=" + encodeURIComponent(String(plan[k])); }).join("&"), text: "Meu enlace fecha? (testador de terreno)" }), aviso])]);
       syncHash();
-      [warn, decisao, cards, dw, chart, t1, t2, t3].forEach(function (n) { if (n) host.appendChild(n); });
+      var perfilCard = null;
+      if (window.LeguaPerfilC) {
+        var PC = window.LeguaPerfilC, pre = el("pre", { class: "codigo", tabindex: "0", "aria-label": "Trecho C gerado" }), paviso = el("span", { class: "sub", role: "status", "aria-live": "polite" }), psel = el("select");
+        keys(PC.PERFIS).forEach(function (k) { var op = el("option", { value: k, text: k + ": " + PC.PERFIS[k].resumo }); if (k === plan.perfil) op.selected = true; psel.appendChild(op); });
+        var pgera = function () { plan.perfil = psel.value; pre.textContent = PC.gerar({ perfil: psel.value, cap_dbm: plan.p, ruido_db: K_env().noise_rise }); };
+        psel.addEventListener("change", pgera); pgera();
+        perfilCard = el("section", { class: "card" }, [el("h2", { text: "Do resultado ao produto: configuração do núcleo C" }),
+          el("p", { class: "note", text: "Gera o trecho que configura o núcleo C99 com o perfil escolhido, o teto de TX de " + plan.p + " dBm e a elevação de ruído do ambiente (" + nf(K_env().noise_rise, 1) + " dB) deste setup. O perfil é pedido por legua_params_profile: nenhum parâmetro é copiado para o site. Estimativa para comparar e dimensionar; o perfil BR-2026 é nao_verificado." }),
+          el("label", { class: "field" }, [el("span", { text: "Perfil" }), psel]), pre,
+          el("div", { class: "controls sem-impressao" }, [btn("Copiar trecho", function () { copiar(pre.textContent, paviso); }),
+            btn("Baixar .c", function () { paviso.textContent = baixar("legua_config.c", "text/x-csrc;charset=utf-8", pre.textContent) ? "Arquivo baixado." : "Não foi possível baixar."; }), paviso])]);
+      }
+      [warn, decisao, cards, dw, chart, t1, t2, t3, perfilCard].forEach(function (n) { if (n) host.appendChild(n); });
       host.querySelectorAll(".card").forEach(function (c) { if (c._render) c._render(); });
     }
     function K_env() { return DATA.constantes.envs[plan.env]; }

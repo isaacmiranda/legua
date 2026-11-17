@@ -27,6 +27,7 @@ Promise.resolve(new JSDOM(html, { url: "http://localhost/index.html" + process.a
     out.botoes = [...d.querySelectorAll(".decisao .btn")].map(b => b.textContent);
     out.ranges = [...d.querySelectorAll("input[type=range]")].map(i => i.value);
     out.titulo = (d.querySelector(".decisao p") || {}).textContent || "";
+    out.codigo = (d.querySelector("pre.codigo") || {}).textContent || "";
     const copiar = [...d.querySelectorAll(".decisao .btn")].find(b => /Copiar/.test(b.textContent));
     let copiado = null;
     w.navigator.clipboard = { writeText: t => { copiado = t; return Promise.resolve(); } };
@@ -57,12 +58,13 @@ def _tem_jsdom():
 
 @pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
 def test_estado_do_estimador_na_url_e_exportacao(tmp_path):
-    o = _roda(tmp_path, "#estimativas?d=2.5&sf=9&bw=250&p=20&sig=1&env=rural_aberto")
+    o = _roda(tmp_path, "#estimativas?d=2.5&sf=9&bw=250&p=20&sig=1&env=rural_aberto&perfil=estavel")
     assert not o["erros"], o["erros"]
     assert o["decisao"] and "Copiar resumo e link" in o["botoes"] and "Baixar JSON" in o["botoes"]
     assert "2,5" in o["titulo"] and "SF9/250" in o["titulo"] and "20 dBm" in o["titulo"]
     assert "d=2.5" in o["hash"] and "sf=9" in o["hash"] and "env=rural_aberto" in o["hash"]
     assert o["copiado"] and "estimativa analítica" in o["copiado"] and "#estimativas" in o["copiado"]
+    assert "LEGUA_PROFILE_STABLE" in o["codigo"] and "cfg->cap_dbm = 20;" in o["codigo"] and "perfil=estavel" in o["hash"]
 
 
 @pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
