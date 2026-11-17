@@ -27,6 +27,7 @@ Promise.resolve(new JSDOM(html, { url: "http://localhost/index.html" + process.a
     out.botoes = [...d.querySelectorAll(".decisao .btn")].map(b => b.textContent);
     out.ranges = [...d.querySelectorAll("input[type=range]")].map(i => i.value);
     out.titulo = (d.querySelector(".decisao p") || {}).textContent || "";
+    out.legenda = [...d.querySelectorAll(".legend span")].filter(n => /melhor modo/i.test(n.textContent)).length;
     out.codigo = (d.querySelector("pre.codigo") || {}).textContent || "";
     const copiar = [...d.querySelectorAll(".decisao .btn")].find(b => /Copiar/.test(b.textContent));
     let copiado = null;
@@ -157,3 +158,11 @@ def test_testador_hgt_pede_arquivo_e_nao_poe_coordenadas_na_url(tmp_path):
     o = _roda_enlace(tmp_path, "#terreno=hgt&d=4")
     assert not o["erros"], o["erros"]
     assert "terreno=plano" in o["hash"]                              # coordenadas e grades nunca vêm pela URL
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_curva_do_melhor_modo_aparece_na_legenda(tmp_path):
+    com = _roda(tmp_path, "#estimativas?d=2&sf=10&bw=125&p=28&hull=1")
+    sem = _roda(tmp_path, "#estimativas?d=2&sf=10&bw=125&p=28&hull=0")
+    assert not com["erros"] and not sem["erros"], (com["erros"], sem["erros"])
+    assert com["legenda"] >= 1 and sem["legenda"] == 0

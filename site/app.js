@@ -893,7 +893,7 @@
     F5: { t: "F5 rural com relevo/mata", env: "rural_serra", d: 4, off: 0, sim: "F5 rural com relevo/mata" }
   };
   var SIMCFG = { "10|125|1|1": "Fixo SF10/125 salto (base)", "7|125|1|1": "Fixo SF7/125 salto (rápido)", "12|500|1|0": "Fixo SF12/500 digital" };
-  var plan = { preset: "F1", env: "urbano_denso", d: 1.0, off: 0, sf: 10, bw: 125, cr: 1, p: 28, retries: 3, interval: 60, load: 1, target: 0.95, sig: "0", perfil: "padrao" };
+  var plan = { preset: "F1", env: "urbano_denso", d: 1.0, off: 0, sf: 10, bw: 125, cr: 1, p: 28, retries: 3, interval: 60, load: 1, target: 0.95, sig: "0", perfil: "padrao", hull: 0 };
 
   function fld(label, ctl, valNode) {
     return el("label", { class: "field" }, [el("span", {}, [document.createTextNode(label + ": "), valNode || null]), ctl]);
@@ -908,7 +908,7 @@
 
   // ---- estado do estimador no fragmento da URL (#estimativas/full?d=1.2&sf=10...), exportação e cópia.
   // Tudo local: nada é enviado a lugar nenhum; o fragmento da URL não vai ao servidor.
-  var PLAN_KEYS = ["preset", "env", "d", "off", "sf", "bw", "cr", "p", "retries", "interval", "load", "target", "sig", "perfil"];
+  var PLAN_KEYS = ["preset", "env", "d", "off", "sf", "bw", "cr", "p", "retries", "interval", "load", "target", "sig", "perfil", "hull"];
   function planQuery() {
     return PLAN_KEYS.map(function (k) { return k + "=" + encodeURIComponent(String(plan[k])); }).join("&");
   }
@@ -920,7 +920,7 @@
     function oneNum(k, ok) { var v = parseFloat(m[k]); if (ok.indexOf(v) >= 0) plan[k] = v; }
     one("preset", keys(PRESETS)); one("env", keys(DATA.constantes.envs));
     num("d", 0.05, 40); num("off", -25, 15); num("p", -9, 28); num("retries", 0, 6); num("interval", 1, 600);
-    num("load", 0, 3); num("target", 0.5, 0.999);
+    num("load", 0, 3); num("target", 0.5, 0.999); num("hull", 0, 1);
     oneNum("sf", [7, 8, 9, 10, 11, 12]); oneNum("bw", [125, 250, 500]); oneNum("cr", [1, 2, 3, 4]);
     one("sig", ["-1", "0", "1", "2"]); one("perfil", ["padrao", "estavel", "cauteloso"]);
   }
@@ -985,8 +985,19 @@
       var sims = sim ? sim.pts.map(function (p) { return p.d; }) : [];
       var allx = xs.concat(sims).sort(function (a, b) { return a - b; });
       function curve(sg) { return allx.map(function (dd) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); c.d_km = dd; return EST.estimateOne(c, sg).entregue; }); }
-      var S = ordSeries([{ id: "a", label: "Estimativa, enlace típico", short: "típico" }, { id: "b", label: "Estimativa, +1σ de perda", short: "+1σ" }, { id: "c", label: "Estimativa, −1σ de perda (enlace favorável)", short: "−1σ" }].concat(sim ? [{ id: "s", label: "Simulação (" + (sim.scale === "full" ? "longa" : "rápida") + ")", short: "simulação" }] : []));
+      var S = ordSeries([{ id: "a", label: "Estimativa, enlace típico", short: "típico" }, { id: "b", label: "Estimativa, +1σ de perda", short: "+1σ" }, { id: "c", label: "Estimativa, −1σ de perda (enlace favorável)", short: "−1σ" }].concat(sim ? [{ id: "s", label: "Simulação (" + (sim.scale === "full" ? "longa" : "rápida") + ")", short: "simulação" }] : []).concat(plan.hull ? [{ id: "m", label: "Melhor modo da tabela em cada distância (limite que a adaptação alcança)", short: "melhor modo" }] : []));
+      var iH = plan.hull ? S.length - 1 : -1;
       S[0].vals = curve(0.0); S[1].vals = curve(1.0); S[2].vals = curve(-1.0);
+      if (plan.hull) S[iH].vals = allx.map(function (dd) {      // melhor modo fixo em cada distância: menor energia que atinge o alvo; senão, o de maior entrega confirmada
+        var best = null, bestOk = null;
+        EST.modeList().forEach(function (m) {
+          var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); c.d_km = dd; c.sf = m.sf; c.bw = m.bw; c.cr = m.cr; c.fhss = m.fhss;
+          var r = EST.estimateOne(c, 0.0);
+          if (!best || r.confirmado > best.confirmado) best = r;
+          if (r.confirmado >= plan.target && r.energia_mj_entregue != null && (!bestOk || r.energia_mj_entregue < bestOk.energia_mj_entregue)) bestOk = r;
+        });
+        return (bestOk || best).entregue;
+      });
       if (sim) S[3].vals = allx.map(function (dd) { var p = sim.pts.filter(function (q) { return q.d === dd; })[0]; return p ? p.pdr : null; });
       if (sim) { S[3].dash = "1 5"; S[3].mk = "diamond"; }
       var chart = card({
@@ -994,8 +1005,8 @@
         legend: function () { return legend(S); },
         build: function (h) { lineChart(h, { xs: allx, series: S, yFmt: fmtPdr, ymin: 0, ymax: 1.02, yTick: function (v) { return nf(v, 1); }, xFmt: function (x) { return nf(x, x < 1 ? 2 : 1) + " km"; },
           xTick: function (x) { return nf(x, x < 10 ? 1 : 0); }, xTitle: "distância (km)", aria: "Entrega estimada × distância", hline: { v: 0.9, label: "90%" }, height: 280 }); },
-        table: function () { return { head: ["Distância (km)", "Típico", "+1σ", "−1σ"].concat(sim ? ["Simulação"] : []), num: [true, true, true, true, true],
-          rows: allx.map(function (dd, j) { return [nf(dd, 2), fmtPdr(S[0].vals[j]), fmtPdr(S[1].vals[j]), fmtPdr(S[2].vals[j])].concat(sim ? [fmtPdr(S[3].vals[j])] : []); }) }; }
+        table: function () { return { head: ["Distância (km)", "Típico", "+1σ", "−1σ"].concat(sim ? ["Simulação"] : []).concat(plan.hull ? ["Melhor modo"] : []), num: [true, true, true, true, true, true],
+          rows: allx.map(function (dd, j) { return [nf(dd, 2), fmtPdr(S[0].vals[j]), fmtPdr(S[1].vals[j]), fmtPdr(S[2].vals[j])].concat(sim ? [fmtPdr(S[3].vals[j])] : []).concat(plan.hull ? [fmtPdr(S[iH].vals[j])] : []); }) }; }
       });
       // ranking de modos
       var rk = EST.rankModes(o, plan.target, sig), sel = rk.good.slice(0, 6);
@@ -1074,12 +1085,15 @@
       var envF = fld("Ambiente", envSel.querySelector("select")), pF = fld("Cenário", presetSel.querySelector("select"));
       var sfF = fld("Fator de espalhamento", sfSel.querySelector("select")), bwF = fld("Largura de banda", bwSel.querySelector("select")), crF = fld("Taxa de código", crSel.querySelector("select"));
       var sgF = fld("Enlace para o ranking", sigSel.querySelector("select"));
+      var hk = el("input", { type: "checkbox" }); hk.checked = !!plan.hull;
+      hk.addEventListener("change", function () { plan.hull = hk.checked ? 1 : 0; draw(); });
+      var hullF = el("label", { class: "field" }, [el("span", { text: "Curva do melhor modo em cada distância (mais lento)" }), hk]);
       var form = el("section", { class: "card" }, [el("h2", { text: "Parâmetros do setup" }), el("p", { class: "note", text: "Escolha um cenário base e ajuste os parâmetros; os resultados abaixo se atualizam na hora. Os presets F1–F5 liberam a comparação com a simulação." }),
         el("div", { class: "form" }, [pF, envF,
           rng(0.05, 40, 0.05, "d", function (v) { return nf(v, 2) + " km"; }, function () { plan.preset = plan.preset; redraw(); }), rng(-25, 15, 0.5, "off", function (v) { return nf(v, 1) + " dB"; }, redraw),
           sfF, bwF, crF, rng(-9, 28, 1, "p", function (v) { return nf(v, 0) + " dBm"; }, redraw), rng(0, 6, 1, "retries", function (v) { return String(v); }, redraw),
           rng(1, 600, 1, "interval", function (v) { return nf(v, 0) + " s"; }, redraw), rng(0, 3, 0.1, "load", function (v) { return nf(v, 1) + "×"; }, redraw),
-          rng(0.5, 0.999, 0.005, "target", function (v) { return fmtPct(v); }, redraw), sgF])]);
+          rng(0.5, 0.999, 0.005, "target", function (v) { return fmtPct(v); }, redraw), sgF, hullF])]);
       panel.textContent = ""; live = [];
       panel.appendChild(form); panel.appendChild(host); draw();
       appendDiscussion(panel);
