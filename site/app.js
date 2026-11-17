@@ -1042,7 +1042,8 @@
               ranking_modos: rk.rows.map(function (r) { return { modo: nomeModo(r), confirmado: r.confirmado, energia_mj_entregue: r.energia_mj_entregue, latencia_s: r.latencia_s, atinge_alvo: r.ok }; }) }, null, 2);
             aviso.textContent = baixar("legua-estimativa.json", "application/json", js) ? "JSON baixado." : "Não foi possível baixar.";
           }),
-          btn("Imprimir", function () { window.print(); }), aviso])]);
+          btn("Imprimir", function () { window.print(); }),
+          el("a", { class: "btn", href: "enlace.html#" + ["env", "d", "sf", "bw", "cr", "p", "retries", "interval", "load"].map(function (k) { return (k === "d" ? "d" : k) + "=" + encodeURIComponent(String(plan[k])); }).join("&"), text: "Meu enlace fecha? (testador de terreno)" }), aviso])]);
       syncHash();
       [warn, decisao, cards, dw, chart, t1, t2, t3].forEach(function (n) { if (n) host.appendChild(n); });
       host.querySelectorAll(".card").forEach(function (c) { if (c._render) c._render(); });

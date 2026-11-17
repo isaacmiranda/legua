@@ -152,6 +152,22 @@ escala de todas as abas; seções sem resultado na escala escolhida mostram o qu
 vêm dos dados da escala escolhida e as críticas apontam o que o modelo não cobre (por exemplo, que os baselines de
 terceiros são modelos nossos e que o BR-2026 está nao_verificado).
 
+### 7.1 Ferramentas de uso dos resultados (17/11/2026)
+
+- **Estado e exportação na aba Estimativas:** o setup vai no fragmento da URL (`#estimativas?d=2&sf=9...`), com
+  resumo copiável, CSV, JSON e impressão. Tudo local, sem rede; o fragmento não vai ao servidor.
+- **Testador de enlaces** (`site/enlace.html`, 17/11/2026): dois pontos, perfil de terreno digitado (plano, morro
+  sintético ou CSV colado), curvatura da Terra (k), primeira zona de Fresnel, difração de gume único por Bullington
+  (`site/propagacao.js`, J(v) da ITU-R P.526 em forma aproximada; o texto da Recomendação não foi lido), orçamento
+  de enlace e margem por modo, ligados ao estimador pelo campo `offset_db`. O ambiente escolhido contribui só com a
+  variabilidade; a perda média é o espaço livre mais a difração mais a perda extra do usuário, e o estimador recebe a
+  diferença de ganho de antena (sem contar duas vezes). Referência em `simsuite/analysis/enlace.py` e teste de
+  paridade com o JavaScript (`test_enlace.py`). **Fora do escopo desta versão:** elevação automática, mapa, vegetação
+  e prédios (use a perda extra), reflexão no solo e mais de um obstáculo além do equivalente de Bullington.
+  **Privacidade:** o perfil colado fica só na página e não vai ao endereço compartilhável; não há `fetch`.
+  Fonte de elevação e mapa (fases 3 e 4 do relatório de pesquisa) só entram com consentimento explícito e depois de
+  testar o CORS num navegador real. É ferramenta de análise: não toca em rádio nem em bancada.
+
 ## 8. Núcleo C: Fase 2 e equivalência com o simulador
 
 **O que o núcleo C faz agora** (`core/src/endpoint.c`, 15/11/2026): descoberta (HELLO), negociação

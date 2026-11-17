@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Légua · Testador de enlaces</title>
+<meta name="description" content="Testador de enlaces LoRa 915 MHz no navegador: perfil de terreno, zona de Fresnel, difração, margem por modo e estimativa da Légua. Nada sai do seu navegador.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Légua · testador de enlaces</h1>
+      <p class="sub">Dois pontos, perfil de terreno, zona de Fresnel e margem por modo, calculados no seu navegador.</p>
+    </div>
+    <div class="hdr-controls">
+      <a class="btn" href="index.html">Resultados da simulação</a>
+      <button class="btn" id="theme" type="button" aria-label="Alternar tema claro e escuro">Tema</button>
+    </div>
+  </header>
+  <div class="notice">
+    <b>Como ler.</b> É uma <b>estimativa</b>: espaço livre, curvatura da Terra e difração por gume de faca (Bullington) sobre o
+    perfil que você informa, ligada ao estimador analítico da Légua. Não prevê o campo: vegetação, prédios, reflexão no
+    solo e o canal real não estão no modelo, e os parâmetros do rádio vêm de simulação, sem medição em hardware.
+    O perfil regulatório BR-2026 vem de fonte secundária e está <b>nao_verificado</b>; nada aqui afirma conformidade ou
+    homologação. <b>Privacidade:</b> nenhum dado deste formulário é enviado a servidor; o perfil colado fica só nesta página
+    e não vai para o endereço compartilhável.
+  </div>
+  <main id="app"></main>
+  <footer>
+    Modelo: <code>site/propagacao.js</code> (referência Python em <code>simsuite/analysis/enlace.py</code>, com teste de paridade).
+    Perfil de terreno por CSV ou sintético; mapa e elevação automática ainda não existem nesta versão.
+  </footer>
+</div>
+<script src="data.js"></script>
+<script src="estimator.js"></script>
+<script src="propagacao.js"></script>
+<script src="terreno.js"></script>
+<script src="enlace.js"></script>
+<script src="enlace_pagina.js"></script>
+</body>
+</html>
