@@ -43,7 +43,10 @@ typedef struct {
 } legua_keyring;
 
 void legua_keyring_clear(legua_keyring *r);   /* apaga as chaves (zera a memória) */
-int legua_keyring_set(legua_keyring *r, uint8_t key_id, const uint8_t key[LEGUA_KEY_LEN]);   /* 0 ok */
+/* 0 ok; <0 se key_id > 3 ou a chave é trivial (todos os bytes iguais, como 00..00 ou FF..FF): sem chave padrão. */
+int legua_keyring_set(legua_keyring *r, uint8_t key_id, const uint8_t key[LEGUA_KEY_LEN]);
+/* Apaga a chave key_id (zera a memória). Usar com a chave aposentada depois de LEGUA_LOG_KEY com arg >> 8 == 0. */
+void legua_keyring_drop(legua_keyring *r, uint8_t key_id);
 /* Assinatura igual à de legua_env.mic: ctx aponta para um legua_keyring. <0 se a chave não está carregada. */
 int legua_keyring_mic(void *ctx, uint8_t key_id, uint16_t src, uint32_t ctr32,
                       const uint8_t *data, size_t len, uint32_t *out);

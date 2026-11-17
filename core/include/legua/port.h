@@ -16,6 +16,8 @@ typedef struct {
     uint32_t peer_ctr_floor;   /* maior contador do par aceito (Fase 1: gravar em NVM) */
     uint8_t  anchor_valid;     /* âncora de modo (Fase 2) */
     uint8_t  anchor_mode_id;
+    uint8_t  key_id;           /* chave de TX corrente (docs/07 §6.2) */
+    uint8_t  key_prev_ok;      /* rotação em curso: ainda aceita key_id - 1 */
 } legua_nvm;
 
 typedef struct {

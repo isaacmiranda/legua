@@ -139,11 +139,28 @@ void legua_keyring_clear(legua_keyring *r)
 
 int legua_keyring_set(legua_keyring *r, uint8_t key_id, const uint8_t key[LEGUA_KEY_LEN])
 {
+    unsigned i, same = 1;
     if (!r || !key || key_id >= LEGUA_N_KEYS)
         return -1;
+    for (i = 1; i < LEGUA_KEY_LEN; i++)
+        same &= key[i] == key[0];
+    if (same)
+        return -2;
     legua_cmac_init(&r->key[key_id], key);
     r->present = (uint8_t)(r->present | (1u << key_id));
     return 0;
+}
+
+void legua_keyring_drop(legua_keyring *r, uint8_t key_id)
+{
+    volatile uint8_t *p;
+    size_t i;
+    if (!r || key_id >= LEGUA_N_KEYS)
+        return;
+    p = (volatile uint8_t *)&r->key[key_id];
+    for (i = 0; i < sizeof r->key[key_id]; i++)
+        p[i] = 0;
+    r->present = (uint8_t)(r->present & ~(1u << key_id));
 }
 
 int legua_keyring_mic(void *ctx, uint8_t key_id, uint16_t src, uint32_t ctr32,

@@ -51,6 +51,8 @@ def test_reconstrucao_do_contador():
     assert wire.reconstruct_ctr(100, 50) is None
     assert wire.reconstruct_ctr(0xFFFF, 3) == 0x10003
     assert wire.reconstruct_ctr(0x1FFF0, 0x0005) == 0x20005
+    assert wire.reconstruct_ctr(0xFFFFFFF0, 0x0005) is None          # não dá a volta nos 32 bits
+    assert wire.reconstruct_ctr(0xFFFFFFF0, 0xFFFF) == 0xFFFFFFFF
 
 
 def test_vetores_em_sincronia(tmp_path):

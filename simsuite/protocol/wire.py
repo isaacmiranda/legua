@@ -83,9 +83,9 @@ def unpack(raw, ctr32, key=TEST_KEY):
 def reconstruct_ctr(last32, ctr16):
     """Reconstrói o contador de 32 bits a partir dos 16 bits do quadro. None = repetido/antigo."""
     delta = (ctr16 - (last32 & 0xFFFF)) & 0xFFFF
-    if delta == 0 or delta > 0x7FFF:
+    if delta == 0 or delta > 0x7FFF or last32 + delta > 0xFFFFFFFF:   # sem dar a volta nos 32 bits
         return None
-    return (last32 + delta) & 0xFFFFFFFF
+    return last32 + delta
 
 
 def _vetores(seed=7):

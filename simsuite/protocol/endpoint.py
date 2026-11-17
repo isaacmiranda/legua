@@ -17,7 +17,9 @@ Regras da v1:
   - todo controle autenticado; quadros com MIC inválido ou contador repetido descartados;
   - alarme de rollback repetido sem queda de SNR (possível jamming);
   - limite de falhas de MIC (docs/07 §6): `mic_fail_n` quadros do par com MIC inválido em `mic_fail_window`
-    congelam a negociação por `mic_fail_hold` (não propõe e vota "não"); o modo atual é mantido.
+    congelam a negociação por `mic_fail_hold` (não propõe e vota "não"); o modo atual é mantido;
+  - rotação de chave (docs/07 §6.2): aceita key_id corrente, o anterior durante a rotação e o seguinte (segue o
+    par); o estado da chave vai no registro de NVM.
 """
 import math
 from dataclasses import dataclass, field, replace
@@ -48,7 +50,8 @@ class Frame:
     p_dbm: float
     seq: int = 0
     ctr: int = 0         # contador anti-replay
-    auth: bool = True    # MIC válido
+    auth: bool = True    # MIC válido (com a chave `key` carregada no receptor)
+    key: int = 0         # key_id do quadro (bits 2-3 das flags)
     nbytes: int = DATA_BYTES
     body: dict = field(default_factory=dict)
 
@@ -98,7 +101,8 @@ class Endpoint:
         self.modes, self.base, self.rec = modes, base, rec
         self.cfg, self.rng, self.noise_rise, self.cap = cfg, rng, noise_rise, cap
         self.role_a = nid < peer
-        self.nvm = {"anchor": None, "ctr_block": 0, "peer_blk": 0}   # registro em NVM (docs/07 §5)
+        self.nvm = {"anchor": None, "ctr_block": 0, "peer_blk": 0,   # registro em NVM (docs/07 §5)
+                    "key": 0, "key_prev": False}                    # chave de TX e rotação em curso (§6.2)
         self._nv_dirty = False
         self.stats = dict(trocas=0, rollbacks=0, degradacoes=0, quedas_base=0, neg_ok=0,
                           neg_fail=0, neg_recusa=0, desc_silencio=0, alarmes=0, rejeitados=0,
@@ -137,6 +141,8 @@ class Endpoint:
         self.freeze_until = now
         self.mic_fail_times = []
         self.mic_block = now                 # até quando vota "não" por falhas de MIC
+        self.key_cur = self.nvm["key"]
+        self.key_prev = self.nvm["key_prev"]
         self.speed = 0.0
         self.degraded = False
         self.peer_speed = 0.0
@@ -166,8 +172,9 @@ class Endpoint:
         self.nvm["ctr_block"] = self.ctr // 64          # o registro grava o bloco corrente (seguro: >= usado)
         self._nv_dirty = False
         a = self.nvm["anchor"]
+        self.nvm["key"], self.nvm["key_prev"] = self.key_cur, self.key_prev
         return ("persist", {"anchor": a.name if a else None, "ctr_block": self.nvm["ctr_block"],
-                            "peer_blk": self.nvm["peer_blk"]})
+                            "peer_blk": self.nvm["peer_blk"], "key": self.key_cur, "key_prev": self.key_prev})
 
     def _flush(self, acts):
         """Acrescenta o registro de NVM se um contador cruzou um bloco durante o evento."""
@@ -204,7 +211,7 @@ class Endpoint:
         m = mode or self.mode
         body["v"] = round(self.speed, 1)        # velocidade GNSS (perfil móvel)
         return Frame(kind, self.id, self.peer, m, self._cap(m) if kind != "DATA" else self.p,
-                     seq=body.pop("seq", 0), ctr=self.ctr, nbytes=nbytes, body=body)
+                     seq=body.pop("seq", 0), ctr=self.ctr, nbytes=nbytes, body=body, key=self.key_cur)
 
     def _set_mode(self, mode, state, now, why):
         self.mode = mode
@@ -308,16 +315,18 @@ class Endpoint:
         acts = []
         if f.dst not in (self.id, -1) or f.src != self.peer:
             return acts
-        if not f.auth or f.ctr <= self.peer_ctr:
+        if f.ctr <= self.peer_ctr:
             self.stats["rejeitados"] += 1
-            acts = [("log", {"ev": "rejeitado", "tipo": f.kind})]
-            if f.ctr > self.peer_ctr:        # contador na janela e MIC inválido (o replay não conta)
-                acts += self._mic_fail(now)
-            return acts
+            return [("log", {"ev": "rejeitado", "tipo": f.kind})]
+        if not self._key_acceptable(f.key) or not f.auth:
+            # key_id fora do aceito ou MIC inválido: contador na janela, conta como falha de MIC
+            self.stats["rejeitados"] += 1
+            return [("log", {"ev": "rejeitado", "tipo": f.kind})] + self._mic_fail(now)
         self.peer_ctr = f.ctr
         if f.ctr // 64 > self.nvm["peer_blk"]:           # grava o piso do par a cada bloco de 64
             self.nvm["peer_blk"] = f.ctr // 64
             self._nv_dirty = True
+        acts += self._key_seen(f.key)
         if f.mode != self.mode:
             return acts
         self.peer_heard = now
@@ -409,6 +418,32 @@ class Endpoint:
         self.stats["tx_ctrl"] += 1
         return [("tx", self._frame("PROPOSE", CTRL_BYTES, cand=cand.name)),
                 ("log", {"ev": "propose", "cand": cand.name})]
+
+    # ----------------------------------------------------------------- chaves (docs/07 §6.2)
+    def _key_acceptable(self, k):
+        c = self.key_cur
+        return k == c or (self.key_prev and k == (c + 3) % 4) or k == (c + 1) % 4
+
+    def _key_log(self):
+        self._nv_dirty = True
+        return [("log", {"ev": "chave", "key": self.key_cur, "prev": self.key_prev})]
+
+    def _key_seen(self, k):
+        """Quadro autenticado com a chave k: confirma a rotação (o par já usa a nova) ou segue o par."""
+        if k == self.key_cur and self.key_prev:
+            self.key_prev = False
+            return self._key_log()
+        if k == (self.key_cur + 1) % 4:
+            self.key_cur, self.key_prev = k, False
+            return self._key_log()
+        return []
+
+    def rotate_key(self, now):
+        """Começa uma rotação: transmite com key_id + 1 e ainda aceita a anterior. None se já há uma em curso."""
+        if self.key_prev:
+            return None
+        self.key_cur, self.key_prev = (self.key_cur + 1) % 4, True
+        return self._flush(self._key_log())
 
     def _mic_fail(self, now):
         """Limite de falhas de MIC: n falhas na janela congelam a negociação, sem mudar de modo (docs/07 §6)."""
@@ -575,7 +610,7 @@ class Endpoint:
                 return acts + self._descend(now, "falhas")
         # retransmissão após recuo aleatório
         if self.out and self.out.get("resend_at") is not None and _due(now, self.out["resend_at"]):
-            f = replace(self.out["frame"], p_dbm=self.p, mode=self.mode)
+            f = replace(self.out["frame"], p_dbm=self.p, mode=self.mode, key=self.key_cur)   # retransmissão usa a chave corrente
             f.ctr = self._bump_ctr()
             f.body = dict(f.body, val=(self.state == DATA), v=round(self.speed, 1))
             self.out = {"seq": self.out["seq"], "att": self.out["att"] + 1, "deadline": None, "frame": f}

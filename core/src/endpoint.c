@@ -149,7 +149,15 @@ static void act_persist(legua_endpoint *ep, legua_actions *acts)
         p->u.persist.anchor_mode_id = ep->anchor_i != LEGUA_NO_MODE ? ent(ep, ep->anchor_i)->mode_id : 0;
         p->u.persist.ctr_block = ep->ctr / LEGUA_CTR_BLOCK;
         p->u.persist.peer_ctr_floor = ep->peer_blk * LEGUA_CTR_BLOCK;
+        p->u.persist.key_id = ep->key_cur;
+        p->u.persist.key_prev_ok = ep->key_prev_ok;
     }
+}
+
+static void flush_nv(legua_endpoint *ep, legua_actions *acts)
+{
+    if (ep->nv_dirty)
+        act_persist(ep, acts);
 }
 
 static uint8_t speed_byte(const legua_endpoint *ep)
@@ -165,8 +173,14 @@ static void emit(legua_endpoint *ep, legua_actions *acts, legua_frame *f, int po
     int n;
     legua_action *p;
 
+    if (ep->ctr >= LEGUA_CTR_MAX) {                   /* nunca reusar contador com a mesma chave */
+        if (!ep->ctr_end)
+            act_log(acts, LEGUA_LOG_CTR_END, ep->ctr);
+        ep->ctr_end = 1;
+        return;
+    }
     ep->ctr++;
-    n = legua_frame_encode(f, ep->ctr, ep->cfg.key_id, ep->env, buf);
+    n = legua_frame_encode(f, ep->ctr, ep->key_cur, ep->env, buf);
     if (n < 0)
         return;
     if (ep->ctr % LEGUA_CTR_BLOCK == 0)
@@ -483,7 +497,7 @@ int legua_init(legua_endpoint *ep, const legua_config *cfg, const legua_env *env
     int b, r, a = -1;
     if (!ep || !cfg || !env || !env->mic || !env->rand32 || !cfg->modes || cfg->n_modes == 0 ||
         cfg->n_modes > LEGUA_MAX_MODES || cfg->id == cfg->peer || cfg->id == LEGUA_BROADCAST ||
-        cfg->params.mic_fail_n > LEGUA_MIC_RING)
+        cfg->params.mic_fail_n > LEGUA_MIC_RING || cfg->key_id > 3u || cfg->key_prev_ok > 1u)
         return -1;
     memset(ep, 0, sizeof *ep);
     ep->cfg = *cfg;
@@ -507,6 +521,8 @@ int legua_init(legua_endpoint *ep, const legua_config *cfg, const legua_env *env
     ep->peer_blk = cfg->peer_ctr_floor / LEGUA_CTR_BLOCK;
     ep->peer_last = ep->peer_blk * LEGUA_CTR_BLOCK;
     ep->peer_heard = ep->entered = ep->last_change = ep->neg_block = ep->freeze_until = ep->mic_block = now_ms;
+    ep->key_cur = cfg->key_id;
+    ep->key_prev_ok = cfg->key_prev_ok;
     ep->neg_backoff = cfg->params.neg_backoff0_ms;
     ep->next_hello = now_ms + rnd_range(ep, 0u, cfg->params.hello_interval_ms);
     ep->next_hb = now_ms + cfg->params.hb_interval_ms;
@@ -521,11 +537,6 @@ int legua_init(legua_endpoint *ep, const legua_config *cfg, const legua_env *env
 void legua_set_speed(legua_endpoint *ep, float speed_mps) { ep->speed = speed_mps; }
 
 /* ------------------------------------------------------------------ eventos */
-static void flush_nv(legua_endpoint *ep, legua_actions *acts)
-{
-    if (ep->nv_dirty)
-        act_persist(ep, acts);
-}
 
 void legua_on_app(legua_endpoint *ep, const uint8_t *payload, size_t len, uint32_t now_ms,
                   legua_actions *acts)
@@ -617,6 +628,47 @@ static void mic_fail(legua_endpoint *ep, uint32_t now, legua_actions *acts)
     act_log(acts, LEGUA_LOG_MIC_ALARM, 0);
 }
 
+/* Chaves (docs/07 §6.2). Aceitas na recepção: key_cur; key_cur - 1 durante a rotação; key_cur + 1 (o par começou
+ * uma rotação: segue). Devolve 0 se o key_id não é aceito. */
+static int key_acceptable(const legua_endpoint *ep, uint8_t k)
+{
+    return k == ep->key_cur || (ep->key_prev_ok && k == ((ep->key_cur + 3u) & 3u)) ||
+           k == ((ep->key_cur + 1u) & 3u);
+}
+
+static void key_log(legua_endpoint *ep, legua_actions *acts)
+{
+    ep->nv_dirty = 1;
+    act_log(acts, LEGUA_LOG_KEY, (uint32_t)ep->key_cur | ((uint32_t)ep->key_prev_ok << 8));
+}
+
+/* Quadro autenticado com a chave k: confirma ou segue a rotação. */
+static void key_seen(legua_endpoint *ep, uint8_t k, legua_actions *acts)
+{
+    if (k == ep->key_cur && ep->key_prev_ok) {       /* o par já usa a nova: aposenta a anterior */
+        ep->key_prev_ok = 0;
+        key_log(ep, acts);
+    } else if (k == ((ep->key_cur + 1u) & 3u)) {     /* o par começou a rotação: segue e aposenta a anterior */
+        ep->key_cur = k;
+        ep->key_prev_ok = 0;
+        key_log(ep, acts);
+    }
+}
+
+int legua_key_rotate(legua_endpoint *ep, uint32_t now_ms, legua_actions *acts)
+{
+    (void)now_ms;
+    acts->n = 0;
+    acts->overflow = 0;
+    if (ep->key_prev_ok)
+        return -1;
+    ep->key_cur = (uint8_t)((ep->key_cur + 1u) & 3u);
+    ep->key_prev_ok = 1;
+    key_log(ep, acts);
+    flush_nv(ep, acts);
+    return 0;
+}
+
 static void on_propose(legua_endpoint *ep, const legua_frame *f, uint32_t now, legua_actions *acts)
 {
     const legua_params *c = &ep->cfg.params;
@@ -677,6 +729,12 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
         act_log(acts, LEGUA_LOG_REJ_REPLAY, f.ctr16);
         return;
     }
+    if (!key_acceptable(ep, (uint8_t)((f.flags >> 2) & 3u))) {
+        ep->st.rejeitados++;
+        act_log(acts, LEGUA_LOG_REJ_KEY, f.ctr16);
+        mic_fail(ep, now, acts);
+        return;
+    }
     if (!legua_frame_verify(raw, len, ctr32, ep->env)) {
         ep->st.rejeitados++;
         act_log(acts, LEGUA_LOG_REJ_MIC, f.ctr16);
@@ -688,6 +746,7 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
         ep->peer_blk = ctr32 / LEGUA_CTR_BLOCK;
         ep->nv_dirty = 1;
     }
+    key_seen(ep, (uint8_t)((f.flags >> 2) & 3u), acts);
     ep->peer_heard = now;
     if (f.type == LEGUA_T_DATA || f.type == LEGUA_T_ACK) {
         uint32_t k = ep->state != LEGUA_S_VALID ? c->hb_interval_ms : c->hb_interval_ms / 10u;

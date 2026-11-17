@@ -224,6 +224,10 @@ def main():
     from .analysis.report import write_report
     write_report(outdir, MAPA, a.escala)
     print("relatório:", os.path.join(outdir, "relatorio.md"), round(time.time() - t0), "s")
+    falhas = sorted(n for n, r in results.items() if "erro" in r)
+    if falhas:                      # o relatório já saiu; a saída diferente de zero impede que a CI ignore o erro
+        print("cenários com erro:", ", ".join(falhas))
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

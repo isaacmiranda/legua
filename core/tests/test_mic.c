@@ -121,7 +121,7 @@ static void missing_key(void)
     uint8_t buf[LEGUA_FRAME_MAX], key[16];
     uint32_t m;
     int len, i;
-    memset(key, 0x5A, sizeof key);
+    for (i = 0; i < 16; i++) key[i] = (uint8_t)(0x5A + 7 * i);   /* não trivial */
     legua_keyring_clear(&ring);
     legua_keyring_set(&ring, 0, key);
     env.mic = legua_keyring_mic; env.rand32 = no_rand; env.ctx = &ring;
@@ -136,6 +136,15 @@ static void missing_key(void)
     buf[1] = (uint8_t)((buf[1] & ~0x0Cu) | (1u << 2));          /* quadro passa a dizer key_id 1 */
     for (i = 0; i < 4; i++) buf[len - 1 - i] = 0;               /* MIC zerado, que um valor fixo aceitaria */
     check(legua_frame_verify(buf, (size_t)len, 79, &env) == 0, "key_id 1 sem chave recusa MIC zerado");
+    memset(key, 0, sizeof key);
+    check(legua_keyring_set(&ring, 1, key) < 0, "recusa chave 00..00");
+    memset(key, 0xFF, sizeof key);
+    check(legua_keyring_set(&ring, 1, key) < 0, "recusa chave FF..FF");
+    check(!(ring.present & 2u), "chave trivial não fica carregada");
+    legua_keyring_drop(&ring, 0);
+    check(ring.present == 0 && ring.key[0].rk[0] == 0, "drop apaga a chave 0");
+    for (i = 0; i < 16; i++) key[i] = (uint8_t)(0x5A + 7 * i);   /* não trivial */
+    legua_keyring_set(&ring, 0, key);
     legua_keyring_clear(&ring);
     check(ring.present == 0 && ring.key[0].rk[0] == 0, "clear apaga");
 }

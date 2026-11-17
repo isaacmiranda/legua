@@ -97,7 +97,10 @@ enum legua_log {
     LEGUA_LOG_VALIDATED,     /* arg = mode_id */
     LEGUA_LOG_COMMIT_RX,
     LEGUA_LOG_ALARM,         /* rollbacks repetidos sem queda de SNR (possível jamming) */
-    LEGUA_LOG_MIC_ALARM      /* mic_fail_n falhas de MIC na janela: negociação congelada (docs/07 §6) */
+    LEGUA_LOG_MIC_ALARM,     /* mic_fail_n falhas de MIC na janela: negociação congelada (docs/07 §6) */
+    LEGUA_LOG_KEY,           /* estado da chave mudou: arg = key_id de TX | (chave anterior aceita) << 8 (docs/07 §6.2) */
+    LEGUA_LOG_REJ_KEY,       /* quadro com key_id fora do aceito (antes do MIC); conta como falha de MIC */
+    LEGUA_LOG_CTR_END        /* contador de TX esgotado: o nó para de transmitir até ser reprovisionado */
 };
 
 enum legua_state {
@@ -114,7 +117,8 @@ typedef struct {
     union {
         struct { uint8_t bytes[LEGUA_FRAME_MAX]; uint8_t len; uint8_t mode_id; int8_t power_dbm; } tx;
         struct { uint8_t mode_id; } rx;
-        struct { uint8_t anchor_valid; uint8_t anchor_mode_id; uint32_t ctr_block; uint32_t peer_ctr_floor; } persist;
+        struct { uint8_t anchor_valid; uint8_t anchor_mode_id; uint32_t ctr_block; uint32_t peer_ctr_floor;
+                 uint8_t key_id; uint8_t key_prev_ok; } persist;
         struct { uint8_t seq; uint8_t payload[LEGUA_DATA_PAYLOAD]; } deliver;
         struct { uint8_t code; uint32_t arg; } log;
     } u;
@@ -169,11 +173,13 @@ int legua_params_profile(legua_params *p, int profile);      /* 0 ou <0 se o per
 #define LEGUA_QUEUE_LEN 10
 #endif
 #define LEGUA_CTR_BLOCK 64u
+#define LEGUA_CTR_MAX   0xFFFFFF00u   /* acima disto o nó não transmite: reprovisionar com chave nova (docs/07 §5) */
 #define LEGUA_NO_MODE   0xFFu
 
 typedef struct {
     uint16_t id, peer;
-    uint8_t  key_id;
+    uint8_t  key_id;                /* chave de TX (0..3), do registro em NVM; no primeiro uso, a provisionada */
+    uint8_t  key_prev_ok;           /* do registro em NVM: rotação em curso, ainda aceita key_id - 1 */
     const legua_mode_entry *modes;  /* tabela do integrador (deve sobreviver ao endpoint) */
     uint8_t  n_modes;
     uint8_t  base_mode_id, rec_mode_id;
@@ -234,11 +240,17 @@ typedef struct {
     uint32_t mic_times[LEGUA_MIC_RING];   /* instantes das últimas falhas de MIC na janela */
     uint8_t  mic_n;
     uint32_t mic_block;             /* até quando vota "não" por falhas de MIC */
+    uint8_t  key_cur, key_prev_ok;  /* chave de TX e se key_cur - 1 ainda é aceita na recepção (docs/07 §6.2) */
+    uint8_t  ctr_end;               /* contador esgotado (registrado uma vez) */
     uint8_t  bad_set[LEGUA_MAX_MODES];
     uint32_t bad_until[LEGUA_MAX_MODES];
     float    speed, peer_speed;
     legua_stats st;
 } legua_endpoint;
+
+/* Rotação de chave (docs/07 §6.2): passa a transmitir com key_id + 1 e ainda aceita a anterior até ouvir o par na
+ * nova. A chave nova tem de estar carregada nas duas pontas antes. 0 ok; <0 se já há uma rotação em curso. */
+int  legua_key_rotate(legua_endpoint *ep, uint32_t now_ms, legua_actions *acts);
 
 /* Retorna 0 ou <0 se a configuração for inválida. Gera a ação RX inicial. */
 int  legua_init(legua_endpoint *ep, const legua_config *cfg, const legua_env *env, uint32_t now_ms,

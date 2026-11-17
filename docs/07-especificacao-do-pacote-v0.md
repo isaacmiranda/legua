@@ -72,10 +72,19 @@ o transmissor o usa para saber o ganho no sentido contrário.
   último aceito: `delta = ctr16 - low16(último)` (mod 2^16); `delta == 0` ou `delta > 0x7FFF` é repetido ou antigo e
   é descartado. O MIC cobre o contador completo, então uma reconstrução errada falha no MIC.
 - O último contador do par só avança depois do MIC válido.
+- A reconstrução **não dá a volta** nos 32 bits: um `delta` que passaria de `0xFFFFFFFF` é recusado (antes, um
+  contador perto do topo aceitaria um valor baixo depois da volta).
+- **Fim do contador:** a partir de `LEGUA_CTR_MAX` (`0xFFFFFF00`) o nó não transmite mais (`LEGUA_LOG_CTR_END`,
+  uma vez). Contador e chave andam juntos: reusar contador com a mesma chave reabre o replay. A saída é
+  reprovisionar o enlace com **chave nova** e registro de NVM zerado nas duas pontas (§6.1). Na prática é
+  inalcançável (2^32 quadros), mas o núcleo não pode depender disso. Só o C tem a guarda; o simulador não chega lá.
+- A rotação de chave (§6.2) **não** zera o contador: um contador só para todas as chaves, e a proteção contra
+  replay vale entre chaves.
 - O contador de TX é gravado em NVM em **blocos de 64**. Depois de um reinício o contador salta para
   `bloco × 64 + 64`, acima de tudo que já foi usado. Cada retransmissão usa um contador novo.
 - **Registro em NVM** (uma gravação atômica por evento, nunca mais): `{âncora, bloco do contador de TX, piso do
-  contador do par}`. Grava-se quando algum dos dois contadores cruza um múltiplo de 64 e quando a âncora muda.
+  contador do par, chave de TX, rotação em curso}`. Grava-se quando algum dos dois contadores cruza um múltiplo de
+  64, quando a âncora muda e quando o estado da chave muda (§6.2).
   O **piso do par** é o último múltiplo de 64 visto; depois de um reinício o receptor só aceita contador acima
   dele, e a reconstrução de 16 para 32 bits parte dele. Consequências: (1) um replay de quadro **até 63 contadores
   acima do piso** que o receptor já tinha visto antes do reinício ainda é aceito (limite do esquema de blocos;
@@ -98,11 +107,10 @@ MIC = os 4 primeiros bytes de AES-CMAC(K[key_id], B0 || cabeçalho || corpo)
 - Custo: o controle tem 32 B de entrada, dois blocos exatos, e três chamadas de AES contando a subchave (que o
   `legua_cmac_init` calcula uma vez por chave). O DATA tem três blocos. No ESP32-S3, o AES em hardware ou o mbedTLS
   do porte fazem isso em microssegundos.
-- **Chaves:** `key_id` (2 bits) escolhe uma de até 4 chaves de 128 bits provisionadas pelo integrador. **Não há chave
-  padrão nem chave derivada do MAC.** `key_id` sem chave carregada não assina nem aceita: `mic()` devolve erro e o
-  quadro é descartado, qualquer que seja o MIC que ele traz (um valor fixo devolvido no lugar seria forja trivial,
-  porque quem escolhe o `key_id` do quadro é o atacante). O formato de provisionamento e a rotação seguem abertos
-  (pendência 2).
+- **Chaves:** `key_id` (2 bits) escolhe uma de até 4 chaves de 128 bits. **Não há chave padrão nem chave derivada
+  do MAC.** `key_id` sem chave carregada não assina nem aceita: `mic()` devolve erro e o quadro é descartado,
+  qualquer que seja o MIC que ele traz (um valor fixo devolvido no lugar seria forja trivial, porque quem escolhe o
+  `key_id` do quadro é o atacante). Provisionamento em §6.1, rotação em §6.2.
 - **Implementação de referência:** `core/include/legua/mic_cmac.h` e `core/src/mic_cmac.c` (C99, sem terceiros,
   `legua_keyring_mic` tem a assinatura de `legua_env.mic`) e `simsuite/protocol/mic.py` (Python puro). Os dois
   conferem a FIPS-197 e a RFC 4493 e concordam nos 36 quadros de `core/tests/vectors/mic.txt` (`make -C core vectors`
@@ -150,6 +158,53 @@ NIST SP 800-38B, que a condiciona a um limite de verificações falhas; **confer
 de 4 B (como no 802.15.4) é a alternativa que já traz confidencialidade, mas o payload de 9 B não pede sigilo.
 Impacto no ar: passar de 4 B para 8 B de MIC acrescenta 4 B por quadro (SF10/125: +~41 ms por quadro de controle).
 
+### 6.1 Provisionamento (decidido em 17/11/2026)
+
+- **Uma chave por enlace.** Cada par de nós tem a sua chave de 128 bits. Chave de rede compartilhada não é usada:
+  quem extrai a chave de um nó passaria a se passar por qualquer outro.
+- **Geração:** fora do nó, por gerador criptográfico (`/dev/urandom`, `secrets.token_bytes(16)`), na ferramenta de
+  provisionamento do integrador. Nunca derivada de MAC, número de série, nome ou data. `legua_keyring_set` recusa
+  chave trivial (todos os bytes iguais, como `00..00` e `FF..FF`), que é a cara de um valor padrão esquecido.
+- **Instalação:** a mesma chave vai às duas pontas por canal fora do ar (cabo, gravação em fábrica), no `key_id` 0, com
+  o registro de NVM zerado (contador, piso do par e chave de TX = 0).
+- **Guarda:** é do porte. A chave fica em armazenamento protegido (no ESP32-S3, flash criptografada com NVS
+  criptografado, ou bloco de chave em eFuse). Nunca aparece em log, telemetria, `calibracao.json`, nem no git.
+- **Reprovisionar** (troca de par, chave vazada, contador esgotado): chave nova e registro de NVM zerado nas duas
+  pontas. Reaproveitar uma chave com registro zerado reabre o replay de tudo que já foi transmitido com ela.
+
+### 6.2 Rotação de chave (decidida em 17/11/2026)
+
+Serve para trocar a chave sem parar o enlace (política de validade, suspeita de vazamento). As chaves andam em ciclo
+pelo `key_id`: a próxima de `k` é `(k + 1) mod 4`.
+
+```
+estado por nó: k = key_id de TX; ant = ainda aceita k-1 (rotação em curso)
+aceita na RX:  k;  k-1 se ant;  k+1 (o par começou uma rotação)   -- outro key_id: recusado antes do MIC
+legua_key_rotate:           k <- k+1, ant <- 1       (recusada se ant já é 1)
+quadro autêntico com k:     ant <- 0                 (o par já usa a nova: aposenta a anterior)
+quadro autêntico com k+1:   k <- k+1, ant <- 0       (segue o par e aposenta a anterior)
+```
+
+1. O integrador carrega a chave `k+1` nas **duas** pontas (por fora do ar, ou por um canal de aplicação autenticado
+   com a chave corrente) e confirma que as duas a têm.
+2. Uma ponta chama `legua_key_rotate`. Ela passa a transmitir com `k+1` e ainda aceita `k`.
+3. A outra ponta recebe o primeiro quadro autêntico com `k+1`, passa a transmitir com ela e para de aceitar `k`.
+4. A primeira ponta ouve o par em `k+1` e para de aceitar `k`. Cada mudança sai em `LEGUA_LOG_KEY` (arg = `k |
+   ant << 8`). Com `ant = 0`, o porte apaga a chave `k-1` (`legua_keyring_drop`).
+
+- **Persistência:** `k` e `ant` vão no registro de NVM. Um reinício no meio da rotação não volta à chave antiga.
+- **Recusa:** quadro com `key_id` fora do aceito é recusado antes do MIC (`LEGUA_LOG_REJ_KEY`) e conta como falha
+  de MIC (§6). Depois de aposentada, a chave antiga não serve mais nem para quem a tenha vazado.
+- **Janela de exposição:** durante a rotação, a chave anterior ainda é aceita. Quem a tiver vazado pode forjar
+  quadros até o par confirmar a nova, normalmente o próximo quadro. Se a rotação é por vazamento, reprovisionar
+  (§6.1) é o caminho seguro.
+- **Erro do integrador:** se a outra ponta não tem a chave `k+1`, ela recusa tudo o que chega com `k+1` (falhas de
+  MIC, alarme do §6, descida por silêncio) e continua transmitindo com `k`, que a primeira ponta ainda aceita.
+  Quando a chave chega, a rotação termina sozinha. Uma ponta sem a chave de TX não transmite (`mic()` falha).
+- **Verificação:** o teste de equivalência roda rotações aleatórias (variante `chave`, com reinícios, chave
+  carregada tarde e quadros autênticos montados com a chave anterior) nos quatro pares Py/C, mais dois testes
+  dirigidos (`test_rotacao_*`).
+
 ## 7. Diferenças em relação ao simulador (`endpoint.py`)
 
 Desde 15/11/2026 o núcleo C implementa também a negociação (PROPOSE/VOTE/COMMIT), a validação, o rollback, a descida
@@ -169,8 +224,8 @@ Diferenças que restam, todas de representação:
 ## 8. Pendências
 
 1. Colisão de endereços curtos (16 bits) e como derivar do identificador.
-2. (algoritmo decidido em 16/11/2026: AES-128-CMAC truncado, §6; limite de falhas de MIC implementado em
-   17/11/2026, §6) Falta o formato de provisionamento e de rotação das chaves (`key_id`). A **ressincronização depois
+2. (algoritmo decidido em 16/11/2026: AES-128-CMAC truncado, §6; limite de falhas de MIC, provisionamento e
+   rotação de chave decididos e implementados em 17/11/2026, §6, §6.1 e §6.2.) A **ressincronização depois
    de uma ausência longa** foi verificada na simulação (teste `test_ausencia_longa_ressincroniza`, nos quatro
    pares Py/C): com 15 min a 12 h sem enlace, com ou sem reinício de um dos nós ao voltar, os dois voltam a DATA no
    mesmo modo em 0,3 a 7 min (descida por silêncio até o modo base, HELLO e nova negociação). O que continua

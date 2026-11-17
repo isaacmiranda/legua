@@ -94,7 +94,8 @@ static int dump(const legua_actions *a, uint8_t *out)
             memcpy(r + 4, x->u.tx.bytes, LEGUA_FRAME_MAX); break;
         case LEGUA_ACT_RX: r[2] = x->u.rx.mode_id; break;
         case LEGUA_ACT_PERSIST: r[1] = x->u.persist.anchor_valid; r[2] = x->u.persist.anchor_mode_id;
-            memcpy(r + 4, &x->u.persist.ctr_block, 4); memcpy(r + 8, &x->u.persist.peer_ctr_floor, 4); break;
+            memcpy(r + 4, &x->u.persist.ctr_block, 4); memcpy(r + 8, &x->u.persist.peer_ctr_floor, 4);
+            r[12] = x->u.persist.key_id; r[13] = x->u.persist.key_prev_ok; break;
         case LEGUA_ACT_DELIVER: r[1] = x->u.deliver.seq; break;
         case LEGUA_ACT_LOG: r[1] = x->u.log.code; memcpy(r + 4, &x->u.log.arg, 4); break;
         }
@@ -103,10 +104,11 @@ static int dump(const legua_actions *a, uint8_t *out)
 }
 
 int shim_init(int h, uint32_t seed, int anchor_valid, int anchor_mode_id, uint32_t ctr_block,
-              uint32_t peer_floor, uint32_t now, uint8_t *out)
+              uint32_t peer_floor, int key_id, int key_prev_ok, uint32_t now, uint8_t *out)
 {
     legua_actions a;
-    if (seed) S[h].env = test_env(&S[h].rng, seed);      /* seed 0: mantém o PRNG (reinício) */
+    if (seed) S[h].env = test_env(&S[h].rng, seed);      /* seed 0: mantém o PRNG e as chaves (reinício) */
+    S[h].cfg.key_id = (uint8_t)key_id; S[h].cfg.key_prev_ok = (uint8_t)key_prev_ok;
     S[h].cfg.anchor_valid = (uint8_t)anchor_valid; S[h].cfg.anchor_mode_id = (uint8_t)anchor_mode_id;
     S[h].cfg.ctr_block_nvm = ctr_block; S[h].cfg.peer_ctr_floor = peer_floor;
     if (legua_init(&S[h].ep, &S[h].cfg, &S[h].env, now, &a) < 0) return -2;
@@ -146,6 +148,14 @@ int shim_on_timer(int h, uint32_t now, uint8_t *out)
 
 int shim_next_deadline(int h, uint32_t *at) { return legua_next_deadline(&S[h].ep, at); }
 void shim_set_speed(int h, float v) { legua_set_speed(&S[h].ep, v); }
+void shim_set_keys(int h, int mask) { S[h].rng.keys = (uint8_t)mask; }   /* chaves carregadas no "chaveiro" */
+int shim_key(int h) { return S[h].ep.key_cur | (S[h].ep.key_prev_ok << 8); }
+int shim_key_rotate(int h, uint32_t now, uint8_t *out)
+{
+    legua_actions a;
+    if (legua_key_rotate(&S[h].ep, now, &a) < 0) return -3;
+    return dump(&a, out);
+}
 int shim_state(int h) { return S[h].ep.state; }
 int shim_mode_id(int h) { return S[h].ep.cfg.modes[S[h].ep.mode_i].mode_id; }
 int shim_power(int h) { return S[h].ep.p; }

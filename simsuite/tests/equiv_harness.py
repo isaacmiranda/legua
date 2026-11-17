@@ -36,8 +36,8 @@ TURNAROUND_MS = 6
 ACK_BYTES, CTRL_BYTES, DATA_BYTES = 14, 16, 24
 
 LOG_CODES = {8: "modo", 9: "propose", 10: "neg_falhou", 11: "validado", 12: "commit_rx", 13: "alarme",
-             14: "alarme_mic"}
-LOG_REJ = {1, 2, 3}
+             14: "alarme_mic", 15: "chave", 16: "rej_chave", 17: "ctr_fim"}
+LOG_REJ = {1, 2, 3, 16}
 
 
 def mode_id_of(m):
@@ -116,11 +116,11 @@ def frame_to_raw(f, speed_q):
     else:
         d = round(b["delay"] * 1000)
         body = bytes([NAME_ID[b["cand"]], d >> 8, d & 0xFF, sp])
-    return wire.pack(t, f.src, f.dst, f.ctr, body, flags=flags)
+    return wire.pack(t, f.src, f.dst, f.ctr, body, flags=flags | (f.key << 2))
 
 
-def raw_to_frame(ep, raw, mode):
-    """bytes -> Frame para o `Endpoint` (None se o quadro for malformado)."""
+def raw_to_frame(ep, raw, mode, keys=0x0F):
+    """bytes -> Frame para o `Endpoint` (None se o quadro for malformado). `keys`: chaves carregadas no receptor."""
     try:
         hdr_ctr16 = int.from_bytes(raw[6:8], "big")
         ctr32 = wire.reconstruct_ctr(max(ep.peer_ctr, 0), hdr_ctr16)
@@ -160,8 +160,10 @@ def raw_to_frame(ep, raw, mode):
     else:
         body = {"cand": MODE_BY_ID[b[0]].name if b[0] in MODE_BY_ID else None,
                 "delay": ((b[1] << 8) | b[2]) / 1000.0, "v": b[3] / 2.0}
-    return Frame(kind, d["src"], d["dst"], mode, p, seq=seq, ctr=ctr32 if auth else ctr32, auth=auth, nbytes=len(raw),
-                 body=body)
+    key = (raw[1] >> 2) & 3
+    auth = auth and bool(keys & (1 << key))           # sem a chave no chaveiro o MIC não confere
+    return Frame(kind, d["src"], d["dst"], mode, p, seq=seq, ctr=ctr32, auth=auth, nbytes=len(raw),
+                 body=body, key=key)
 
 
 class PyAdapter:
@@ -177,6 +179,7 @@ class PyAdapter:
         self.ep._boot(now_ms / 1000.0)
         self.ep.seq = self.rng.next() & 0xFF          # como o legua_init: início aleatório
         self._speed_q = lambda v: min(255, int(v * 2 + 0.5))
+        self.keys = 0x0F                               # chaves carregadas (o MIC de teste não depende da chave)
 
     # -- conversões
     def _norm(self, acts):
@@ -205,6 +208,8 @@ class PyAdapter:
                     out.append(("alarme",))
                 elif ev == "alarme_mic":
                     out.append(("alarme_mic",))
+                elif ev == "chave":
+                    out.append(("chave", d["key"], int(d["prev"])))
                 elif ev == "rejeitado":
                     out.append(("rej",))
         return out
@@ -214,7 +219,7 @@ class PyAdapter:
         return self._norm(self.ep.on_app(now_ms / 1000.0))
 
     def on_rx(self, raw, mode_id, rssi10, snr10, now_ms):
-        f = raw_to_frame(self.ep, raw, MODE_BY_ID[mode_id])
+        f = raw_to_frame(self.ep, raw, MODE_BY_ID[mode_id], self.keys)
         if f is None:
             return []
         if f.kind == "ACK" and f.ctr >= 0:
@@ -254,10 +259,18 @@ class PyAdapter:
         self.ep.seq = self.rng.next() & 0xFF
         return acts
 
+    def set_keys(self, mask):
+        self.keys = mask
+
+    def rotate(self, now_ms):
+        acts = self.ep.rotate_key(now_ms / 1000.0)
+        return None if acts is None else self._norm(acts)
+
     def snapshot(self):
         e = self.ep
         a = e.nvm["anchor"]
-        return (STATE_CODE[e.state], mode_id_of(e.mode), int(e.p), NAME_ID[a.name] if a else -1)
+        return (STATE_CODE[e.state], mode_id_of(e.mode), int(e.p), NAME_ID[a.name] if a else -1,
+                e.key_cur | (int(e.key_prev) << 8))
 
     def stats(self):
         s = self.ep.stats
@@ -307,7 +320,7 @@ class CAdapter:
         for k, v in c_params(cfg).items():
             assert self.L.shim_param(self.h, k.encode(), float(v)) == 0, k
         self.acc = {k: 0 for k in STATS}
-        self.rec = {"anchor": -1, "ctr_block": 0, "peer_floor": 0}
+        self.rec = {"anchor": -1, "ctr_block": 0, "peer_floor": 0, "key": 0, "key_prev": 0}
         if nvm:
             self.rec.update(nvm)
         self.out = (ctypes.c_uint8 * (REC * 16))()
@@ -315,7 +328,8 @@ class CAdapter:
 
     def _init(self, now_ms):
         r = self.L.shim_init(self.h, self.seed, 1 if self.rec["anchor"] >= 0 else 0, max(self.rec["anchor"], 0),
-                             self.rec["ctr_block"], self.rec["peer_floor"], now_ms, self.out)
+                             self.rec["ctr_block"], self.rec["peer_floor"], self.rec["key"], self.rec["key_prev"],
+                             now_ms, self.out)
         assert r >= 0, r
         return self._decode(r)
 
@@ -331,7 +345,7 @@ class CAdapter:
                 out.append(("rx", r[2]))
             elif k == 2:                                       # PERSIST
                 self.rec = {"anchor": r[2] if r[1] else -1, "ctr_block": int.from_bytes(r[4:8], "little"),
-                            "peer_floor": int.from_bytes(r[8:12], "little")}
+                            "peer_floor": int.from_bytes(r[8:12], "little"), "key": r[12], "key_prev": r[13]}
                 out.append(("persist",))
             elif k == 4:                                       # LOG
                 code, arg = r[1], int.from_bytes(r[4:8], "little")
@@ -351,6 +365,10 @@ class CAdapter:
                     out.append(("alarme",))
                 elif code == 14:
                     out.append(("alarme_mic",))
+                elif code == 15:
+                    out.append(("chave", arg & 0xFF, (arg >> 8) & 1))
+                elif code == 17:
+                    out.append(("ctr_fim",))
         return out
 
     def on_app(self, now_ms):
@@ -385,9 +403,16 @@ class CAdapter:
         self.seed = 0                                  # mantém o PRNG, como o adaptador Python
         return self._init(now_ms)
 
+    def set_keys(self, mask):
+        self.L.shim_set_keys(self.h, mask)
+
+    def rotate(self, now_ms):
+        r = self.L.shim_key_rotate(self.h, now_ms, self.out)
+        return None if r == -3 else self._decode(r)
+
     def snapshot(self):
         return (self.L.shim_state(self.h), self.L.shim_mode_id(self.h), self.L.shim_power(self.h),
-                self.L.shim_anchor_id(self.h))
+                self.L.shim_anchor_id(self.h), self.L.shim_key(self.h))
 
     def stats(self):
         cur = self._stats_now()
@@ -410,7 +435,7 @@ class Channel:
 
 class Run:
     def __init__(self, kinds, cfgs, channel, T_ms, app_ms=(30000, 41000), nvm_cap=28.0, noise_rise=0.0,
-                 reboots=(), speeds=(), inject=(), seeds=(1001, 2002)):
+                 reboots=(), speeds=(), inject=(), seeds=(1001, 2002), keys=(), rotations=()):
         self.ch = channel
         self.T = T_ms
         self.q = []
@@ -425,9 +450,10 @@ class Run:
             ad = cls(nid, peer, seeds[i], cfg, 0, noise_rise, nvm_cap, **kw)
             self.nodes[nid] = {"ad": ad, "txq": [], "busy": 0, "rx_mode": ad.snapshot()[1],
                                "wakes": set(), "app_rng": XorRng(777 + nid), "app_ms": app_ms, "last_rx": None,
-                               "epoch": 0}
+                               "epoch": 0, "ctr_sent": 0}
         self.active = []
         self.reboots, self.speeds, self.inject = list(reboots), list(speeds), list(inject)
+        self.keys, self.rotations = list(keys), list(rotations)   # (t, nid, máscara) e (t, nid)
         self.drops = 0
 
     # -- infraestrutura
@@ -449,7 +475,8 @@ class Run:
                     self._start(nid)
             elif a[0] == "rx":
                 n["rx_mode"] = a[1]
-                keep = n["txq"][:1] if n["busy"] > self.now else []
+                # o TX em curso termina em `busy`; com busy == now o tx_end ainda está na fila de eventos (mesmo ms)
+                keep = n["txq"][:1] if n["busy"] >= self.now else []
                 n["txq"] = keep + [f for f in n["txq"][len(keep):] if f[2] == a[1]]
 
     def _toa_ms(self, tx):
@@ -479,6 +506,7 @@ class Run:
             return
         tx = n["txq"].pop(0)
         raw = bytes.fromhex(tx[1])
+        n["ctr_sent"] = wire.reconstruct_ctr(n["ctr_sent"], int.from_bytes(raw[6:8], "big")) or n["ctr_sent"]
         self.apply(nid, "tx_done", n["ad"].on_tx_done(raw, tx[2], self.now))
         rid = 2 if nid == 1 else 1
         self._receive(rid, nid, rec, raw)
@@ -508,7 +536,7 @@ class Run:
             self.drops += 1
             return
         r10, s10 = round(rssi * 10), round(snr * 10)
-        rn["last_rx"] = (raw, tx[2], r10, s10)
+        rn["last_rx"] = (raw, tx[2], r10, s10, self.nodes[sid]["ctr_sent"])
         self.apply(rid, "rx", rn["ad"].on_rx(raw, tx[2], r10, s10, self.now))
         self._wake(rid)
 
@@ -555,7 +583,7 @@ class Run:
         n = self.nodes[nid]
         if not n["last_rx"]:
             return
-        raw, mid, r10, s10 = n["last_rx"]
+        raw, mid, r10, s10, ctr32 = n["last_rx"]
         if mid != n["rx_mode"]:
             return                                          # o rádio só demodula no modo configurado
         if how == "forjado":
@@ -563,6 +591,15 @@ class Run:
             b[-1] ^= 0x01                                   # MIC adulterado
             b[7] = (b[7] + 1) & 0xFF                        # contador à frente
             raw = bytes(b)
+        elif how == "chave_antiga":
+            # quem tem a chave anterior à do receptor monta um quadro autêntico com ela (contador à frente):
+            # aceito só durante a rotação; depois que a chave é aposentada, recusado (docs/07 §6.2)
+            k = ((n["ad"].snapshot()[4] & 3) + 3) % 4
+            b = bytearray(raw[:-4])
+            b[1] = (b[1] & ~0x0C) | (k << 2)
+            c = ctr32 + 1
+            b[6:8] = (c & 0xFFFF).to_bytes(2, "big")
+            raw = bytes(b) + wire.test_mic(wire.TEST_KEY, int.from_bytes(b[2:4], "big"), c, bytes(b)).to_bytes(4, "big")
         self.apply(nid, "inject_" + how, n["ad"].on_rx(raw, mid, r10, s10, self.now))
         self._wake(nid)
 
@@ -576,6 +613,10 @@ class Run:
             self.at(t, "speed", nid, v)
         for t, nid, how in self.inject:
             self.at(t, "inject", nid, how)
+        for t, nid, mask in self.keys:
+            self.at(t, "keys", nid, mask)
+        for t, nid in self.rotations:
+            self.at(t, "rotate", nid)
         while self.q and self.q[0][0] <= self.T:
             t, _, kind, args = heapq.heappop(self.q)
             self.now = t
@@ -593,6 +634,13 @@ class Run:
                 self.nodes[args[0]]["ad"].set_speed(args[1])
             elif kind == "inject":
                 self._inject(*args)
+            elif kind == "keys":
+                self.nodes[args[0]]["ad"].set_keys(args[1])
+            elif kind == "rotate":
+                nid = args[0]
+                acts = self.nodes[nid]["ad"].rotate(self.now)
+                self.apply(nid, "rotate", acts if acts is not None else [("recusada",)])
+                self._wake(nid)
         return {"trace": self.trace,
                 "stats": {nid: n["ad"].stats() for nid, n in self.nodes.items()},
                 "final": {nid: n["ad"].snapshot() for nid, n in self.nodes.items()}}
@@ -622,6 +670,20 @@ def first_diff(a, b):
 PARES = (("py", "py"), ("c", "c"), ("py", "c"), ("c", "py"))
 
 
+def _eventos_de_chave(r, T):
+    """Rotações de chave em instantes sorteados; às vezes uma ponta só recebe a chave nova depois (quadros recusados,
+    falhas de MIC) e há quadros autênticos montados com a chave anterior (aceitos só durante a rotação)."""
+    rot = sorted((r.randint(200_000, T - 200_000), r.choice([1, 2])) for _ in range(r.randint(1, 3)))
+    keys = []
+    if r.random() < 0.5:                       # um nó começa só com a chave 0 e recebe as demais mais tarde
+        nid = 3 - rot[0][1]                    # o que não inicia: quem não tem a chave de TX não roda (erro do integrador)
+        t_load = r.randint(rot[0][0] - 100_000, T - 100_000)
+        keys = [(0, nid, 0x01), (t_load, nid, 0x0F)]
+        rot = [(t, rot[0][1] if t < t_load else n) for t, n in rot]
+    inj = [(r.randint(250_000, T - 100_000), r.choice([1, 2]), "chave_antiga") for _ in range(r.randint(1, 4))]
+    return {"keys": keys, "rotations": rot, "inject_extra": inj}
+
+
 def cenario_aleatorio(seed):
     """Cenário reprodutível: variante do protocolo, trajetória de ganho, apagões, reinícios, replays, velocidades."""
     import random
@@ -629,7 +691,8 @@ def cenario_aleatorio(seed):
     base = dict(cooldown_up=r.choice([20.0, 30.0, 120.0]), n_up=r.choice([3, 5, 20]),
                 neg_backoff0=r.choice([10.0, 60.0]), neg_backoff_max=r.choice([60.0, 240.0]),
                 cooldown_back=r.choice([20.0, 120.0]))
-    var = r.choice(["normal", "normal", "commit", "semvalid", "recup", "mobile", "semsil", "passo", "fade", "mic"])
+    var = r.choice(["normal", "normal", "commit", "semvalid", "recup", "mobile", "semsil", "passo", "fade", "mic",
+                    "chave"])
     if var == "commit":
         base["persist_at"] = "commit"
     elif var == "semvalid":
@@ -672,6 +735,7 @@ def cenario_aleatorio(seed):
         speeds=([(r.randint(100_000, T - 100_000), r.choice([1, 2]), r.choice([0.0, 0.5, 1.5, 3.0, 10.5]))
                  for _ in range(4)] if var == "mobile" else []),
         noise_rise=r.choice([0.0, 0.0, 6.0]), cap=r.choice([28.0, 28.0, 22.0]),
+        **(_eventos_de_chave(r, T) if var == "chave" else {}),
         app_ms=r.choice([(5_000, 15_000), (30_000, 41_000), (60_000, 90_000)]), chan_seed=seed + 5)
 
 
@@ -679,7 +743,9 @@ def rodar(sc, kinds):
     ch = Channel(sc["gain"], seed=sc["chan_seed"], windows=sc.get("windows", ()), drop_fn=sc.get("drop_fn"))
     return Run(kinds, (sc["cfg"], sc["cfg"]), ch, sc["T"], app_ms=sc.get("app_ms", (30_000, 41_000)),
                noise_rise=sc.get("noise_rise", 0.0), nvm_cap=sc.get("cap", 28.0), reboots=sc.get("reboots", ()),
-               speeds=sc.get("speeds", ()), inject=sc.get("inject", ())).run()
+               speeds=sc.get("speeds", ()), inject=list(sc.get("inject", ())) + list(sc.get("inject_extra", ())),
+               keys=sc.get("keys", ()),
+               rotations=sc.get("rotations", ())).run()
 
 
 def comparar(sc):

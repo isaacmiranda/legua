@@ -279,8 +279,9 @@ mirar malha.
 5. (feito em 16/11/2026) Resultado da sintonia (F7) aplicado como perfis nomeados `padrao`, `estavel` e `cauteloso`
    (`simsuite/protocol/perfis.py` e `legua_params_profile` no núcleo C, conferidos pelo teste de equivalência).
 6. (feito em 16/11/2026) Algoritmo do MIC: AES-128-CMAC truncado a 4 B, com referência em C e Python e vetores
-   (docs/07 §6). Limite de falhas de MIC feito em 17/11/2026 (congela a negociação, mantém o modo). Falta
-   provisionar e rotacionar chaves (docs/07, pendência 2).
+   (docs/07 §6). Limite de falhas de MIC feito em 17/11/2026 (congela a negociação, mantém o modo).
+   Provisionamento (uma chave por enlace) e rotação em ciclo pelo `key_id` feitos em 17/11/2026 (docs/07 §6.1 e
+   §6.2). A guarda das chaves no ESP32-S3 fica para o repositório de bancada.
 7. (decidido em 17/11/2026) O `core/` fica aqui até o protocolo congelar; a bancada o usa como submódulo numa tag
    (§5, item 1).
 

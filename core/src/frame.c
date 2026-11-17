@@ -97,7 +97,7 @@ int legua_frame_verify(const uint8_t *raw, size_t len, uint32_t ctr32, const leg
 int legua_ctr_reconstruct(uint32_t last32, uint16_t ctr16, uint32_t *out)
 {
     uint16_t delta = (uint16_t)(ctr16 - (uint16_t)last32);
-    if (delta == 0 || delta > 0x7FFFu)
+    if (delta == 0 || delta > 0x7FFFu || last32 > 0xFFFFFFFFu - delta)   /* sem dar a volta nos 32 bits */
         return 0;
     *out = last32 + delta;
     return 1;

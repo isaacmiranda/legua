@@ -233,6 +233,27 @@ int main(void)
           legua_on_rx(&N[1].ep, buf, (size_t)n, &RX, now, &b);
           CHECK(N[1].ep.st.entregues == del + 1, "quadro acima do piso aceito e entregue"); }
     }
+    /* 4) contador esgotado (docs/07 §5): o nó não transmite nem reusa contador; registra uma vez */
+    {
+        legua_config c;
+        legua_actions a;
+        int k, ntx = 0, nend = 0;
+        CHECK(setup(1, 0, 3) == 0, "setup do contador esgotado");
+        c = N[0].ep.cfg;
+        c.ctr_block_nvm = LEGUA_CTR_MAX / LEGUA_CTR_BLOCK - 1u;             /* reinicia com ctr = LEGUA_CTR_MAX */
+        CHECK(legua_init(&N[0].ep, &c, &N[0].env, now, &a) == 0, "reinício perto do fim do contador");
+        for (k = 0; k < 2; k++) {
+            uint8_t pl[LEGUA_DATA_PAYLOAD] = {0};
+            int j;
+            a.n = 0; a.overflow = 0;
+            legua_on_app(&N[0].ep, pl, sizeof pl, now + 1000u * (uint32_t)k, &a);
+            for (j = 0; j < a.n; j++) {
+                ntx += a.a[j].kind == LEGUA_ACT_TX;
+                nend += a.a[j].kind == LEGUA_ACT_LOG && a.a[j].u.log.code == LEGUA_LOG_CTR_END;
+            }
+        }
+        CHECK(ntx == 0 && nend == 1 && N[0].ep.ctr == LEGUA_CTR_MAX, "contador esgotado: sem TX, um registro");
+    }
     if (fails) { printf("sim: %d falhas\n", fails); return 1; }
     puts("sim: ok");
     return 0;

@@ -53,6 +53,8 @@ int main(int argc, char **argv)
     if (legua_ctr_reconstruct(100u, 100u, &t)) { puts("FALHA repetido aceito"); fails++; }
     if (legua_ctr_reconstruct(100u, 50u, &t)) { puts("FALHA antigo aceito"); fails++; }
     if (!legua_ctr_reconstruct(0xFFFFu, 3u, &t) || t != 0x10003u) { puts("FALHA virada de 16 bits"); fails++; }
+    if (legua_ctr_reconstruct(0xFFFFFFF0u, 5u, &t)) { puts("FALHA volta dos 32 bits aceita"); fails++; }
+    if (!legua_ctr_reconstruct(0xFFFFFFF0u, 0xFFFFu, &t) || t != 0xFFFFFFFFu) { puts("FALHA topo dos 32 bits"); fails++; }
     printf("codec: %d vetores ok, %d falhas\n", n_ok, fails);
     return fails ? 1 : 0;
 }

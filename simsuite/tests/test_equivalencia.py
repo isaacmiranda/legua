@@ -147,3 +147,44 @@ def test_falhas_de_mic_congelam_a_negociacao(shim):
     assert sem["stats"][2]["alarmes_mic"] == 0
     assert [t for t, _n, _c, acts, _s in sem["trace"] for a in acts
             if a[0] == "modo" and a[3] == 1 and t_al <= t < t_al + hold * 1000]
+
+
+def _chaves(base, nid):
+    """Sequência de estados de chave (key_id, anterior aceita) do nó, tirada dos logs."""
+    return [a[1:] for _t, n, _c, acts, _s in base["trace"] if n == nid for a in acts if a[0] == "chave"]
+
+
+@precisa_cc
+def test_rotacao_de_chave_completa_e_sobrevive_a_reinicio(shim):
+    """docs/07 §6.2: A roda para a chave 1 (ainda aceita a 0); B segue no primeiro quadro autenticado com a 1 e
+    aposenta a 0; A aposenta a 0 ao ouvir B na 1. O estado vai no registro de NVM: um reinício no meio da rotação
+    não volta à chave antiga. Nenhum quadro legítimo é recusado."""
+    sc = dict(cfg=FAST, gain=lambda t: -140.0, T=1_800_000, chan_seed=21,
+              rotations=[(400_000, 1)], reboots=[(400_500, 1)],
+              inject=[(380_000, 2, "chave_antiga"), (1_500_000, 2, "chave_antiga")])
+    base = _confere(sc, "rotacao")
+    assert _chaves(base, 1) == [(1, 1), (1, 0)]
+    assert _chaves(base, 2) == [(1, 0)]
+    assert base["final"][1][4] == 1 and base["final"][2][4] == 1          # os dois na chave 1, sem a anterior
+    # antes da rotação a "chave anterior" de B é a 3, que ele não aceita; depois, a 0 já foi aposentada
+    inj = [acts for _t, n, c, acts, _s in base["trace"] if c == "inject_chave_antiga"]
+    assert len(inj) == 2 and all(("rej",) in a for a in inj)
+    assert base["stats"][1]["rejeitados"] == 0 and base["stats"][2]["rejeitados"] == 2
+
+
+@precisa_cc
+def test_rotacao_sem_chave_no_par_e_recusada_ate_carregar(shim):
+    """B só tem a chave 0 quando A roda: B recusa os quadros com a 1 (falhas de MIC, alarme) e A segue aceitando a
+    0. Quando a chave 1 chega a B, ele segue o par e a rotação termina. Uma segunda rotação antes da confirmação é
+    recusada."""
+    from dataclasses import replace
+    cfg = replace(FAST, mic_fail_n=3)
+    sc = dict(cfg=cfg, gain=lambda t: -140.0, T=2_400_000, chan_seed=22,
+              keys=[(0, 2, 0x01), (1_200_000, 2, 0x0F)], rotations=[(400_000, 1), (600_000, 1)])
+    base = _confere(sc, "rotacao_sem_chave")
+    recusada = [t for t, n, c, acts, _s in base["trace"] if c == "rotate" and ("recusada",) in acts]
+    assert recusada == [600_000]
+    assert base["stats"][2]["rejeitados"] >= 3 and base["stats"][2]["alarmes_mic"] >= 1
+    t_fim = [t for t, n, _c, acts, _s in base["trace"] if n == 1 for a in acts if a[:1] == ("chave",) and a[2] == 0]
+    assert t_fim and t_fim[0] > 1_200_000, "A só aposenta a chave 0 depois que B recebe a 1"
+    assert base["final"][1][4] == 1 and base["final"][2][4] == 1
