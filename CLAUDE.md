@@ -56,6 +56,7 @@ make -j1 -C core fuzz                                               # robustez c
 python3 tools/build_consolidado.py                                  # atualiza site/consolidado.html (resultados, discussões, trabalhos futuros)
 PYTHONPATH=. python3 -m simsuite.analysis.orcamento                 # orçamento de tempo da escala full
 PYTHONPATH=. python3 -m simsuite.run_suite --escala full --procs 1  # escala longa em results_full/ (~1 h 45 min); recusa se a estimativa passar de 8 h (--limite-horas, --forcar)
+~/.venvs/legua/bin/python -m simsuite.analysis.calibracao calibracao.json            # valida a calibração da bancada (docs/09 §4); run_suite --calibracao a aplica
 tools/ci_local.sh [--suite]                                         # tudo, em 1 job e baixa prioridade
 PYTHONPATH=. ~/.venvs/legua/bin/python tools/validar_estimador.py   # estimador x simulador (~3 min)
 PYTHONPATH=. python3 -m simsuite.run_suite --escala quick           # ~40 s, gera simsuite/results/

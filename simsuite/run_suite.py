@@ -49,6 +49,15 @@ MAPA = [
 
 def job(name, escala, outdir=RES):
     t0 = time.time()
+    cal = os.environ.get("LEGUA_CALIBRACAO")
+    if cal:                                  # constantes medidas (docs/09 §4); vale só neste processo
+        from .analysis.calibracao import carregar, aplicar
+        with aplicar(carregar(cal)[0]):
+            return _job(name, escala, outdir, t0)
+    return _job(name, escala, outdir, t0)
+
+
+def _job(name, escala, outdir, t0):
     try:
         if name == "modos":
             from .protocol.modes import table, DATA_BYTES, ACK_BYTES, CTRL_BYTES
@@ -120,6 +129,9 @@ def job(name, escala, outdir=RES):
         else:
             raise KeyError(name)
         r = {"cenario": name, "escala": escala, "segundos": round(time.time() - t0, 1), "resultado": r}
+        if os.environ.get("LEGUA_CALIBRACAO"):            # resultado com constantes medidas: rotula (docs/09 §4)
+            from .analysis.calibracao import carregar
+            r["calibracao"] = carregar(os.environ["LEGUA_CALIBRACAO"])[0]["id"]
     except Exception as e:  # noqa
         r = {"cenario": name, "erro": repr(e), "trace": traceback.format_exc()}
     os.makedirs(outdir, exist_ok=True)
@@ -200,14 +212,30 @@ def main():
     ap.add_argument("--teto", type=float, default=None,
                     help="varredura de potência: limita o teto de TX de todos os nós (dBm) e grava em results[_full]/teto_<N>/; "
                          "sem --so roda os cenários que dependem do teto")
+    ap.add_argument("--calibracao", default=None,
+                    help="calibracao.json da bancada (docs/09 §4): roda a suíte com as constantes medidas e grava em "
+                         "results[_full]/cal_<id>/ (o arquivo é copiado para lá); sem ele, os valores são os estimados")
     ap.add_argument("--saida", default=None, help="diretório de saída (padrão: results/ no quick, results_full/ no full)")
     a = ap.parse_args()
+    if a.calibracao:
+        from .analysis.calibracao import carregar, CalibracaoInvalida
+        try:
+            cal_json, _ = carregar(a.calibracao)
+        except (CalibracaoInvalida, OSError, ValueError) as e:
+            raise SystemExit(f"calibração inválida: {e}")
+        os.environ["LEGUA_CALIBRACAO"] = os.path.abspath(a.calibracao)      # herdado pelos processos filhos (job)
     if a.teto is not None:
         os.environ["LEGUA_TETO_MAX"] = f"{a.teto:g}"           # herdado pelos processos filhos (common.TETO_MAX)
     names = a.so or (CENARIOS_DE_TETO if a.teto is not None else ALL)
     outdir = a.saida or os.path.join(HERE, "results" if a.escala == "quick" else "results_full")
     if a.teto is not None and not a.saida:
         outdir = os.path.join(outdir, f"teto_{a.teto:g}")
+    if a.calibracao and not a.saida:
+        outdir = os.path.join(outdir, f"cal_{cal_json['id']}")
+    if a.calibracao:
+        import shutil
+        os.makedirs(outdir, exist_ok=True)
+        shutil.copyfile(a.calibracao, os.path.join(outdir, "calibracao.json"))
     if a.escala == "full" and not a.forcar:
         from .analysis.orcamento import estimar_execucao, fmt
         est = estimar_execucao(os.path.join(HERE, "results"), outdir, names)

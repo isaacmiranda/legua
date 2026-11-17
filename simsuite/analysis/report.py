@@ -24,7 +24,8 @@ def _load(res):
     for p in glob.glob(os.path.join(res, "*.json")):
         with open(p) as fh:
             d = json.load(fh)
-        out[d["cenario"]] = d
+        if "cenario" in d:                    # ignora arquivos auxiliares (ex.: a calibracao.json copiada para a saída)
+            out[d["cenario"]] = d
     return out
 
 

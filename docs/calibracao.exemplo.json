@@ -1,0 +1,95 @@
+{
+ "versao": 1,
+ "id": "exemplo-nao-medido",
+ "data": "0000-00-00",
+ "hardware": "preencher (ex.: Heltec WiFi LoRa 32 V4)",
+ "firmware": "preencher (ex.: core-v0.1.0)",
+ "notas": "MODELO DE ARQUIVO: os valores são os ESTIMADOS do simulador (aplicá-lo não muda nada). Troque pelos medidos e pela incerteza (mesma unidade do valor). Sem coordenadas, chaves nem dados brutos.",
+ "constantes": {
+  "snr_thr": {
+   "valor": {
+    "5": -2.5,
+    "6": -5.0,
+    "7": -7.5,
+    "8": -10.0,
+    "9": -12.5,
+    "10": -15.0,
+    "11": -17.5,
+    "12": -20.0
+   },
+   "incerteza": 0.0
+  },
+  "per_offset_db": {
+   "valor": 2.5,
+   "incerteza": 0.0
+  },
+  "per_slope_db": {
+   "valor": 0.6,
+   "incerteza": 0.0
+  },
+  "cr_gain_db": {
+   "valor": {
+    "1": 0.0,
+    "2": 0.3,
+    "3": 0.6,
+    "4": 1.0
+   },
+   "incerteza": 0.0
+  },
+  "nf_db": {
+   "valor": 6.0,
+   "incerteza": 0.0
+  },
+  "i_tx_ma": {
+   "valor": [
+    [
+     -9,
+     18.0
+    ],
+    [
+     0,
+     24.0
+    ],
+    [
+     10,
+     38.0
+    ],
+    [
+     14,
+     45.0
+    ],
+    [
+     17,
+     90.0
+    ],
+    [
+     20,
+     102.0
+    ],
+    [
+     22,
+     118.0
+    ],
+    [
+     25,
+     600.0
+    ],
+    [
+     28,
+     950.0
+    ]
+   ],
+   "incerteza": 0.0
+  },
+  "canal": {
+   "valor": {
+    "rural_aberto": {
+     "pl1km": 112.0,
+     "n": 4.0,
+     "sigma_static": 4.0
+    }
+   },
+   "incerteza": 0.0
+  }
+ }
+}

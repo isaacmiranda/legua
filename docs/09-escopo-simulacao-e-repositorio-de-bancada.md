@@ -75,7 +75,16 @@ injeção de falhas), medições e a campanha de campo. O material de preparo da
 | expoente de perda, sombreamento, AR(1) do campo | `core/channel_static.py` |
 
 Procedimento: a bancada publica um arquivo `calibracao.json` com esses valores e a incerteza; este repositório os
-incorpora, reroda a suíte e atualiza o site, marcando a escala e a versão da calibração. Enquanto não houver
+incorpora, reroda a suíte e atualiza o site, marcando a escala e a versão da calibração.
+
+**Importador (feito em 17/11/2026, `simsuite/analysis/calibracao.py`).** Formato versão 1 e modelo em
+`docs/calibracao.exemplo.json` (valores estimados; aplicá-lo não muda nada). Cada constante leva valor e incerteza; só o
+que está no arquivo muda. Conferir (no venv, precisa de numpy): `python -m simsuite.analysis.calibracao arquivo.json` (mostra atual → novo e recusa
+valor fora de faixa, constante desconhecida e qualquer campo de localização ou chave). Rodar:
+`python -m simsuite.run_suite --calibracao arquivo.json --escala full`, com saída em `results[_full]/cal_<id>/`, o arquivo
+copiado junto e o campo `calibracao` em cada resultado. **Ainda falta** (depende de medições reais): sintonia dos
+perfis nomeados com a calibração, regeneração de `core/profiles/br2026.h` (`tools/gen_modetab.py`) e o rótulo da
+calibração no site; a incerteza é registrada, mas ainda não propagada aos resultados. Enquanto não houver
 medição, **todo resultado daqui vale só para comparar e dimensionar**.
 
 ## 5. Decisões em aberto
