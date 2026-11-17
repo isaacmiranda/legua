@@ -209,3 +209,30 @@ def test_trecho_c_gerado_compila_e_usa_o_enum_certo(tmp_path):
         assert cc.returncode == 0, (chave, cc.stderr)
     with pytest.raises(Exception):
         subprocess.run(["node", "-e", "require(process.argv[1]+'/perfil_c.js').gerar({perfil:'x'})", os.path.join(RAIZ, "site")], check=True, capture_output=True)
+
+
+def test_gume_unico_bate_com_a_conta_analitica():
+    """Um único pico agudo: Bullington tem de ser exatamente a difração de gume único J(v) da geometria."""
+    D, k = 10.0, 4 / 3
+    for pos, alt in ((0.5, 160.0), (0.3, 140.0), (0.8, 200.0)):
+        n = 201
+        d = [D * i / (n - 1) for i in range(n)]
+        i_pico = round(pos * (n - 1))
+        h = [100.0] * n
+        h[i_pico] = alt
+        p = L.analisar_perfil(d, h, 10, 10, k)
+        d1, d2 = d[i_pico], D - d[i_pico]
+        h_obs = alt + L.bulge(d1, d2, k) - 110.0
+        esperado = L.J(L.v_param(h_obs, d1, d2))
+        assert p["perda_difracao_db"] == pytest.approx(esperado, abs=1e-9)
+        assert p["d_obst_km"] == pytest.approx(d1, abs=1e-9) and p["h_obst_m"] == pytest.approx(h_obs, abs=1e-9)
+    assert L.J(1.0) == pytest.approx(13.92, abs=0.05) and L.J(2.4) == pytest.approx(20.5, abs=0.1)
+
+
+def test_perda_cresce_com_a_altura_do_obstaculo_e_cai_com_o_mastro():
+    d, _ = _plano(10.0)
+    perdas = [L.analisar_perfil(*_morro(10.0, 100, a, 0.5, 0.7)[:1], _morro(10.0, 100, a, 0.5, 0.7)[1], 10, 10, 4 / 3)["perda_difracao_db"] for a in (10, 30, 60, 100)]
+    assert perdas == sorted(perdas) and perdas[-1] > perdas[0] + 10
+    dd, hh = _morro(10.0, 100, 60, 0.5, 0.7)
+    mastros = [L.analisar_perfil(dd, hh, m, m, 4 / 3)["perda_difracao_db"] for m in (5, 20, 50, 100)]
+    assert mastros == sorted(mastros, reverse=True)

@@ -167,6 +167,13 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   memória da página (nem na URL, nem no resumo). **Fora do escopo desta versão:** busca automática de elevação, mapa, vegetação
   e prédios (use a perda extra), reflexão no solo e mais de um obstáculo além do equivalente de Bullington.
   **Privacidade:** o perfil colado fica só na página e não vai ao endereço compartilhável; não há `fetch`.
+  **Validação da difração (17/11/2026):** com um pico agudo, o Bullington do testador é exatamente o gume único J(v) da
+  geometria (teste analítico, tolerância 1e-9), e a perda cresce com a altura do obstáculo e cai com o mastro. **O que
+  isso não prova:** o J(v) é a forma aproximada da P.526 (texto não lido) e não há comparação com o ITM da NTIA nem com
+  medição. Limitações conhecidas do modelo, sem números próprios: obstáculo arredondado perde mais do que o gume agudo
+  (o testador é otimista em morros suaves) e, com vários obstáculos, o método de Bullington tende a subestimar a perda.
+  Uma comparação por Deygout sobre perfis suaves foi tentada e descartada: ela soma arestas espúrias da mesma colina e
+  não serve de referência. A validação de verdade espera os vetores do ITM (NTIA) ou medições da bancada.
   Fonte de elevação e mapa (fases 3 e 4 do relatório de pesquisa) só entram com consentimento explícito e depois de
   testar o CORS num navegador real. É ferramenta de análise: não toca em rádio nem em bancada.
 
