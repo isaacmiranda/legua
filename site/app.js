@@ -1473,6 +1473,11 @@
     var miss = (t.need || []).filter(function (n) { return d[n] === undefined; });
     if (miss.length && !t.anyScale) { live = []; panel.textContent = ""; panel.appendChild(missingCard(t, miss)); }
     else t.f(panel);
+    if (["modos", "alcance", "campo", "potencia"].indexOf(t.id) >= 0 && !(miss.length && !t.anyScale)) {
+      panel.appendChild(el("section", { class: "card" }, [el("h2", { text: "Meu enlace fecha?" }),
+        el("p", { class: "note", text: "Os números desta aba valem para o ambiente médio. Para um terreno específico (morro, mastro, vegetação), informe o perfil e veja a margem de cada modo." }),
+        el("a", { class: "btn", href: "enlace.html", text: "Abrir o testador de enlaces" })]));
+    }
     if (focus) panel.focus({ preventScroll: true });
   }
   function drawScaleSwitch() {

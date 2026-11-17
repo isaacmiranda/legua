@@ -148,3 +148,10 @@ def test_testador_csv_invalido_mostra_erro(tmp_path):
     o = _roda_enlace(tmp_path, "#d=4", csv="0;100\n2;110\n1;120")
     assert not o["erros"], o["erros"]
     assert "Perfil inválido" in o["apos_csv"]
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_testador_hgt_pede_arquivo_e_nao_poe_coordenadas_na_url(tmp_path):
+    o = _roda_enlace(tmp_path, "#terreno=hgt&d=4")
+    assert not o["erros"], o["erros"]
+    assert "terreno=plano" in o["hash"]                              # coordenadas e grades nunca vêm pela URL

@@ -162,7 +162,9 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   de enlace e margem por modo, ligados ao estimador pelo campo `offset_db`. O ambiente escolhido contribui só com a
   variabilidade; a perda média é o espaço livre mais a difração mais a perda extra do usuário, e o estimador recebe a
   diferença de ganho de antena (sem contar duas vezes). Referência em `simsuite/analysis/enlace.py` e teste de
-  paridade com o JavaScript (`test_enlace.py`). **Fora do escopo desta versão:** elevação automática, mapa, vegetação
+  paridade com o JavaScript (`test_enlace.py`). **Elevação real:** arquivos `.hgt` (SRTM1 ou SRTM3) carregados do
+  disco (`terreno.js`, interpolação bilinear, vazios tratados), com as coordenadas dos dois pontos digitadas; ficam só na
+  memória da página (nem na URL, nem no resumo). **Fora do escopo desta versão:** busca automática de elevação, mapa, vegetação
   e prédios (use a perda extra), reflexão no solo e mais de um obstáculo além do equivalente de Bullington.
   **Privacidade:** o perfil colado fica só na página e não vai ao endereço compartilhável; não há `fetch`.
   Fonte de elevação e mapa (fases 3 e 4 do relatório de pesquisa) só entram com consentimento explícito e depois de

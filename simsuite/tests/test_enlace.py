@@ -142,3 +142,43 @@ def test_leitura_de_csv_do_terreno():
     assert c["desloc"]["perfil"]["d"] == [0, 1]                  # a origem é normalizada para 0
     for k in ("sem_dist", "desordem", "alt", "texto"):
         assert "erro" in c[k], k
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="sem node")
+def test_leitura_de_hgt_e_perfil_entre_pontos():
+    """Grade SRTM3 sintética (plano inclinado leste-oeste + um vazio): elevação bilinear, perfil, tiles ausentes."""
+    js = r"""
+    const T = require(process.argv[1] + '/terreno.js');
+    const n = 1201, buf = new ArrayBuffer(n * n * 2), dv = new DataView(buf);
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) dv.setInt16(2 * (r * n + c), 100 + Math.round(c / 4), false);   // sobe 300 m para leste
+    dv.setInt16(2 * (600 * n + 600), -32768, false);                                                                     // um vazio
+    const g = T.lerHgt(buf, 'S23W046.hgt');
+    const out = { g: g.erro || [g.grade.lat0, g.grade.lon0, g.grade.n] };
+    out.centro = T.elevacao([g.grade], -22.5, -45.5).v;
+    out.oeste = T.elevacao([g.grade], -22.5, -46.0).v;
+    out.leste = T.elevacao([g.grade], -22.5, -45.0).v;
+    out.fora = T.elevacao([g.grade], -21.5, -45.5);
+    const p = T.perfilEntre([g.grade], { lat: -22.5, lon: -45.9 }, { lat: -22.5, lon: -45.1 }, 30);
+    out.n = p.perfil.d.length; out.D = p.D_km; out.h0 = p.perfil.h[0]; out.h1 = p.perfil.h[p.perfil.h.length - 1];
+    out.mono = p.perfil.h.every((v, i, a) => i === 0 || v >= a[i - 1] - 1e-9);
+    out.sem_grade = T.perfilEntre([g.grade], { lat: -22.5, lon: -45.9 }, { lat: -22.5, lon: -44.95 }, 30).erro;
+    out.nome_ruim = T.lerHgt(buf, 'foo.hgt').erro;
+    out.tamanho_ruim = T.lerHgt(new ArrayBuffer(1000), 'S23W046.hgt').erro;
+    out.polar = T.perfilEntre([g.grade], { lat: 70, lon: 0 }, { lat: 70, lon: 0.5 }, 30).erro;
+    out.curto = T.perfilEntre([g.grade], { lat: -22.5, lon: -45.5 }, { lat: -22.5, lon: -45.5 }, 30).erro;
+    out.hav = T.haversineKm(0, 0, 0, 1);
+    console.log(JSON.stringify(out));
+    """
+    r = subprocess.run(["node", "-e", js, os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout)
+    assert o["g"] == [-23, -46, 1201]
+    assert o["oeste"] == pytest.approx(100.0) and o["leste"] == pytest.approx(400.0)
+    assert o["centro"] == pytest.approx(250.0, abs=1.0)
+    assert o["fora"]["ok"] is False and o["fora"]["falta"] == "S22W046"
+    assert 80 < o["D"] < 85
+    assert o["h1"] > o["h0"] and o["mono"]
+    assert "falta a grade S23W045.hgt" in o["sem_grade"]
+    assert "nome do arquivo" in o["nome_ruim"] and "tamanho" in o["tamanho_ruim"]
+    assert "60" in o["polar"] and "0,02" in o["curto"]
+    assert o["hav"] == pytest.approx(111.19, abs=0.05)

@@ -340,7 +340,8 @@
     ["formal", "Dá para provar que não trava?", "O verificador testa todas as combinações de perdas e reinícios."],
     ["seg", "E se alguém atacar?", "Replay, quadro forjado, jammer e o perfil regulatório."],
     ["validacao", "O simulador é confiável?", "Comparação com o LoRaSim, o Meshtasticator e o código C."],
-    ["estimativas", "Quero estimar o meu caso", "Digite a distância e o ambiente e veja os modos que fecham."]
+    ["estimativas", "Quero estimar o meu caso", "Digite a distância e o ambiente e veja os modos que fecham."],
+    ["enlace.html", "O meu enlace fecha com este terreno?", "Perfil do terreno, zona de Fresnel e margem por modo, no navegador (abre outra página)."]
   ];
 
   function h(tag, attrs, kids) {
@@ -385,7 +386,7 @@
     var grid = h("div", { class: "qgrid" });
     LINKS.forEach(function (l) {
       var b = h("button", { class: "qcard", type: "button" }, [h("b", { text: l[1] }), h("span", { text: l[2] })]);
-      b.addEventListener("click", function () { document.dispatchEvent(new CustomEvent("legua:ir", { detail: l[0] })); });
+      b.addEventListener("click", function () { if (/\.html$/.test(l[0])) window.location.href = l[0]; else document.dispatchEvent(new CustomEvent("legua:ir", { detail: l[0] })); });
       grid.appendChild(b);
     });
     nodes.push(h("section", { class: "card guide" }, [h("h2", { text: "Perguntas que o site responde" }), grid]));

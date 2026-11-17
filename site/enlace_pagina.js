@@ -7,7 +7,7 @@
   var app = document.getElementById("app");
 
   var st = { terreno: "plano", d: 5.0, base: 100, morro_h: 60, morro_pos: 50, morro_w: 0.8, csv: "", hTx: 10, hRx: 10, k: "1.3333", p: 20, gTx: 2.15, gRx: 2.15, lTx: 0.5, lRx: 0.5,
-    extra: 0, env: "rural_aberto", sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
+    extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], env: "rural_aberto", sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
   var CHAVES = ["terreno", "d", "base", "morro_h", "morro_pos", "morro_w", "hTx", "hRx", "k", "p", "gTx", "gRx", "lTx", "lRx", "extra", "env", "sf", "bw", "cr", "alvo", "retries", "interval", "load"];
   var NUM = { d: [0.05, 40], base: [-400, 8000], morro_h: [0, 1500], morro_pos: [0, 100], morro_w: [0.05, 20], hTx: [0.5, 100], hRx: [0.5, 100], p: [-9, 28], gTx: [-5, 15], gRx: [-5, 15],
     lTx: [0, 10], lRx: [0, 10], extra: [0, 60], alvo: [0.5, 0.999], retries: [0, 6], interval: [1, 600], load: [0, 3] };
@@ -38,9 +38,9 @@
     Object.keys(NUM).forEach(function (k) { var v = parseFloat(m[k]); if (isFinite(v) && v >= NUM[k][0] && v <= NUM[k][1]) st[k] = v; });
     function um(k, ok) { if (m[k] !== undefined && ok.indexOf(m[k]) >= 0) st[k] = m[k]; }
     function umN(k, ok) { var v = parseFloat(m[k]); if (ok.indexOf(v) >= 0) st[k] = v; }
-    um("terreno", ["plano", "morro", "csv"]); um("env", Object.keys(DATA.constantes.envs)); um("k", ["1.3333", "1", "0.6667"]);
+    um("terreno", ["plano", "morro", "csv", "hgt"]); um("env", Object.keys(DATA.constantes.envs)); um("k", ["1.3333", "1", "0.6667"]);
     umN("sf", [7, 8, 9, 10, 11, 12]); umN("bw", [125, 250, 500]); umN("cr", [1, 2, 3, 4]);
-    if (st.terreno === "csv") st.terreno = "plano";          // o CSV nunca vem pela URL
+    if (st.terreno === "csv" || st.terreno === "hgt") st.terreno = "plano";   // CSV e coordenadas nunca vêm pela URL
   }
   function sincroniza() { try { history.replaceState(null, "", "#" + consulta()); } catch (e) { /* ignore */ } }
 
@@ -63,6 +63,14 @@
     if (st.terreno === "csv") {
       var r = TE.lerCsv(st.csv, st.d);
       return r.erro ? { erro: r.erro } : { perfil: r.perfil };
+    }
+    if (st.terreno === "hgt") {
+      if (!st.grades.length) return { erro: "carregue o(s) arquivo(s) .hgt que cobrem o enlace (SRTM1 ou SRTM3)" };
+      var rh = TE.perfilEntre(st.grades, { lat: parseFloat(String(st.latA).replace(",", ".")), lon: parseFloat(String(st.lonA).replace(",", ".")) },
+        { lat: parseFloat(String(st.latB).replace(",", ".")), lon: parseFloat(String(st.lonB).replace(",", ".")) }, 30);
+      if (rh.erro) return { erro: rh.erro };
+      st.d = Math.round(rh.D_km * 100) / 100;
+      return { perfil: rh.perfil, vazios: rh.vazios };
     }
     var D = st.d;
     return { perfil: st.terreno === "plano" ? TE.plano(D, st.base) : TE.morro(D, st.base, st.morro_h, st.morro_pos / 100, st.morro_w) };
@@ -126,10 +134,10 @@
     campos.textContent = "";
     var u = function (v) { return function (x) { return nf(x, v[0]) + " " + v[1]; }; };
     var csvBox = null;
-    campos.appendChild(sel("terreno", "Terreno", [["plano", "Plano"], ["morro", "Morro entre as antenas"], ["csv", "Perfil colado (CSV)"]], monta));
+    campos.appendChild(sel("terreno", "Terreno", [["plano", "Plano"], ["morro", "Morro entre as antenas"], ["csv", "Perfil colado (CSV)"], ["hgt", "Arquivo de elevação local (.hgt) + coordenadas"]], monta));
     campos.appendChild(sel("env", "Variabilidade do canal (ambiente)", Object.keys(DATA.constantes.envs).map(function (k) { return [k, DATA.constantes.envs[k].label]; })));
-    campos.appendChild(rng("d", "Distância" + (st.terreno === "csv" ? " (só p/ CSV de uma coluna)" : ""), 0.05, u([2, "km"])));
-    if (st.terreno !== "csv") campos.appendChild(rng("base", "Altitude da base", 5, u([0, "m"])));
+    if (st.terreno !== "hgt") campos.appendChild(rng("d", "Distância" + (st.terreno === "csv" ? " (só p/ CSV de uma coluna)" : ""), 0.05, u([2, "km"])));
+    if (st.terreno !== "csv" && st.terreno !== "hgt") campos.appendChild(rng("base", "Altitude da base", 5, u([0, "m"])));
     if (st.terreno === "morro") {
       campos.appendChild(rng("morro_h", "Altura do morro", 1, u([0, "m"])));
       campos.appendChild(rng("morro_pos", "Posição do morro", 1, u([0, "% do enlace"])));
@@ -141,6 +149,27 @@
       ta.addEventListener("input", function () { st.csv = ta.value; agenda(); });
       csvBox = el("div", { class: "field", style: "grid-column:1/-1" }, [el("span", { text: "Perfil colado (fica só nesta página; não vai para o endereço compartilhável)" }), ta]);
       campos.appendChild(csvBox);
+    }
+    if (st.terreno === "hgt") {
+      var fi = el("input", { type: "file", accept: ".hgt", multiple: "multiple", "aria-label": "Arquivos de elevação .hgt" }), lista = el("span", { class: "sub", text: st.grades.length ? st.grades.map(function (g) { return g.nome; }).join(", ") : "nenhum arquivo carregado" });
+      fi.addEventListener("change", function () {
+        var arqs = Array.prototype.slice.call(fi.files || []), pend = arqs.length, novos = [], erros = [];
+        if (!pend) return;
+        arqs.forEach(function (f) {
+          var rd = new FileReader();
+          rd.onload = function () { var r = TE.lerHgt(rd.result, f.name); if (r.erro) erros.push(f.name + ": " + r.erro); else novos.push(r.grade); fim(); };
+          rd.onerror = function () { erros.push(f.name + ": não foi possível ler"); fim(); };
+          rd.readAsArrayBuffer(f);
+        });
+        function fim() { if (--pend) return; st.grades = novos; lista.textContent = (novos.length ? novos.map(function (g) { return g.nome; }).join(", ") : "nenhum arquivo válido") + (erros.length ? " · " + erros.join(" · ") : ""); agenda(); }
+      });
+      campos.appendChild(el("div", { class: "field", style: "grid-column:1/-1" }, [el("span", { text: "Arquivos .hgt (SRTM1/SRTM3; o nome diz a grade, ex.: S23W046.hgt). São lidos aqui, no navegador; nada é enviado." }), fi, lista]));
+      [["latA", "Latitude do ponto A (graus decimais)"], ["lonA", "Longitude do ponto A"], ["latB", "Latitude do ponto B"], ["lonB", "Longitude do ponto B"]].forEach(function (c) {
+        var inp = el("input", { type: "text", inputmode: "decimal", autocomplete: "off", "aria-label": c[1] }); inp.value = st[c[0]];
+        inp.addEventListener("input", function () { st[c[0]] = inp.value; agenda(); });
+        campos.appendChild(fld(c[1], inp));
+      });
+      campos.appendChild(el("p", { class: "note", style: "grid-column:1/-1", text: "As coordenadas ficam só na memória desta página: não vão para o endereço compartilhável, nem para o resumo, nem para o JSON. O SRTM é um modelo de superfície (copas e telhados contam como terreno)." }));
     }
     campos.appendChild(rng("hTx", "Altura da antena A", 0.5, u([1, "m"]))); campos.appendChild(rng("hRx", "Altura da antena B", 0.5, u([1, "m"])));
     campos.appendChild(sel("k", "Fator k do raio da Terra", [["1.3333", "4/3 (padrão)"], ["1", "1 (sem refração)"], ["0.6667", "2/3 (pior caso)"]]));
@@ -188,7 +217,7 @@
     var resumo = ["Légua, testador de enlaces (estimativa; não é previsão de campo)", frase,
       "Perdas: espaço livre " + nf(A.perda.espaco_livre_db, 1) + " dB + difração " + nf(A.perda.difracao_db, 1) + " dB + extra " + nf(A.perda.extra_db, 1) + " dB = " + nf(A.perda.total_db, 1) + " dB.",
       "Parâmetros: terreno " + st.terreno + "; antenas " + st.hTx + " m e " + st.hRx + " m; k " + st.k + "; ganhos " + st.gTx + " e " + st.gRx + " dBi; cabos " + st.lTx + " e " + st.lRx + " dB; ambiente " + st.env + ".",
-      st.terreno === "csv" ? "(perfil colado não incluído no link)" : location.href.split("#")[0] + "#" + consulta()].join("\n");
+      st.terreno === "csv" || st.terreno === "hgt" ? "(perfil local não incluído no link)" : location.href.split("#")[0] + "#" + consulta()].join("\n");
     var aviso = el("span", { class: "sub", role: "status", "aria-live": "polite" });
     function btn(t, fn) { var b = el("button", { type: "button", class: "btn", text: t }); b.addEventListener("click", fn); return b; }
     var resposta = cartao("Resposta para este enlace", [el("p", {}, [frase]), el("p", {}, avisos.reduce(function (a, p) { a.push(p, document.createTextNode("  ")); return a; }, [])),
@@ -227,6 +256,16 @@
   deConsulta((location.hash || "").slice(1));
   app.appendChild(cartao("Parâmetros do enlace", [el("p", { class: "note", text: "Informe o terreno entre as duas antenas (plano, um morro, ou um perfil colado) e os parâmetros do rádio; o resultado se atualiza na hora." }), campos], null));
   app.appendChild(host);
+  app.appendChild(el("section", { class: "card" }, [el("h2", { text: "Entenda os números" }),
+    el("dl", { class: "gloss" }, [
+      el("dt", { text: "Perda no espaço livre" }), el("dd", { text: "O quanto o sinal enfraquece só por se espalhar no espaço: cresce 20 dB a cada dez vezes a distância. A 915 MHz, cerca de 91,7 dB a 1 km." }),
+      el("dt", { text: "Zona de Fresnel" }), el("dd", { text: "O “tubo” em volta da linha reta entre as antenas por onde passa a maior parte do sinal. Com menos de 60% da primeira zona livre, o terreno já tira potência mesmo sem cortar a linha de visada. Antenas mais altas ou menos distância abrem a zona." }),
+      el("dt", { text: "Fator k e abaulamento" }), el("dd", { text: "A Terra é curva e a atmosfera curva o sinal um pouco. Com k = 4/3 o abaulamento no meio de 10 km é de cerca de 1,5 m; k menor (pior caso) sobe o “chão” e reduz a folga." }),
+      el("dt", { text: "Difração (Bullington)" }), el("dd", { text: "Quando um morro entra no caminho, o sinal contorna o topo e chega mais fraco. O método troca os obstáculos por um só, equivalente; quanto mais alto acima da linha de visada, maior a perda." }),
+      el("dt", { text: "Perda extra" }), el("dd", { text: "Onde você lança o que o modelo não vê: folhagem, paredes, caixa metálica. Comece com 0 e teste cenários piores." }),
+      el("dt", { text: "Margem" }), el("dd", { text: "Quantos dB o sinal fica acima do mínimo que o modo decodifica. Perto de zero perde pacote; 10 a 20 dB aguentam o desvanecimento. Modos mais lentos (SF maior) têm margem maior." }),
+      el("dt", { text: "Entrega confirmada" }), el("dd", { text: "A fração de pacotes cujo ACK volta ao emissor, com as retransmissões escolhidas. É o que a aplicação sente." })
+    ])]));
   monta();
   window.addEventListener("resize", function () { /* o SVG é escalável: nada a refazer */ });
 })();

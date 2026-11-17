@@ -65,6 +65,63 @@
     }, n);
   }
 
-  var api = { lerCsv: lerCsv, validar: validar, plano: plano, morro: morro, reamostrar: reamostrar, MAX_PONTOS: MAX_PONTOS };
+
+  /* ---- SRTM .hgt local (nada sai do navegador). Grade de n x n amostras em int16 big-endian, linhas do norte para o sul,
+   * colunas do oeste para o leste; o nome do arquivo (ex.: S23W046.hgt) dá o canto sudoeste. -32768 = vazio. */
+  var VAZIO = -32768, R_MEDIO_KM = 6371.0088;
+  function lerHgt(buf, nome) {
+    var m = /^([NS])(\d{2})([EW])(\d{3})/i.exec(String(nome || "").split(/[\\/]/).pop());
+    if (!m) return { erro: "o nome do arquivo precisa ser do tipo S23W046.hgt (canto sudoeste da grade)" };
+    var bytes = buf.byteLength, n = Math.round(Math.sqrt(bytes / 2));
+    if (n * n * 2 !== bytes || (n !== 1201 && n !== 3601)) return { erro: "tamanho inesperado: use SRTM1 (3601x3601) ou SRTM3 (1201x1201) em .hgt" };
+    var lat0 = (m[1].toUpperCase() === "S" ? -1 : 1) * parseInt(m[2], 10), lon0 = (m[3].toUpperCase() === "W" ? -1 : 1) * parseInt(m[4], 10);
+    var dv = new DataView(buf), dados = new Int16Array(n * n), i;
+    for (i = 0; i < dados.length; i++) dados[i] = dv.getInt16(2 * i, false);
+    return { grade: { lat0: lat0, lon0: lon0, n: n, dados: dados, nome: String(nome) } };
+  }
+  /* elevação por interpolação bilinear; vazios nos cantos são ignorados (média dos válidos); NaN se todos vazios */
+  function elevacaoNaGrade(g, lat, lon) {
+    var r = (g.lat0 + 1 - lat) * (g.n - 1), c = (lon - g.lon0) * (g.n - 1);
+    if (!(r >= 0 && r <= g.n - 1 && c >= 0 && c <= g.n - 1)) return NaN;
+    var r0 = Math.min(Math.floor(r), g.n - 2), c0 = Math.min(Math.floor(c), g.n - 2), fr = r - r0, fc = c - c0;
+    var v = [g.dados[r0 * g.n + c0], g.dados[r0 * g.n + c0 + 1], g.dados[(r0 + 1) * g.n + c0], g.dados[(r0 + 1) * g.n + c0 + 1]];
+    var w = [(1 - fr) * (1 - fc), (1 - fr) * fc, fr * (1 - fc), fr * fc], num = 0, den = 0, j;
+    for (j = 0; j < 4; j++) if (v[j] !== VAZIO) { num += w[j] * v[j]; den += w[j]; }
+    if (den > 1e-9) return num / den;
+    var q = 0, k2 = 0;                                   // o ponto cai exatamente sobre o vazio: média simples dos vizinhos válidos
+    for (j = 0; j < 4; j++) if (v[j] !== VAZIO) { q += v[j]; k2++; }
+    return k2 ? q / k2 : NaN;
+  }
+  function elevacao(grades, lat, lon) {
+    var la = Math.floor(lat), lo = Math.floor(lon), j;
+    for (j = 0; j < grades.length; j++) {
+      var g = grades[j];
+      if (lat >= g.lat0 && lat <= g.lat0 + 1 && lon >= g.lon0 && lon <= g.lon0 + 1) return { v: elevacaoNaGrade(g, lat, lon), ok: true };
+    }
+    return { v: NaN, ok: false, falta: (la < 0 ? "S" : "N") + ("0" + Math.abs(la)).slice(-2) + (lo < 0 ? "W" : "E") + ("00" + Math.abs(lo)).slice(-3) };
+  }
+  function haversineKm(la1, lo1, la2, lo2) {
+    var r = Math.PI / 180, a = Math.sin((la2 - la1) * r / 2), b = Math.sin((lo2 - lo1) * r / 2);
+    var h = a * a + Math.cos(la1 * r) * Math.cos(la2 * r) * b * b;
+    return 2 * R_MEDIO_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  /* perfil entre dois pontos (graus decimais), amostrado a cada ~passoM metros; interpolação linear em lat/lon */
+  function perfilEntre(grades, a, b, passoM) {
+    if (![a.lat, a.lon, b.lat, b.lon].every(function (x) { return isFinite(x); })) return { erro: "informe as quatro coordenadas" };
+    if (Math.abs(a.lat) > 60 || Math.abs(b.lat) > 60) return { erro: "o SRTM cobre latitudes entre 60° S e 60° N" };
+    var D = haversineKm(a.lat, a.lon, b.lat, b.lon);
+    if (D < 0.02 || D > 100) return { erro: "a distância entre os pontos precisa ficar entre 0,02 e 100 km (agora " + D.toFixed(2) + " km)" };
+    var n = Math.min(MAX_PONTOS, Math.max(3, Math.ceil(D * 1000 / (passoM || 30)) + 1)), d = [], h = [], i, vazios = 0;
+    for (i = 0; i < n; i++) {
+      var t = i / (n - 1), e = elevacao(grades, a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t);
+      if (!e.ok) return { erro: "falta a grade " + e.falta + ".hgt para cobrir o caminho" };
+      if (!isFinite(e.v)) { if (i === 0 || i === n - 1) return { erro: "a grade tem vazio exatamente no ponto " + (i === 0 ? "A" : "B") + "; mova o ponto alguns metros" }; vazios++; e.v = h[i - 1]; }
+      d.push(D * t); h.push(e.v);
+    }
+    if (vazios > n * 0.2) return { erro: "grade com muitos vazios nesse caminho (" + vazios + " de " + n + " pontos)" };
+    return { perfil: { d: d, h: h }, vazios: vazios, D_km: D };
+  }
+
+  var api = { lerHgt: lerHgt, elevacao: elevacao, perfilEntre: perfilEntre, haversineKm: haversineKm, lerCsv: lerCsv, validar: validar, plano: plano, morro: morro, reamostrar: reamostrar, MAX_PONTOS: MAX_PONTOS };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.LeguaTerreno = api;
 })(typeof window !== "undefined" ? window : this);
