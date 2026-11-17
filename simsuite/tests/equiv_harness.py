@@ -31,11 +31,12 @@ REASON_CODE = {"troca": 1, "falhas": 2, "silencio": 3, "silencio_rec": 4,
                "validacao_falhou": 5, "validacao_expirou": 6}
 STATS = ["trocas", "rollbacks", "degradacoes", "quedas_base", "neg_ok", "neg_fail", "neg_recusa",
          "desc_silencio", "alarmes", "rejeitados", "tx_ctrl", "entregues", "gerados", "perdidos",
-         "duplicados", "acked", "tx"]       # ordem de legua_stats (core/include/legua/legua.h)
+         "duplicados", "acked", "tx", "alarmes_mic"]       # ordem de legua_stats (core/include/legua/legua.h)
 TURNAROUND_MS = 6
 ACK_BYTES, CTRL_BYTES, DATA_BYTES = 14, 16, 24
 
-LOG_CODES = {8: "modo", 9: "propose", 10: "neg_falhou", 11: "validado", 12: "commit_rx", 13: "alarme"}
+LOG_CODES = {8: "modo", 9: "propose", 10: "neg_falhou", 11: "validado", 12: "commit_rx", 13: "alarme",
+             14: "alarme_mic"}
 LOG_REJ = {1, 2, 3}
 
 
@@ -76,10 +77,11 @@ _PARAM_MS = {"cooldown_up": "cooldown_up_ms", "cooldown_back": "cooldown_back_ms
              "t_silence": "t_silence_ms", "t_recovery": "t_recovery_ms", "t_valid": "t_valid_ms",
              "vote_timeout": "vote_timeout_ms", "instant_delay": "instant_delay_ms",
              "hello_interval": "hello_interval_ms", "neg_backoff0": "neg_backoff0_ms",
-             "neg_backoff_max": "neg_backoff_max_ms"}
+             "neg_backoff_max": "neg_backoff_max_ms", "mic_fail_window": "mic_fail_window_ms",
+             "mic_fail_hold": "mic_fail_hold_ms"}
 _PARAM_PLAIN = ["margin_target", "margin_up", "ladder_step", "max_budget_jump", "ema_a", "v_freeze",
                 "snr_std_freeze", "fade_k", "fade_window", "n_up", "fail_streak_degrade", "retries", "k_valid", "f_valid",
-                "rollback_alarm", "power_control", "mobile", "silence_descent", "validation"]
+                "rollback_alarm", "power_control", "mobile", "silence_descent", "validation", "mic_fail_n"]
 
 
 def c_params(cfg):
@@ -201,6 +203,8 @@ class PyAdapter:
                     out.append((ev,))
                 elif ev == "alarme_rollback":
                     out.append(("alarme",))
+                elif ev == "alarme_mic":
+                    out.append(("alarme_mic",))
                 elif ev == "rejeitado":
                     out.append(("rej",))
         return out
@@ -261,7 +265,7 @@ class PyAdapter:
                 "quedas_base": s["quedas_base"], "neg_ok": s["neg_ok"], "neg_fail": s["neg_fail"],
                 "neg_recusa": s["neg_recusa"], "desc_silencio": s["desc_silencio"], "alarmes": s["alarmes"],
                 "rejeitados": s["rejeitados"], "tx_ctrl": s["tx_ctrl"], "entregues": s["entregues"],
-                "gerados": s["gerados"], "perdidos": s["perdidos"]}
+                "gerados": s["gerados"], "perdidos": s["perdidos"], "alarmes_mic": s["alarmes_mic"]}
 
 
 # ------------------------------------------------------------------ adaptador C
@@ -345,6 +349,8 @@ class CAdapter:
                     out.append(("commit_rx",))
                 elif code == 13:
                     out.append(("alarme",))
+                elif code == 14:
+                    out.append(("alarme_mic",))
         return out
 
     def on_app(self, now_ms):
@@ -385,7 +391,7 @@ class CAdapter:
 
     def stats(self):
         cur = self._stats_now()
-        return {k: self.acc[k] + cur[k] for k in STATS[:14]}
+        return {k: self.acc[k] + cur[k] for k in STATS[:14] + ["alarmes_mic"]}
 
 
 # ------------------------------------------------------------------ DES mínimo
@@ -623,7 +629,7 @@ def cenario_aleatorio(seed):
     base = dict(cooldown_up=r.choice([20.0, 30.0, 120.0]), n_up=r.choice([3, 5, 20]),
                 neg_backoff0=r.choice([10.0, 60.0]), neg_backoff_max=r.choice([60.0, 240.0]),
                 cooldown_back=r.choice([20.0, 120.0]))
-    var = r.choice(["normal", "normal", "commit", "semvalid", "recup", "mobile", "semsil", "passo", "fade"])
+    var = r.choice(["normal", "normal", "commit", "semvalid", "recup", "mobile", "semsil", "passo", "fade", "mic"])
     if var == "commit":
         base["persist_at"] = "commit"
     elif var == "semvalid":
@@ -636,6 +642,9 @@ def cenario_aleatorio(seed):
         base["silence_descent"] = False
     elif var == "fade":
         base.update(fade_k=r.choice([1.0, 3.0]), fade_window=r.choice([10, 30]))
+    elif var == "mic":                   # limite de falhas de MIC baixo, para disparar com poucas injeções
+        base.update(mic_fail_n=r.choice([1, 2]), mic_fail_window=r.choice([300.0, 900.0]),
+                    mic_fail_hold=r.choice([120.0, 600.0]))
     elif var == "passo":
         base.update(ladder_step=3.0, margin_up=6.0, max_budget_jump=9.0)
     T = r.choice([2_400_000, 3_600_000])
@@ -659,7 +668,7 @@ def cenario_aleatorio(seed):
         cfg=Config(**base), gain=gain, T=T, windows=wins, variante=var,
         reboots=[(r.randint(200_000, T - 200_000), r.choice([1, 2])) for _ in range(r.choice([0, 0, 1, 3]))],
         inject=[(r.randint(300_000, T - 100_000), r.choice([1, 2]), r.choice(["replay", "forjado"]))
-                for _ in range(r.choice([0, 0, 2]))],
+                for _ in range(r.choice([0, 0, 2]) if var != "mic" else r.choice([4, 8]))],
         speeds=([(r.randint(100_000, T - 100_000), r.choice([1, 2]), r.choice([0.0, 0.5, 1.5, 3.0, 10.5]))
                  for _ in range(4)] if var == "mobile" else []),
         noise_rise=r.choice([0.0, 0.0, 6.0]), cap=r.choice([28.0, 28.0, 22.0]),

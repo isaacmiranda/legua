@@ -455,6 +455,7 @@ void legua_params_default(legua_params *p)
     p->neg_backoff0_ms = 60000u; p->neg_backoff_max_ms = 960000u;
     p->n_up = 20; p->fail_streak_degrade = 3; p->retries = 3; p->k_valid = 3; p->f_valid = 3;
     p->rollback_alarm = 3;
+    p->mic_fail_n = 5; p->mic_fail_window_ms = 600000u; p->mic_fail_hold_ms = 3600000u;
     p->silence_descent = 1; p->validation = 1; p->power_control = 1;
 }
 
@@ -481,7 +482,8 @@ int legua_init(legua_endpoint *ep, const legua_config *cfg, const legua_env *env
     legua_action *p;
     int b, r, a = -1;
     if (!ep || !cfg || !env || !env->mic || !env->rand32 || !cfg->modes || cfg->n_modes == 0 ||
-        cfg->n_modes > LEGUA_MAX_MODES || cfg->id == cfg->peer || cfg->id == LEGUA_BROADCAST)
+        cfg->n_modes > LEGUA_MAX_MODES || cfg->id == cfg->peer || cfg->id == LEGUA_BROADCAST ||
+        cfg->params.mic_fail_n > LEGUA_MIC_RING)
         return -1;
     memset(ep, 0, sizeof *ep);
     ep->cfg = *cfg;
@@ -504,7 +506,7 @@ int legua_init(legua_endpoint *ep, const legua_config *cfg, const legua_env *env
     ep->ctr = cfg->ctr_block_nvm * LEGUA_CTR_BLOCK + LEGUA_CTR_BLOCK;   /* salta para o próximo bloco */
     ep->peer_blk = cfg->peer_ctr_floor / LEGUA_CTR_BLOCK;
     ep->peer_last = ep->peer_blk * LEGUA_CTR_BLOCK;
-    ep->peer_heard = ep->entered = ep->last_change = ep->neg_block = ep->freeze_until = now_ms;
+    ep->peer_heard = ep->entered = ep->last_change = ep->neg_block = ep->freeze_until = ep->mic_block = now_ms;
     ep->neg_backoff = cfg->params.neg_backoff0_ms;
     ep->next_hello = now_ms + rnd_range(ep, 0u, cfg->params.hello_interval_ms);
     ep->next_hb = now_ms + cfg->params.hb_interval_ms;
@@ -585,13 +587,43 @@ static int seq_is_new(legua_endpoint *ep, uint8_t seq)
     return 1;
 }
 
+/* Limite de falhas de MIC: mic_fail_n falhas na janela congelam a negociação, sem mudar de modo (docs/07 §6). */
+static void mic_fail(legua_endpoint *ep, uint32_t now, legua_actions *acts)
+{
+    const legua_params *c = &ep->cfg.params;
+    uint8_t i, k = 0;
+    uint32_t until;
+    if (!c->mic_fail_n)
+        return;
+    for (i = 0; i < ep->mic_n; i++)
+        if (now - ep->mic_times[i] < c->mic_fail_window_ms)
+            ep->mic_times[k++] = ep->mic_times[i];
+    if (k >= c->mic_fail_n) {                         /* guarda só as n - 1 mais recentes antes da nova */
+        uint8_t drop = (uint8_t)(k - c->mic_fail_n + 1u);
+        for (i = 0; i + drop < k; i++)
+            ep->mic_times[i] = ep->mic_times[i + drop];
+        k = (uint8_t)(k - drop);
+    }
+    ep->mic_times[k++] = now;
+    ep->mic_n = k;
+    if (k < c->mic_fail_n)
+        return;
+    ep->mic_n = 0;
+    ep->st.alarmes_mic++;
+    until = now + c->mic_fail_hold_ms;
+    ep->mic_block = until;
+    if (reached(until, ep->freeze_until))
+        ep->freeze_until = until;
+    act_log(acts, LEGUA_LOG_MIC_ALARM, 0);
+}
+
 static void on_propose(legua_endpoint *ep, const legua_frame *f, uint32_t now, legua_actions *acts)
 {
     const legua_params *c = &ep->cfg.params;
     int ci = mode_index(ep, f->body[0]);
     int ok = ci >= 0 && (margin_of(ep, (uint8_t)ci, 0, 0) >= need_up(ep, -2.0f) || ep->state == LEGUA_S_BASE ||
                          !ep->g_me_set || ci == (int)ep->rec_i);
-    if (frozen(ep))
+    if (frozen(ep) || !reached(now, ep->mic_block))
         ok = 0;
     ep->st.tx_ctrl++;
     if (ok) {
@@ -648,6 +680,7 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
     if (!legua_frame_verify(raw, len, ctr32, ep->env)) {
         ep->st.rejeitados++;
         act_log(acts, LEGUA_LOG_REJ_MIC, f.ctr16);
+        mic_fail(ep, now, acts);
         return;
     }
     ep->peer_last = ctr32;

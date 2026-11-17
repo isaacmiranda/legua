@@ -216,6 +216,9 @@ def b7_security(escala="quick", seed=5):
     T = 4 * 3600 if escala == "quick" else 24 * 3600
     out = {}
     for nome, kw in {"sem_ataque": {}, "replay_e_forjado": {"forge": True},
+                     # só forjados, desde o início e a cada 20 s: o limite de falhas de MIC (docs/07 §6) congela a
+                     # negociação; sem replay, porque um "replay" com contador ainda não visto seria quadro legítimo
+                     "forjado_desde_o_inicio": {"forge": True, "t0": 1.0, "every": 20.0, "only_forged": True},
                      "jammer_reativo_validacao": {"jam": 0.9},
                      "jammer_sem_alarme": {"jam": 0.9, "alarm": 10 ** 9}}.items():
         cfg = Config(cooldown_up=120.0, n_up=5)
@@ -237,16 +240,16 @@ def b7_security(escala="quick", seed=5):
                 # replay: reenvia um COMMIT com contador antigo; forjado: PROPOSE sem MIC válido
                 f1 = Frame("COMMIT", 0, 1, ep.mode, 10.0, ctr=1, body={"cand": "SF12/500", "instant": sim.now + 1})
                 f2 = Frame("PROPOSE", 0, 1, ep.mode, 10.0, ctr=10 ** 9, auth=False, body={"cand": "SF12/500"})
-                for f in (f1, f2):
+                for f in ((f2,) if kw.get("only_forged") else (f1, f2)):
                     sim.apply(sim.nodes[1], ep.on_rx(f, -80.0, 20.0, sim.now))
-                sim.at(sim.now + 60.0, attack)
-            sim.at(120.0, attack)
+                sim.at(sim.now + kw.get("every", 60.0), attack)
+            sim.at(kw.get("t0", 120.0), attack)
         sim.start()
         sim.run()
         s = summarize(sim)
         st = s["stats"]
         out[nome] = {"pdr": round(s["pdr"], 4), "rollbacks": st["rollbacks"], "alarmes": st["alarmes"],
-                     "rejeitados": st["rejeitados"], "trocas": st["trocas"],
+                     "alarmes_mic": st.get("alarmes_mic", 0), "rejeitados": st["rejeitados"], "trocas": st["trocas"],
                      "energia_por_pacote_mj": round(s["mj_por_pacote"] or 0, 2),
                      "modo_final": s["modo_final"]}
     return out

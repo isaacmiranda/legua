@@ -96,7 +96,8 @@ enum legua_log {
     LEGUA_LOG_NEG_FAIL,
     LEGUA_LOG_VALIDATED,     /* arg = mode_id */
     LEGUA_LOG_COMMIT_RX,
-    LEGUA_LOG_ALARM          /* rollbacks repetidos sem queda de SNR (possível jamming) */
+    LEGUA_LOG_ALARM,         /* rollbacks repetidos sem queda de SNR (possível jamming) */
+    LEGUA_LOG_MIC_ALARM      /* mic_fail_n falhas de MIC na janela: negociação congelada (docs/07 §6) */
 };
 
 enum legua_state {
@@ -153,6 +154,8 @@ typedef struct {
     uint8_t  validation;            /* ablação: 0 desliga a janela de validação */
     uint8_t  mobile;                /* perfil móvel: congela a aceleração em movimento */
     uint8_t  power_control;
+    uint8_t  mic_fail_n;            /* falhas de MIC na janela -> congela a negociação (0 = desligado; até LEGUA_MIC_RING) */
+    uint32_t mic_fail_window_ms, mic_fail_hold_ms;
 } legua_params;
 
 void legua_params_default(legua_params *p);
@@ -191,11 +194,12 @@ typedef struct {
 
 typedef struct {
     uint32_t trocas, rollbacks, degradacoes, quedas_base, neg_ok, neg_fail, neg_recusa, desc_silencio,
-             alarmes, rejeitados, tx_ctrl, entregues, gerados, perdidos, duplicados, acked, tx;
+             alarmes, rejeitados, tx_ctrl, entregues, gerados, perdidos, duplicados, acked, tx, alarmes_mic;
 } legua_stats;
 
 #define LEGUA_SNR_WIN 30
 #define LEGUA_RB_RING 8
+#define LEGUA_MIC_RING 8
 
 typedef struct {
     legua_config cfg;
@@ -227,6 +231,9 @@ typedef struct {
     uint8_t  snr_n, snr_pos;
     uint32_t rb_times[LEGUA_RB_RING];
     uint8_t  rb_n;
+    uint32_t mic_times[LEGUA_MIC_RING];   /* instantes das últimas falhas de MIC na janela */
+    uint8_t  mic_n;
+    uint32_t mic_block;             /* até quando vota "não" por falhas de MIC */
     uint8_t  bad_set[LEGUA_MAX_MODES];
     uint32_t bad_until[LEGUA_MAX_MODES];
     float    speed, peer_speed;

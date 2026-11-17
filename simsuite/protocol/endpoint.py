@@ -15,12 +15,15 @@ Regras da v1:
   - o instante de troca é RELATIVO (delay_ms do COMMIT, contado do fim da transmissão do COMMIT, docs/07 §4);
   - âncora e contador gravados só depois da validação (ou no COMMIT, para ablação);
   - todo controle autenticado; quadros com MIC inválido ou contador repetido descartados;
-  - alarme de rollback repetido sem queda de SNR (possível jamming).
+  - alarme de rollback repetido sem queda de SNR (possível jamming);
+  - limite de falhas de MIC (docs/07 §6): `mic_fail_n` quadros do par com MIC inválido em `mic_fail_window`
+    congelam a negociação por `mic_fail_hold` (não propõe e vota "não"); o modo atual é mantido.
 """
 import math
 from dataclasses import dataclass, field, replace
 from .modes import DATA_BYTES, ACK_BYTES, CTRL_BYTES
 
+MIC_RING = 8        # máximo de mic_fail_n (tamanho do anel no núcleo C, LEGUA_MIC_RING)
 EPS = 1e-9          # tolerância de ponto flutuante nos prazos (os instantes caem na grade de ms do núcleo C)
 
 
@@ -81,6 +84,9 @@ class Config:
     v_freeze: float = 2.0            # m/s: congela aceleração acima disso
     snr_std_freeze: float = 3.0      # dB
     rollback_alarm: int = 3          # rollbacks/h sem queda de SNR -> alarme
+    mic_fail_n: int = 5              # falhas de MIC na janela -> congela a negociação (0 = desligado; até 8)
+    mic_fail_window: float = 600.0   # s
+    mic_fail_hold: float = 3600.0    # s de congelamento (renovado se as falhas continuarem)
     fade_k: float = 0.0              # margem de aceleração += fade_k x desvio do SNR (0 = desligado)
     fade_window: int = 30            # amostras de SNR para o desvio
     power_control: bool = True
@@ -96,7 +102,9 @@ class Endpoint:
         self._nv_dirty = False
         self.stats = dict(trocas=0, rollbacks=0, degradacoes=0, quedas_base=0, neg_ok=0,
                           neg_fail=0, neg_recusa=0, desc_silencio=0, alarmes=0, rejeitados=0,
-                          tx_ctrl=0, entregues=0, gerados=0, perdidos=0)
+                          tx_ctrl=0, entregues=0, gerados=0, perdidos=0, alarmes_mic=0)
+        if not 0 <= cfg.mic_fail_n <= MIC_RING:
+            raise ValueError(f"mic_fail_n vai de 0 a {MIC_RING}")
         self._boot(0.0)
 
     # ----------------------------------------------------------------- base
@@ -127,6 +135,8 @@ class Endpoint:
         self.peer_ctr = self.nvm["peer_blk"] * 64    # piso do contador do par (gravado a cada bloco de 64)
         self.rollback_times = []
         self.freeze_until = now
+        self.mic_fail_times = []
+        self.mic_block = now                 # até quando vota "não" por falhas de MIC
         self.speed = 0.0
         self.degraded = False
         self.peer_speed = 0.0
@@ -300,7 +310,10 @@ class Endpoint:
             return acts
         if not f.auth or f.ctr <= self.peer_ctr:
             self.stats["rejeitados"] += 1
-            return [("log", {"ev": "rejeitado", "tipo": f.kind})]
+            acts = [("log", {"ev": "rejeitado", "tipo": f.kind})]
+            if f.ctr > self.peer_ctr:        # contador na janela e MIC inválido (o replay não conta)
+                acts += self._mic_fail(now)
+            return acts
         self.peer_ctr = f.ctr
         if f.ctr // 64 > self.nvm["peer_blk"]:           # grava o piso do par a cada bloco de 64
             self.nvm["peer_blk"] = f.ctr // 64
@@ -397,11 +410,26 @@ class Endpoint:
         return [("tx", self._frame("PROPOSE", CTRL_BYTES, cand=cand.name)),
                 ("log", {"ev": "propose", "cand": cand.name})]
 
+    def _mic_fail(self, now):
+        """Limite de falhas de MIC: n falhas na janela congelam a negociação, sem mudar de modo (docs/07 §6)."""
+        c = self.cfg
+        if not c.mic_fail_n:
+            return []
+        w = [x for x in self.mic_fail_times if not _due(now - x, c.mic_fail_window)] + [now]
+        self.mic_fail_times = w[-c.mic_fail_n:]
+        if len(self.mic_fail_times) < c.mic_fail_n:
+            return []
+        self.mic_fail_times = []
+        self.stats["alarmes_mic"] += 1
+        self.mic_block = now + c.mic_fail_hold
+        self.freeze_until = max(self.freeze_until, self.mic_block)
+        return [("log", {"ev": "alarme_mic"})]
+
     def _on_propose(self, f, now):
         cand = next((m for m in self.modes if m.name == f.body["cand"]), None)
         ok = cand is not None and (self._margin(cand) >= self._need_up(-2.0) or self.state == BASE
                                    or self.g_me is None or cand == self.rec)
-        if self._frozen():
+        if self._frozen() or not _due(now, self.mic_block):
             ok = False
         self.stats["tx_ctrl"] += 1
         if ok:

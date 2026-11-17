@@ -630,8 +630,8 @@
   function panelSeguranca(panel) {
     var b7 = d.B7, k7 = keys(b7).filter(function (k) { return k !== "nota"; });
     var t7 = tableCard("B7 · segurança", "Replay e quadros forjados são rejeitados sem efeito; o jammer reativo é o caso caro em energia, e o alarme limita os rollbacks.",
-      ["Caso", "PDR", "Rollbacks", "Alarmes", "Rejeitados", "mJ/pacote"],
-      k7.map(function (k) { var r = b7[k]; return [k.replace(/_/g, " "), fmtPdr(r.pdr), r.rollbacks, r.alarmes, r.rejeitados, nf(r.energia_por_pacote_mj, 1)]; }), [false, true, true, true, true, true]);
+      ["Caso", "PDR", "Rollbacks", "Alarmes", "Alarmes MIC", "Rejeitados", "mJ/pacote"],
+      k7.map(function (k) { var r = b7[k]; return [k.replace(/_/g, " "), fmtPdr(r.pdr), r.rollbacks, r.alarmes, r.alarmes_mic == null ? "–" : r.alarmes_mic, r.rejeitados, nf(r.energia_por_pacote_mj, 1)]; }), [false, true, true, true, true, true, true]);
     var b11 = d.B11, k11 = keys(b11).filter(function (k) { return k !== "nota"; });
     var t11 = tableCard("B11 · registros de TX contra o perfil BR-2026 (nao_verificado)",
       "O verificador roda sobre o registro de transmissões (o mesmo vale para logs reais). O perfil vem de fonte secundária; isto não é prova de conformidade nem de homologação.",
@@ -1212,10 +1212,11 @@
       var b7 = d.B7, b11 = d.B11, j = b7.jammer_reativo_validacao, jn = b7.jammer_sem_alarme, rp = b7.replay_e_forjado, sa = b7.sem_ataque;
       var ls = b11["LongFast fixo 22 dBm (estilo Meshtastic)"];
       return {
-        car: ["Replay e quadros forjados: " + nf(rp.rejeitados, 0) + " quadros rejeitados, PDR " + fmtPdr(rp.pdr) + " e nenhum rollback induzido.",
+        car: ["Replay e quadros forjados: " + nf(rp.rejeitados, 0) + " quadros rejeitados, PDR " + fmtPdr(rp.pdr) + " e nenhum rollback induzido." +
+            (rp.alarmes_mic != null ? " A forja contínua dispara o limite de falhas de MIC (" + rp.alarmes_mic + " alarmes), que congela a negociação sem mudar de modo; aqui o enlace já estava no modo mais rápido, então o congelamento não custou PDR nem energia." : ""),
           "Jammer reativo na janela de validação: PDR " + fmtPdr(j.pdr) + ", " + j.rollbacks + " rollbacks e " + j.alarmes + " alarmes; sem o alarme, PDR " + fmtPdr(jn.pdr) + " e " + jn.rollbacks + " rollbacks.",
           "O perfil BR-2026 modelado não tem violações para a Légua nem para os modos fixos; o LongFast fixo a 22 dBm tem " + nf(ls.violacoes.potencia, 0) + " violações de potência."],
-        van: ["A autenticação com contador barra replay e forja sem custo para o enlace.",
+        van: ["A autenticação com contador barra replay e forja. O limite de falhas de MIC fecha a margem do MIC de 4 B; o preço é que quem forja com frequência impede novas acelerações, algo que o mesmo atacante já conseguiria com interferência.",
           "O alarme de rollbacks repetidos sem queda de SNR reduz os rollbacks e recupera parte do PDR sob jamming.",
           "O verificador B11 roda igual sobre logs reais, então o mesmo critério vale na bancada."],
         des: ["O jammer reativo é caro: " + nf(j.energia_por_pacote_mj, 0) + " mJ por pacote contra " + nf(sa.energia_por_pacote_mj, 1) + " sem ataque, porque cada troca desfeita retransmite no modo robusto.",

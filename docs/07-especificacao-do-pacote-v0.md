@@ -129,8 +129,23 @@ criptógrafo antes de fixar o formato:
 A conta assume que cada tentativa ocupa o ar por um quadro inteiro e que o receptor **não** limita falhas. Duas
 defesas já previstas fecham a margem: (1) o contador anti-replay (quadro com contador fora da janela é descartado
 antes do MIC) obriga o atacante a acertar também o contador, e (2) o alarme do protocolo (B7) pode contar quadros com
-MIC inválido numa janela e travar a aceleração. Recomenda-se escrever (2) como requisito: após *n* falhas de MIC em
-*T* segundos, parar de aceitar PROPOSE e voltar ao modo base. A truncagem de CMAC a 32 bits é permitida pela
+MIC inválido numa janela e travar a aceleração.
+
+**Limite de falhas de MIC (requisito, implementado em 17/11/2026).** Conta-se como falha o quadro do par (`src` e
+`dst` conferem) cujo contador está na janela e cujo MIC é inválido. O replay, recusado antes pelo contador, não
+conta. Depois de `mic_fail_n` falhas (padrão 5, até 8) em `mic_fail_window` (600 s), o nó congela a negociação por
+`mic_fail_hold` (3600 s): não propõe e vota "não" a qualquer PROPOSE. Falhas que continuam renovam o congelamento.
+O alarme sai como `LEGUA_LOG_MIC_ALARM` e na estatística `alarmes_mic`. `mic_fail_n = 0` desliga o limite.
+
+- **Por que manter o modo, e não voltar ao base** (a recomendação anterior): voltar ao base daria ao atacante uma
+  alavanca barata de rebaixamento, com um quadro forjado a cada poucos minutos forçando o modo mais lento (mais
+  tempo no ar e mais energia para o par). Congelar só tira dele a chance de tentar uma aceleração forjada. O
+  enlace continua no modo em que estava, com a degradação normal (escada, silêncio) intacta.
+- **Custo:** quem forja quadros com frequência impede o enlace de acelerar. Um atacante em alcance já consegue
+  isso por interferência, então o limite não abre uma porta nova. Durante o congelamento de B, A continua propondo
+  e recebendo "não", contido pelo recuo exponencial da negociação (`neg_backoff`).
+- Com os padrões, a chance de forjar um quadro antes de o congelamento começar é de 5 × 2^-32 por janela, contra
+  2^-31 tentativas em média sem o limite. A truncagem de CMAC a 32 bits é permitida pela
 NIST SP 800-38B, que a condiciona a um limite de verificações falhas; **conferir o texto atual da norma**. CCM com tag
 de 4 B (como no 802.15.4) é a alternativa que já traz confidencialidade, mas o payload de 9 B não pede sigilo.
 Impacto no ar: passar de 4 B para 8 B de MIC acrescenta 4 B por quadro (SF10/125: +~41 ms por quadro de controle).
@@ -154,9 +169,8 @@ Diferenças que restam, todas de representação:
 ## 8. Pendências
 
 1. Colisão de endereços curtos (16 bits) e como derivar do identificador.
-2. (algoritmo decidido em 16/11/2026: AES-128-CMAC truncado, §6) Falta o formato de provisionamento e de rotação
-   das chaves (`key_id`), e o requisito de limitar falhas de MIC (*n* falhas em *T* segundos travam a aceleração,
-   §6), que muda o protocolo e entra junto em `endpoint.py` e `endpoint.c`. A **ressincronização depois
+2. (algoritmo decidido em 16/11/2026: AES-128-CMAC truncado, §6; limite de falhas de MIC implementado em
+   17/11/2026, §6) Falta o formato de provisionamento e de rotação das chaves (`key_id`). A **ressincronização depois
    de uma ausência longa** foi verificada na simulação (teste `test_ausencia_longa_ressincroniza`, nos quatro
    pares Py/C): com 15 min a 12 h sem enlace, com ou sem reinício de um dos nós ao voltar, os dois voltam a DATA no
    mesmo modo em 0,3 a 7 min (descida por silêncio até o modo base, HELLO e nova negociação). O que continua

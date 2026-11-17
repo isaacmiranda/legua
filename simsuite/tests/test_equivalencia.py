@@ -120,3 +120,30 @@ def test_ausencia_longa_ressincroniza(shim, horas, reboot):
             t_ok = t - h1
             break
     assert t_ok is not None and t_ok < 600_000, f"reacordo em {t_ok} ms"
+
+
+@precisa_cc
+def test_falhas_de_mic_congelam_a_negociacao(shim):
+    """docs/07 §6: n quadros com MIC inválido na janela disparam o alarme; durante o congelamento ninguém troca de
+    modo (A não propõe e B vota "não"), e o modo atual é mantido. Os quatro pares Py/C seguem idênticos."""
+    from dataclasses import replace
+    hold = 900.0
+    cfg = replace(FAST, mic_fail_n=3, mic_fail_window=300.0, mic_fail_hold=hold)
+    # enlace fraco até 600 s (fica no base) e bom depois; forjados chegam a B (nó 2, que vota) em 300 s
+    inj = [(t, 2, "forjado") for t in (300_000, 301_000, 302_000)]
+
+    def g(t):
+        return -152.0 if t < 600_000 else -136.0
+    base = _confere(dict(cfg=cfg, gain=g, T=2_400_000, chan_seed=11, inject=inj), "mic")
+    assert base["stats"][2]["alarmes_mic"] == 1 and base["stats"][1]["alarmes_mic"] == 0
+    t_al = next(t for t, nid, _c, acts, _s in base["trace"] if nid == 2 and ("alarme_mic",) in acts)
+    trocas = [t for t, _n, _c, acts, _s in base["trace"] for a in acts if a[0] == "modo" and a[3] == 1]
+    assert trocas, "o enlace bom deveria acelerar depois do congelamento"
+    assert not [t for t in trocas if t_al <= t < t_al + hold * 1000], "trocou de modo durante o congelamento"
+    assert base["stats"][1]["neg_fail"] >= 1, "A deveria ter proposto e recebido 'não' durante o congelamento"
+    # sem o limite, o mesmo cenário acelera dentro dessa janela
+    sem = H.rodar(dict(cfg=replace(cfg, mic_fail_n=0), gain=g, T=2_400_000, chan_seed=11, inject=inj),
+                  ("py", "py"))
+    assert sem["stats"][2]["alarmes_mic"] == 0
+    assert [t for t, _n, _c, acts, _s in sem["trace"] for a in acts
+            if a[0] == "modo" and a[3] == 1 and t_al <= t < t_al + hold * 1000]
