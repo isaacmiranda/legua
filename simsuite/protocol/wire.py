@@ -1,7 +1,7 @@
 """Formato de pacote v0 da Légua (docs/07). Referência executável do codec do núcleo C.
 
 Cabeçalho de 8 B + corpo + MIC de 4 B. Tamanhos fixos por tipo: DATA 24 B, ACK 14 B,
-controle (HELLO/PROPOSE/VOTE/COMMIT) 16 B. Big-endian.
+controle (HELLO/PROPOSE/VOTE/COMMIT/RESYNC/RESYNC_RSP) 16 B. Big-endian.
 
 O MIC aqui é um hash com chave **só para teste** (FNV-1a de 32 bits), usado pela simulação e pelo teste de
 equivalência. Não é segurança. O MIC v0 real é AES-128-CMAC truncado a 4 B (docs/07 §6, `mic.py`).
@@ -16,8 +16,8 @@ VERSION = 0
 HDR_LEN = 8
 MIC_LEN = 4
 
-T_HELLO, T_DATA, T_ACK, T_PROPOSE, T_VOTE, T_COMMIT = 1, 2, 3, 4, 5, 6
-BODY_LEN = {T_HELLO: 4, T_DATA: 12, T_ACK: 2, T_PROPOSE: 4, T_VOTE: 4, T_COMMIT: 4}
+T_HELLO, T_DATA, T_ACK, T_PROPOSE, T_VOTE, T_COMMIT, T_RESYNC, T_RESYNC_RSP = 1, 2, 3, 4, 5, 6, 7, 8
+BODY_LEN = {T_HELLO: 4, T_DATA: 12, T_ACK: 2, T_PROPOSE: 4, T_VOTE: 4, T_COMMIT: 4, T_RESYNC: 4, T_RESYNC_RSP: 4}
 FRAME_LEN = {t: HDR_LEN + n + MIC_LEN for t, n in BODY_LEN.items()}   # 16, 24, 14, 16, 16, 16
 
 F_ACKREQ, F_FRAG = 0x01, 0x02          # flags (byte 1); bits 2-3 = id da chave; 4-7 reservados
@@ -51,17 +51,18 @@ def test_mic(key, src, ctr32, data):
     return h
 
 
-def pack(ftype, src, dst, ctr32, body, key=TEST_KEY, flags=0):
+def pack(ftype, src, dst, ctr32, body, key=TEST_KEY, flags=0, extra=b""):
+    """`extra`: dado que entra no MIC depois do corpo e não vai ao ar (o nonce do RESYNC_RSP, docs/07 §6.3)."""
     if len(body) != BODY_LEN[ftype]:
         raise ValueError("corpo com tamanho errado para o tipo")
     hdr = bytes([(VERSION << 5) | ftype, flags]) + src.to_bytes(2, "big") + dst.to_bytes(2, "big") \
         + (ctr32 & 0xFFFF).to_bytes(2, "big")
     data = hdr + bytes(body)
-    return data + test_mic(key, src, ctr32, data).to_bytes(4, "big")
+    return data + test_mic(key, src, ctr32, data + bytes(extra)).to_bytes(4, "big")
 
 
-def unpack(raw, ctr32, key=TEST_KEY):
-    """Devolve dict ou levanta ValueError. ctr32 é o contador completo já reconstruído."""
+def unpack(raw, ctr32, key=TEST_KEY, extra=b""):
+    """Devolve dict ou levanta ValueError. ctr32 é o contador completo já reconstruído (no RESYNC_RSP, o do corpo)."""
     if len(raw) < HDR_LEN + MIC_LEN:
         raise ValueError("curto")
     ver, ftype = raw[0] >> 5, raw[0] & 0x1F
@@ -74,10 +75,15 @@ def unpack(raw, ctr32, key=TEST_KEY):
     src, dst = int.from_bytes(raw[2:4], "big"), int.from_bytes(raw[4:6], "big")
     if (ctr32 & 0xFFFF) != int.from_bytes(raw[6:8], "big"):
         raise ValueError("contador inconsistente")
-    if test_mic(key, src, ctr32, raw[:-4]) != int.from_bytes(raw[-4:], "big"):
+    if test_mic(key, src, ctr32, raw[:-4] + bytes(extra)) != int.from_bytes(raw[-4:], "big"):
         raise ValueError("mic")
     return {"type": ftype, "flags": raw[1], "src": src, "dst": dst, "ctr16": ctr32 & 0xFFFF,
             "body": bytes(raw[8:-4])}
+
+
+def rsp_ctr32(raw):
+    """Contador completo do RESYNC_RSP: vem no corpo, porque o receptor perdido não consegue reconstruí-lo."""
+    return int.from_bytes(raw[8:12], "big")
 
 
 def reconstruct_ctr(last32, ctr16):
@@ -101,7 +107,11 @@ def _vetores(seed=7):
                     body[3] = 0                        # o último byte de HELLO/PROPOSE segue reservado
                 body = bytes(body)
             src, dst = rng.randrange(1, 0xFFFE), rng.randrange(1, 0xFFFE)
-            out.append((ctr, pack(t, src, dst, ctr, body, flags=rng.choice((0, F_ACKREQ, F_ACKREQ | 0x04)))))
+            extra = b""
+            if t == T_RESYNC_RSP:                      # o corpo leva o contador completo; o nonce entra só no MIC
+                body, extra = ctr.to_bytes(4, "big"), bytes(rng.randrange(256) for _ in range(4))
+            out.append((ctr, pack(t, src, dst, ctr, body, flags=rng.choice((0, F_ACKREQ, F_ACKREQ | 0x04)),
+                                  extra=extra), extra))
     return out
 
 
@@ -111,8 +121,9 @@ def main(argv=None):
     a = ap.parse_args(argv)
     with open(a.vetores, "w") as fh:
         fh.write("# vetores do codec v0 (gerado por simsuite.protocol.wire; chave de teste 00..0f)\n")
-        for ctr, raw in _vetores():
-            fh.write(f"{ctr} {raw.hex()}\n")
+        fh.write("# <ctr32> <quadro> [<dado extra do MIC>]\n")
+        for ctr, raw, extra in _vetores():
+            fh.write(f"{ctr} {raw.hex()}" + (f" {extra.hex()}" if extra else "") + "\n")
     return 0
 
 

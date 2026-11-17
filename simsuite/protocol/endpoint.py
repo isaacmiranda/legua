@@ -90,6 +90,9 @@ class Config:
     mic_fail_n: int = 5              # falhas de MIC na janela -> congela a negociação (0 = desligado; até 8)
     mic_fail_window: float = 600.0   # s
     mic_fail_hold: float = 3600.0    # s de congelamento (renovado se as falhas continuarem)
+    resync_n: int = 8                # quadros do par recusados seguidos -> pede RESYNC (0 = desligado; docs/07 §6.3)
+    t_resync_min: float = 30.0       # s: recuo inicial entre pedidos e intervalo mínimo entre respostas
+    t_resync_max: float = 600.0      # s: teto do recuo (dobra a cada pedido sem resposta)
     fade_k: float = 0.0              # margem de aceleração += fade_k x desvio do SNR (0 = desligado)
     fade_window: int = 30            # amostras de SNR para o desvio
     power_control: bool = True
@@ -106,9 +109,11 @@ class Endpoint:
         self._nv_dirty = False
         self.stats = dict(trocas=0, rollbacks=0, degradacoes=0, quedas_base=0, neg_ok=0,
                           neg_fail=0, neg_recusa=0, desc_silencio=0, alarmes=0, rejeitados=0,
-                          tx_ctrl=0, entregues=0, gerados=0, perdidos=0, alarmes_mic=0)
+                          tx_ctrl=0, entregues=0, gerados=0, perdidos=0, alarmes_mic=0, resync_pedidos=0, resync_ok=0)
         if not 0 <= cfg.mic_fail_n <= MIC_RING:
             raise ValueError(f"mic_fail_n vai de 0 a {MIC_RING}")
+        if cfg.resync_n and not 0 < cfg.t_resync_min <= cfg.t_resync_max:
+            raise ValueError("t_resync_min deve ser > 0 e <= t_resync_max")
         self._boot(0.0)
 
     # ----------------------------------------------------------------- base
@@ -142,6 +147,11 @@ class Endpoint:
         self.freeze_until = now
         self.mic_fail_times = []
         self.mic_block = now                 # até quando vota "não" por falhas de MIC
+        self.rs_fails = 0                    # quadros do par recusados desde o último válido (docs/07 §6.3)
+        self.rs_nonce = None                 # nonce do pedido de RESYNC pendente
+        self.rs_next = now                   # instante mais cedo do próximo pedido
+        self.rs_backoff = self.cfg.t_resync_min
+        self.rs_rsp_next = now               # instante mais cedo da próxima resposta
         self.key_cur = self.nvm["key"]
         self.key_prev = self.nvm["key_prev"]
         self.speed = 0.0
@@ -319,16 +329,27 @@ class Endpoint:
             return acts
         if f.ctr <= self.peer_ctr:
             self.stats["rejeitados"] += 1
-            return [("log", {"ev": "rejeitado", "tipo": f.kind})]
+            return [("log", {"ev": "rejeitado", "tipo": f.kind})] + self._rs_note_fail(now)
         if not self._key_acceptable(f.key) or not f.auth:
             # key_id fora do aceito ou MIC inválido: contador na janela, conta como falha de MIC
             self.stats["rejeitados"] += 1
-            return [("log", {"ev": "rejeitado", "tipo": f.kind})] + self._mic_fail(now)
+            return [("log", {"ev": "rejeitado", "tipo": f.kind})] + self._mic_fail(now) + self._rs_note_fail(now)
         self.peer_ctr = f.ctr
         if f.ctr // 64 > self.nvm["peer_blk"]:           # grava o piso do par a cada bloco de 64
             self.nvm["peer_blk"] = f.ctr // 64
             self._nv_dirty = True
         acts += self._key_seen(f.key)
+        self.rs_fails = 0
+        if f.kind == "RESYNC_RSP":           # ressincronizado: o piso do par subiu para o contador do par
+            self.rs_nonce, self.rs_backoff, self.rs_next = None, self.cfg.t_resync_min, now
+            self.stats["resync_ok"] += 1
+            return acts + [("log", {"ev": "resync", "arg": 1})]
+        if f.kind == "RESYNC":               # o par perdeu o contador: responde (no máximo uma por t_resync_min)
+            if self.cfg.resync_n and _due(now, self.rs_rsp_next):
+                self.rs_rsp_next = now + self.cfg.t_resync_min
+                acts.append(("tx", self._frame("RESYNC_RSP", CTRL_BYTES, nonce=f.body["nonce"])))
+                self.stats["tx_ctrl"] += 1
+            return acts
         if "cap" in f.body:
             self.peer_cap = f.body["cap"]
         if f.mode != self.mode:
@@ -448,6 +469,22 @@ class Endpoint:
             return None
         self.key_cur, self.key_prev = (self.key_cur + 1) % 4, True
         return self._flush(self._key_log())
+
+    def _rs_note_fail(self, now):
+        """Ressincronização do contador do par (docs/07 §6.3): `resync_n` quadros do par recusados seguidos, sem nenhum
+        válido, pedem um RESYNC com nonce novo; recuo exponencial entre pedidos."""
+        c = self.cfg
+        if not c.resync_n:
+            return []
+        self.rs_fails = min(255, self.rs_fails + 1)
+        if self.rs_fails < c.resync_n or not _due(now, self.rs_next):
+            return []
+        self.rs_nonce = int(round(self.rng.uniform(0.001, 4294967.295) * 1000))
+        self.rs_next = now + self.rs_backoff
+        self.rs_backoff = min(self.rs_backoff * 2, c.t_resync_max)
+        self.stats["tx_ctrl"] += 1
+        self.stats["resync_pedidos"] += 1
+        return [("tx", self._frame("RESYNC", CTRL_BYTES, nonce=self.rs_nonce)), ("log", {"ev": "resync", "arg": 0})]
 
     def _mic_fail(self, now):
         """Limite de falhas de MIC: n falhas na janela congelam a negociação, sem mudar de modo (docs/07 §6)."""

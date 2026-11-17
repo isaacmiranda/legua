@@ -28,7 +28,8 @@ static const pdef PD[] = {
     PU(t_recovery_ms), PU(t_valid_ms), PU(vote_timeout_ms), PU(instant_delay_ms), PU(hello_interval_ms),
     PU(neg_backoff0_ms), PU(neg_backoff_max_ms), PB(n_up), PB(fail_streak_degrade), PB(retries), PB(k_valid),
     PB(f_valid), PB(rollback_alarm), PB(ladder_recovery_only), PB(persist_at_commit), PB(silence_descent),
-    PB(validation), PB(mobile), PB(power_control), PB(mic_fail_n), PU(mic_fail_window_ms), PU(mic_fail_hold_ms)
+    PB(validation), PB(mobile), PB(power_control), PB(mic_fail_n), PU(mic_fail_window_ms), PU(mic_fail_hold_ms),
+    PB(resync_n), PU(t_resync_min_ms), PU(t_resync_max_ms)
 };
 
 /* Valor de um parâmetro de um perfil nomeado (para conferir com simsuite/protocol/perfis.py). */

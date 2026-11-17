@@ -25,7 +25,9 @@ extern "C" {
 
 enum legua_type {
     LEGUA_T_HELLO = 1, LEGUA_T_DATA = 2, LEGUA_T_ACK = 3,
-    LEGUA_T_PROPOSE = 4, LEGUA_T_VOTE = 5, LEGUA_T_COMMIT = 6
+    LEGUA_T_PROPOSE = 4, LEGUA_T_VOTE = 5, LEGUA_T_COMMIT = 6,
+    LEGUA_T_RESYNC = 7,             /* pedido de ressincronização do contador, corpo = nonce (docs/07 §6.3) */
+    LEGUA_T_RESYNC_RSP = 8          /* resposta: corpo = contador completo; o nonce entra só no MIC */
 };
 
 #define LEGUA_F_ACKREQ 0x01u
@@ -39,6 +41,8 @@ typedef struct {
     uint16_t ctr16;                 /* 16 bits baixos do contador */
     uint8_t  body_len;
     uint8_t  body[12];
+    uint8_t  extra[4];              /* dado que entra no MIC depois do corpo e não vai ao ar (RESYNC_RSP: o nonce) */
+    uint8_t  extra_len;             /* 0 ou 4 */
 } legua_frame;
 
 /* Modo de rádio. O byte de modo (mode_id) é SF-5 (3b) | BW (2b) | CR-1 (2b) | FHSS (1b). */
@@ -76,6 +80,9 @@ int legua_frame_decode(const uint8_t *raw, size_t len, legua_frame *f);
 /* Confere o MIC com o contador completo já reconstruído. 1 = válido; 0 = inválido ou sem chave. */
 int legua_frame_verify(const uint8_t *raw, size_t len, uint32_t ctr32,
                        const legua_env *env);
+/* Igual, com `extra` (extra_len bytes) acrescentado aos dados do MIC: o RESYNC_RSP (docs/07 §6.3). */
+int legua_frame_verify_x(const uint8_t *raw, size_t len, uint32_t ctr32, const legua_env *env,
+                         const uint8_t *extra, size_t extra_len);
 /* Reconstrói ctr32 a partir de ctr16 e do último aceito. 0 se repetido ou antigo. */
 int legua_ctr_reconstruct(uint32_t last32, uint16_t ctr16, uint32_t *out);
 
@@ -100,7 +107,8 @@ enum legua_log {
     LEGUA_LOG_MIC_ALARM,     /* mic_fail_n falhas de MIC na janela: negociação congelada (docs/07 §6) */
     LEGUA_LOG_KEY,           /* estado da chave mudou: arg = key_id de TX | (chave anterior aceita) << 8 (docs/07 §6.2) */
     LEGUA_LOG_REJ_KEY,       /* quadro com key_id fora do aceito (antes do MIC); conta como falha de MIC */
-    LEGUA_LOG_CTR_END        /* contador de TX esgotado: o nó para de transmitir até ser reprovisionado */
+    LEGUA_LOG_CTR_END,       /* contador de TX esgotado: o nó para de transmitir até ser reprovisionado */
+    LEGUA_LOG_RESYNC         /* ressincronização do contador do par: arg 0 = pedido enviado, 1 = concluída (docs/07 §6.3) */
 };
 
 enum legua_state {
@@ -160,6 +168,8 @@ typedef struct {
     uint8_t  power_control;
     uint8_t  mic_fail_n;            /* falhas de MIC na janela -> congela a negociação (0 = desligado; até LEGUA_MIC_RING) */
     uint32_t mic_fail_window_ms, mic_fail_hold_ms;
+    uint8_t  resync_n;              /* quadros do par recusados seguidos -> pede RESYNC (0 = desligado; docs/07 §6.3) */
+    uint32_t t_resync_min_ms, t_resync_max_ms;   /* recuo entre pedidos (dobra até o teto); intervalo mínimo entre respostas */
 } legua_params;
 
 void legua_params_default(legua_params *p);
@@ -200,7 +210,7 @@ typedef struct {
 
 typedef struct {
     uint32_t trocas, rollbacks, degradacoes, quedas_base, neg_ok, neg_fail, neg_recusa, desc_silencio,
-             alarmes, rejeitados, tx_ctrl, entregues, gerados, perdidos, duplicados, acked, tx, alarmes_mic;
+             alarmes, rejeitados, tx_ctrl, entregues, gerados, perdidos, duplicados, acked, tx, alarmes_mic, resync_pedidos, resync_ok;
 } legua_stats;
 
 #define LEGUA_SNR_WIN 30
@@ -247,6 +257,10 @@ typedef struct {
     float    speed, peer_speed;
     int8_t   peer_cap;              /* teto de TX do par, aprendido em HELLO/PROPOSE/VOTE (docs/07 §4) */
     uint8_t  peer_cap_set;
+    /* ressincronização do contador do par (docs/07 §6.3) */
+    uint8_t  rs_fails;              /* quadros do par recusados desde o último válido (satura em 255) */
+    uint8_t  rs_nonce_set;
+    uint32_t rs_nonce, rs_next, rs_backoff, rs_rsp_next;
     legua_stats st;
 } legua_endpoint;
 

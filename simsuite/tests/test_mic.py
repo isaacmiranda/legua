@@ -57,4 +57,4 @@ def test_mic_c_igual_python():
     assert r.returncode == 0, r.stderr
     r = subprocess.run([os.path.join(CORE, "build", "test_mic"), os.path.join(CORE, "tests", "vectors", "mic.txt")],
                        capture_output=True, text=True)
-    assert r.returncode == 0 and "36 vetores de quadro, ok" in r.stdout, r.stdout
+    assert r.returncode == 0 and "48 vetores de quadro, ok" in r.stdout, r.stdout

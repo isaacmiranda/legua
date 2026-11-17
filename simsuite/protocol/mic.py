@@ -104,12 +104,12 @@ def _vetores():
     from . import wire
     keys = {0: wire.TEST_KEY, 1: bytes.fromhex("2b7e151628aed2a6abf7158809cf4f3c")}
     out = []
-    for ctr, raw in wire._vetores():
+    for ctr, raw, extra in wire._vetores():
         key_id = (raw[1] >> 2) & 3
         data = raw[:-wire.MIC_LEN]
         src = int.from_bytes(raw[2:4], "big")
-        m = mic_cmac(keys[key_id], key_id, src, ctr, data)
-        out.append((key_id, ctr, data + m.to_bytes(4, "big")))
+        m = mic_cmac(keys[key_id], key_id, src, ctr, data + extra)
+        out.append((key_id, ctr, data + m.to_bytes(4, "big"), extra))
     return keys, out
 
 
@@ -120,11 +120,11 @@ def main(argv=None):
     keys, vec = _vetores()
     with open(a.vetores, "w") as fh:
         fh.write("# vetores do MIC v0 (AES-128-CMAC truncado a 4 B; gerado por simsuite.protocol.mic)\n")
-        fh.write("# K <key_id> <chave>  |  <key_id> <ctr32> <quadro com MIC>\n")
+        fh.write("# K <key_id> <chave>  |  <key_id> <ctr32> <quadro com MIC> [<dado extra>]\n")
         for kid, k in sorted(keys.items()):
             fh.write(f"K {kid} {k.hex()}\n")
-        for kid, ctr, raw in vec:
-            fh.write(f"{kid} {ctr} {raw.hex()}\n")
+        for kid, ctr, raw, extra in vec:
+            fh.write(f"{kid} {ctr} {raw.hex()}" + (f" {extra.hex()}" if extra else "") + "\n")
     print(f"{len(vec)} vetores em {a.vetores}")
     return 0
 

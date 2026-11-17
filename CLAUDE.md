@@ -10,7 +10,8 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
 - `simsuite/` (Python): suíte de simulação, referência executável do protocolo.
 - `core/` (C99): **Fases 0 e 2** prontas: codec do pacote v0 (controle de 16 B), tempo no ar, DATA/ACK, descoberta,
   negociação PROPOSE/VOTE/COMMIT, validação, âncora, rollback, escada, silêncio, potência, perfil móvel, `fade_k`,
-  registro de NVM (âncora, bloco do contador, piso do par), teto de TX do par nos controles (margem do pior sentido). É **equivalente a `simsuite/protocol/endpoint.py`**: o
+  registro de NVM (âncora, bloco do contador, piso do par), teto de TX do par nos controles (margem do pior sentido),
+  ressincronização autenticada do contador do par (RESYNC/RESYNC_RSP, docs/07 §6.3). É **equivalente a `simsuite/protocol/endpoint.py`**: o
   teste de equivalência compara os rastros byte a byte nos quatro pares Py/C. **Ainda não existem:** driver SX1262,
   porte ESP32, exemplos Arduino/ESP-IDF, guarda das chaves no porte, CAD/LBT.
 - **MIC v0:** AES-128-CMAC truncado a 4 B (docs/07 §6). Referência opcional em `core/src/mic_cmac.c` e
@@ -43,7 +44,7 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   interativo da aba "Comece aqui" e o glossário. Cartão novo no `app.js` = entrada nova em `EX` (o teste `test_explica.py` confere).
 - Validação sim×sim: LoRaSim e Meshtasticator com os **originais executados** (docs/09 §9.1; clones em `~/.cache/ext/`,
   `simpy==3.0.10` opcional). Rascunho de artigo em `docs/10`. Licença: Apache-2.0 (`LICENSE`). Cenário `P` = varredura de potência de TX; `V` e `S` = varreduras da janela de validação e do silêncio; `X` = estresses (erro de relógio × cristal, perda assimétrica, teto × `fade_k`, desvanecimento lento por sentido). Roteamento por
-  inundação do Meshtastic: decidido não comparar (docs/09 §9.1). Próximo: ressincronização autenticada do contador do par (desenho em docs/07 §6.3; implementar após decisão do autor, muda o formato de fio). A escala `full` leva ~1 h 45 min com `--procs 1`; repetir se o protocolo mudar.
+  inundação do Meshtastic: decidido não comparar (docs/09 §9.1). Ressincronização do contador feita em 17/11/2026 (docs/07 §6.3). A escala `full` leva ~1 h 45 min com `--procs 1`; repetir se o protocolo mudar.
 
 ## Comandos
 ```bash

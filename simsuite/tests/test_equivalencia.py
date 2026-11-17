@@ -203,3 +203,34 @@ def test_tetos_diferentes_o_par_decide_pelo_pior_sentido(shim, caps, ganho, acel
         assert s["neg_fail"] == 0 and s["rollbacks"] == 0, (nid, s)
         assert (s["trocas"] >= 1) == acelera, (nid, s)
     assert base["final"][1][0] == base["final"][2][0]
+
+
+@precisa_cc
+def test_ressincroniza_o_contador_do_par_perdido(shim):
+    """docs/07 §6.3: B volta com o piso do par muito atrás do contador de A (mais de 32767 quadros). Todo quadro de A
+    é recusado em B (contador "antigo"); depois de resync_n recusas B pede RESYNC e A responde com o contador completo,
+    autenticado pelo nonce. Sem o recurso, o enlace A->B nunca volta. Os quatro pares Py/C seguem idênticos."""
+    from dataclasses import replace
+    nvm = ({"ctr_block": 3000}, None)                     # A transmite a partir de ~192000; B acha que o par está em 0
+    sc = dict(cfg=FAST, gain=lambda t: -138.0, T=1_800_000, chan_seed=3, nvm=nvm)
+    base = _confere(sc, "resync")
+    b, a = base["stats"][2], base["stats"][1]
+    assert b["resync_pedidos"] >= 1 and b["resync_ok"] == 1, b
+    assert a["resync_pedidos"] == 0 and a["tx_ctrl"] > 0
+    assert b["entregues"] > 0 and b["trocas"] + a["trocas"] >= 1, "o enlace deveria voltar e acelerar"
+    sem = H.rodar(dict(sc, cfg=replace(FAST, resync_n=0)), ("py", "py"))
+    assert sem["stats"][2]["entregues"] == 0 and sem["stats"][2]["resync_pedidos"] == 0, "sem RESYNC o enlace não volta"
+
+
+@precisa_cc
+def test_resync_recusa_resposta_forjada_antiga_e_sem_pedido(shim):
+    """Uma resposta sem pedido pendente não tem nonce para conferir: é recusada nos dois núcleos e não muda o piso do par."""
+    from simsuite.protocol import wire
+    cfg = FAST
+    for kind in ("py", "c"):
+        a = H.PyAdapter(2, 1, 5, cfg) if kind == "py" else H.CAdapter(2, 1, 5, cfg, handle=0)
+        a.on_timer(0)
+        # resposta sem pedido pendente (nonce arbitrário): recusada, contada
+        raw = wire.pack(wire.T_RESYNC_RSP, 1, 2, 70000, (70000).to_bytes(4, "big"), extra=(1234).to_bytes(4, "big"))
+        a.on_rx(raw, H.mode_id_of(H.BASE_MODE), -900, 100, 1000)
+        assert a.stats()["resync_ok"] == 0 and a.stats()["rejeitados"] == 1, kind

@@ -32,12 +32,12 @@ REASON_CODE = {"troca": 1, "falhas": 2, "silencio": 3, "silencio_rec": 4,
                "validacao_falhou": 5, "validacao_expirou": 6}
 STATS = ["trocas", "rollbacks", "degradacoes", "quedas_base", "neg_ok", "neg_fail", "neg_recusa",
          "desc_silencio", "alarmes", "rejeitados", "tx_ctrl", "entregues", "gerados", "perdidos",
-         "duplicados", "acked", "tx", "alarmes_mic"]       # ordem de legua_stats (core/include/legua/legua.h)
+         "duplicados", "acked", "tx", "alarmes_mic", "resync_pedidos", "resync_ok"]       # ordem de legua_stats (core/include/legua/legua.h)
 TURNAROUND_MS = 6
 ACK_BYTES, CTRL_BYTES, DATA_BYTES = 14, 16, 24
 
 LOG_CODES = {8: "modo", 9: "propose", 10: "neg_falhou", 11: "validado", 12: "commit_rx", 13: "alarme",
-             14: "alarme_mic", 15: "chave", 16: "rej_chave", 17: "ctr_fim"}
+             14: "alarme_mic", 15: "chave", 16: "rej_chave", 17: "ctr_fim", 18: "resync"}
 LOG_REJ = {1, 2, 3, 16}
 
 
@@ -79,10 +79,10 @@ _PARAM_MS = {"cooldown_up": "cooldown_up_ms", "cooldown_back": "cooldown_back_ms
              "vote_timeout": "vote_timeout_ms", "instant_delay": "instant_delay_ms",
              "hello_interval": "hello_interval_ms", "neg_backoff0": "neg_backoff0_ms",
              "neg_backoff_max": "neg_backoff_max_ms", "mic_fail_window": "mic_fail_window_ms",
-             "mic_fail_hold": "mic_fail_hold_ms"}
+             "mic_fail_hold": "mic_fail_hold_ms", "t_resync_min": "t_resync_min_ms", "t_resync_max": "t_resync_max_ms"}
 _PARAM_PLAIN = ["margin_target", "margin_up", "ladder_step", "max_budget_jump", "ema_a", "v_freeze",
                 "snr_std_freeze", "fade_k", "fade_window", "n_up", "fail_streak_degrade", "retries", "k_valid", "f_valid",
-                "rollback_alarm", "power_control", "mobile", "silence_descent", "validation", "mic_fail_n"]
+                "rollback_alarm", "power_control", "mobile", "silence_descent", "validation", "mic_fail_n", "resync_n"]
 
 
 def c_params(cfg):
@@ -97,7 +97,7 @@ def c_params(cfg):
 def frame_to_raw(f, speed_q):
     """Frame do `Endpoint` -> bytes do formato v0 (docs/07), com as quantizações do fio."""
     t = {"HELLO": wire.T_HELLO, "DATA": wire.T_DATA, "ACK": wire.T_ACK, "PROPOSE": wire.T_PROPOSE,
-         "VOTE": wire.T_VOTE, "COMMIT": wire.T_COMMIT}[f.kind]
+         "VOTE": wire.T_VOTE, "COMMIT": wire.T_COMMIT, "RESYNC": wire.T_RESYNC, "RESYNC_RSP": wire.T_RESYNC_RSP}[f.kind]
     b = f.body
     sp = speed_q(b.get("v", 0.0))
     flags = 0
@@ -114,24 +114,37 @@ def frame_to_raw(f, speed_q):
         body = bytes([NAME_ID[b["cand"]], sp, b["cap"] + 9, 0])
     elif t == wire.T_VOTE:
         body = bytes([NAME_ID[b["cand"]], 1 if b["yes"] else 0, sp, b["cap"] + 9])
+    elif t == wire.T_RESYNC:
+        body = b["nonce"].to_bytes(4, "big")
+    elif t == wire.T_RESYNC_RSP:
+        body = f.ctr.to_bytes(4, "big")                # o contador completo; o nonce entra só no MIC
     else:
         d = round(b["delay"] * 1000)
         body = bytes([NAME_ID[b["cand"]], d >> 8, d & 0xFF, sp])
-    return wire.pack(t, f.src, f.dst, f.ctr, body, flags=flags | (f.key << 2))
+    return wire.pack(t, f.src, f.dst, f.ctr, body, flags=flags | (f.key << 2),
+                     extra=b["nonce"].to_bytes(4, "big") if t == wire.T_RESYNC_RSP else b"")
 
 
 def raw_to_frame(ep, raw, mode, keys=0x0F):
     """bytes -> Frame para o `Endpoint` (None se o quadro for malformado). `keys`: chaves carregadas no receptor."""
     try:
         hdr_ctr16 = int.from_bytes(raw[6:8], "big")
-        ctr32 = wire.reconstruct_ctr(max(ep.peer_ctr, 0), hdr_ctr16)
+        rsp = (raw[0] & 0x1F) == wire.T_RESYNC_RSP
+        if rsp:                                        # o contador completo vem no corpo (docs/07 §6.3)
+            ctr32 = wire.rsp_ctr32(raw)
+            if (ctr32 & 0xFFFF) != hdr_ctr16:
+                ctr32 = None
+        else:
+            ctr32 = wire.reconstruct_ctr(max(ep.peer_ctr, 0), hdr_ctr16)
         if ctr32 is None:
             # repetido ou antigo: o Endpoint o rejeita por `ctr <= peer_ctr`
             ftype = raw[0] & 0x1F
             return Frame("DATA", int.from_bytes(raw[2:4], "big"), int.from_bytes(raw[4:6], "big"), mode, 0.0,
                          ctr=-1, auth=True)
         try:
-            d = wire.unpack(raw, ctr32)
+            if rsp and ep.rs_nonce is None:
+                raise ValueError("mic")                 # sem pedido pendente não há nonce: o MIC não confere
+            d = wire.unpack(raw, ctr32, extra=ep.rs_nonce.to_bytes(4, "big") if rsp else b"")
             auth = True
         except ValueError as e:
             if str(e) != "mic":
@@ -142,7 +155,8 @@ def raw_to_frame(ep, raw, mode, keys=0x0F):
         return None
     t, b = d["type"], d["body"]
     kind = {wire.T_HELLO: "HELLO", wire.T_DATA: "DATA", wire.T_ACK: "ACK", wire.T_PROPOSE: "PROPOSE",
-            wire.T_VOTE: "VOTE", wire.T_COMMIT: "COMMIT"}[t]
+            wire.T_VOTE: "VOTE", wire.T_COMMIT: "COMMIT", wire.T_RESYNC: "RESYNC",
+            wire.T_RESYNC_RSP: "RESYNC_RSP"}[t]
     p = ep._cap(mode)
     body, seq = {}, 0
     if t == wire.T_DATA:
@@ -159,6 +173,10 @@ def raw_to_frame(ep, raw, mode, keys=0x0F):
     elif t == wire.T_VOTE:
         body = {"cand": MODE_BY_ID[b[0]].name if b[0] in MODE_BY_ID else None, "yes": bool(b[1]), "v": b[2] / 2.0,
                 "cap": b[3] - 9}
+    elif t == wire.T_RESYNC:
+        body = {"nonce": int.from_bytes(b, "big")}
+    elif t == wire.T_RESYNC_RSP:
+        body = {}
     else:
         body = {"cand": MODE_BY_ID[b[0]].name if b[0] in MODE_BY_ID else None,
                 "delay": ((b[1] << 8) | b[2]) / 1000.0, "v": b[3] / 2.0}
@@ -212,6 +230,8 @@ class PyAdapter:
                     out.append(("alarme_mic",))
                 elif ev == "chave":
                     out.append(("chave", d["key"], int(d["prev"])))
+                elif ev == "resync":
+                    out.append(("resync", d["arg"]))
                 elif ev == "rejeitado":
                     out.append(("rej",))
         return out
@@ -238,7 +258,8 @@ class PyAdapter:
             f = Frame("COMMIT", self.id, self.peer, m, 0.0, body={"delay": ((raw[9] << 8) | raw[10]) / 1000.0})
         else:
             f = Frame({wire.T_ACK: "ACK", wire.T_HELLO: "HELLO", wire.T_PROPOSE: "PROPOSE",
-                       wire.T_VOTE: "VOTE"}[t], self.id, self.peer, m, 0.0)
+                       wire.T_VOTE: "VOTE", wire.T_RESYNC: "RESYNC",
+                       wire.T_RESYNC_RSP: "RESYNC_RSP"}[t], self.id, self.peer, m, 0.0)
         return self._norm(self.ep.on_tx_done(f, now_ms / 1000.0))
 
     def on_timer(self, now_ms):
@@ -280,7 +301,8 @@ class PyAdapter:
                 "quedas_base": s["quedas_base"], "neg_ok": s["neg_ok"], "neg_fail": s["neg_fail"],
                 "neg_recusa": s["neg_recusa"], "desc_silencio": s["desc_silencio"], "alarmes": s["alarmes"],
                 "rejeitados": s["rejeitados"], "tx_ctrl": s["tx_ctrl"], "entregues": s["entregues"],
-                "gerados": s["gerados"], "perdidos": s["perdidos"], "alarmes_mic": s["alarmes_mic"]}
+                "gerados": s["gerados"], "perdidos": s["perdidos"], "alarmes_mic": s["alarmes_mic"],
+                "resync_pedidos": s["resync_pedidos"], "resync_ok": s["resync_ok"]}
 
 
 # ------------------------------------------------------------------ adaptador C
@@ -371,6 +393,8 @@ class CAdapter:
                     out.append(("chave", arg & 0xFF, (arg >> 8) & 1))
                 elif code == 17:
                     out.append(("ctr_fim",))
+                elif code == 18:
+                    out.append(("resync", arg))
         return out
 
     def on_app(self, now_ms):
@@ -418,7 +442,7 @@ class CAdapter:
 
     def stats(self):
         cur = self._stats_now()
-        return {k: self.acc[k] + cur[k] for k in STATS[:14] + ["alarmes_mic"]}
+        return {k: self.acc[k] + cur[k] for k in STATS[:14] + ["alarmes_mic", "resync_pedidos", "resync_ok"]}
 
 
 # ------------------------------------------------------------------ DES mínimo
@@ -437,7 +461,7 @@ class Channel:
 
 class Run:
     def __init__(self, kinds, cfgs, channel, T_ms, app_ms=(30000, 41000), nvm_cap=28.0, noise_rise=0.0,
-                 reboots=(), speeds=(), inject=(), seeds=(1001, 2002), keys=(), rotations=()):
+                 reboots=(), speeds=(), inject=(), seeds=(1001, 2002), keys=(), rotations=(), nvms=(None, None)):
         self.ch = channel
         self.T = T_ms
         self.q = []
@@ -449,7 +473,7 @@ class Run:
             nid, peer = (1, 2) if i == 0 else (2, 1)
             cls = PyAdapter if kind == "py" else CAdapter
             kw = {"handle": i} if kind == "c" else {}
-            ad = cls(nid, peer, seeds[i], cfg, 0, noise_rise, nvm_cap[i] if isinstance(nvm_cap, (tuple, list)) else nvm_cap, **kw)
+            ad = cls(nid, peer, seeds[i], cfg, 0, noise_rise, nvm_cap[i] if isinstance(nvm_cap, (tuple, list)) else nvm_cap, nvm=nvms[i], **kw)
             self.nodes[nid] = {"ad": ad, "txq": [], "busy": 0, "rx_mode": ad.snapshot()[1],
                                "wakes": set(), "app_rng": XorRng(777 + nid), "app_ms": app_ms, "last_rx": None,
                                "epoch": 0, "ctr_sent": 0}
@@ -737,8 +761,18 @@ def cenario_aleatorio(seed):
         speeds=([(r.randint(100_000, T - 100_000), r.choice([1, 2]), r.choice([0.0, 0.5, 1.5, 3.0, 10.5]))
                  for _ in range(4)] if var == "mobile" else []),
         noise_rise=r.choice([0.0, 0.0, 6.0]), cap=_tetos(seed),
-        **(_eventos_de_chave(r, T) if var == "chave" else {}),
+        **(_eventos_de_chave(r, T) if var == "chave" else {}), nvm=_nvms(seed),
         app_ms=r.choice([(5_000, 15_000), (30_000, 41_000), (60_000, 90_000)]), chan_seed=seed + 5)
+
+
+def _nvms(seed):
+    """Um quinto das sementes começa com o contador de um nó muito à frente do piso que o par guardou (mais de 32767
+    quadros de diferença): é o caso do RESYNC (docs/07 §6.3). Gerador próprio, como `_tetos`."""
+    rc = random.Random(seed * 104729 + 7)
+    if rc.random() >= 0.2:
+        return (None, None)
+    blk = {"ctr_block": rc.choice([520, 1100, 3000, 9000])}
+    return (blk, None) if rc.random() < 0.5 else (None, blk)
 
 
 def _tetos(seed):
@@ -754,7 +788,7 @@ def rodar(sc, kinds):
                noise_rise=sc.get("noise_rise", 0.0), nvm_cap=sc.get("cap", 28.0), reboots=sc.get("reboots", ()),
                speeds=sc.get("speeds", ()), inject=list(sc.get("inject", ())) + list(sc.get("inject_extra", ())),
                keys=sc.get("keys", ()),
-               rotations=sc.get("rotations", ())).run()
+               rotations=sc.get("rotations", ()), nvms=sc.get("nvm", (None, None))).run()
 
 
 def comparar(sc):

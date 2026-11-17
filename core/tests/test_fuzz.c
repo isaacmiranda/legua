@@ -102,7 +102,7 @@ int main(void)
                     legua_on_rx(&EP, buf, len, &rx, now, &a);
                 }
             } else if (kind <= 6) {                          /* válido com campos absurdos: todos os tipos */
-                uint8_t type = (uint8_t)(1u + R(6));
+                uint8_t type = (uint8_t)(1u + R(8));
                 peer_ctr += 1u + R(2);
                 len = build_valid(buf, type, peer_ctr);
                 if (len) { legua_on_rx(&EP, buf, len, &rx, now, &a); ok_frames++; }

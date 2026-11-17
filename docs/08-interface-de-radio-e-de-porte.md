@@ -36,7 +36,7 @@ aplicação
 | `LEGUA_ACT_RX` | `radio.configure(mode_id, ...)` e `start_rx`; **descarta transmissões ainda não iniciadas em outro modo** |
 | `LEGUA_ACT_PERSIST` | grava o registro inteiro em NVM (`port.nvm_store`), de forma atômica: âncora, bloco do contador de TX, piso do contador do par, chave de TX e rotação em curso. No máximo uma por evento |
 | `LEGUA_ACT_DELIVER` | entrega `payload` (9 B) à aplicação (heartbeats não são entregues) |
-| `LEGUA_ACT_LOG` | telemetria (código e argumento): `MODE` (modo, estado e motivo), `PROPOSE`, `NEG_FAIL`, `VALIDATED`, `COMMIT_RX`, `ALARM`, `MIC_ALARM`, `KEY` (estado da chave: com a anterior aposentada, o porte apaga a chave antiga), `CTR_END`, rejeições (`REJ_MIC`, `REJ_REPLAY`, `REJ_FORMAT`, `REJ_KEY`), retransmissão |
+| `LEGUA_ACT_LOG` | telemetria (código e argumento): `MODE` (modo, estado e motivo), `PROPOSE`, `NEG_FAIL`, `VALIDATED`, `COMMIT_RX`, `ALARM`, `MIC_ALARM`, `KEY` (estado da chave: com a anterior aposentada, o porte apaga a chave antiga), `CTR_END`, `RESYNC` (arg 0 = pedido enviado, 1 = contador do par ressincronizado), rejeições (`REJ_MIC`, `REJ_REPLAY`, `REJ_FORMAT`, `REJ_KEY`), retransmissão |
 
 **Tabela de modos.** O núcleo não tem RF embutida. O integrador passa em `legua_config.modes` uma tabela ordenada do
 mais rápido ao mais lento, com `{mode_id, cap_dbm, sens_dbm, toa_data_us}` por modo, mais o modo base e o de

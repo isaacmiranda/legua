@@ -35,6 +35,7 @@ int legua_frame_len(uint8_t type)
     case LEGUA_T_DATA: return LEGUA_LEN_DATA;
     case LEGUA_T_ACK: return LEGUA_LEN_ACK;
     case LEGUA_T_HELLO: case LEGUA_T_PROPOSE: case LEGUA_T_VOTE: case LEGUA_T_COMMIT:
+    case LEGUA_T_RESYNC: case LEGUA_T_RESYNC_RSP:
         return LEGUA_LEN_CTRL;
     default: return -1;
     }
@@ -48,7 +49,8 @@ int legua_frame_encode(const legua_frame *f, uint32_t ctr32, uint8_t key_id,
 {
     int len = legua_frame_len(f->type);
     uint32_t mic;
-    if (len < 0 || f->body_len != len - LEGUA_HDR_LEN - LEGUA_MIC_LEN || (f->flags & 0xF0u))
+    uint8_t tmp[LEGUA_FRAME_MAX + 4];
+    if (len < 0 || f->extra_len > sizeof f->extra || f->body_len != len - LEGUA_HDR_LEN - LEGUA_MIC_LEN || (f->flags & 0xF0u))
         return -1;
     out[0] = (uint8_t)((LEGUA_VERSION << 5) | f->type);
     out[1] = (uint8_t)((f->flags & 0x03u) | ((key_id & 3u) << 2));
@@ -56,7 +58,10 @@ int legua_frame_encode(const legua_frame *f, uint32_t ctr32, uint8_t key_id,
     put16(out + 4, f->dst);
     put16(out + 6, (uint16_t)ctr32);
     memcpy(out + LEGUA_HDR_LEN, f->body, f->body_len);
-    if (env->mic(env->ctx, (uint8_t)(key_id & 3u), f->src, ctr32, out, (size_t)(len - LEGUA_MIC_LEN), &mic) < 0)
+    memcpy(tmp, out, (size_t)(len - LEGUA_MIC_LEN));
+    memcpy(tmp + len - LEGUA_MIC_LEN, f->extra, f->extra_len);
+    if (env->mic(env->ctx, (uint8_t)(key_id & 3u), f->src, ctr32, tmp, (size_t)(len - LEGUA_MIC_LEN) + f->extra_len,
+                 &mic) < 0)
         return -2;
     out[len - 4] = (uint8_t)(mic >> 24); out[len - 3] = (uint8_t)(mic >> 16);
     out[len - 2] = (uint8_t)(mic >> 8);  out[len - 1] = (uint8_t)mic;
@@ -83,13 +88,24 @@ int legua_frame_decode(const uint8_t *raw, size_t len, legua_frame *f)
 
 int legua_frame_verify(const uint8_t *raw, size_t len, uint32_t ctr32, const legua_env *env)
 {
+    return legua_frame_verify_x(raw, len, ctr32, env, NULL, 0);
+}
+
+int legua_frame_verify_x(const uint8_t *raw, size_t len, uint32_t ctr32, const legua_env *env,
+                         const uint8_t *extra, size_t extra_len)
+{
     uint32_t got, want;
-    if (len < LEGUA_HDR_LEN + LEGUA_MIC_LEN || (uint16_t)ctr32 != get16(raw + 6))
+    uint8_t tmp[LEGUA_FRAME_MAX + 4];
+    if (len < LEGUA_HDR_LEN + LEGUA_MIC_LEN || len > LEGUA_FRAME_MAX || extra_len > 4 ||
+        (uint16_t)ctr32 != get16(raw + 6))
         return 0;
+    memcpy(tmp, raw, len - LEGUA_MIC_LEN);
+    if (extra_len)
+        memcpy(tmp + len - LEGUA_MIC_LEN, extra, extra_len);
     got = ((uint32_t)raw[len - 4] << 24) | ((uint32_t)raw[len - 3] << 16) |
           ((uint32_t)raw[len - 2] << 8) | raw[len - 1];
-    if (env->mic(env->ctx, (uint8_t)((raw[1] >> 2) & 3u), get16(raw + 2), ctr32, raw,
-                 len - LEGUA_MIC_LEN, &want) < 0)
+    if (env->mic(env->ctx, (uint8_t)((raw[1] >> 2) & 3u), get16(raw + 2), ctr32, tmp,
+                 len - LEGUA_MIC_LEN + extra_len, &want) < 0)
         return 0;
     return got == want;
 }

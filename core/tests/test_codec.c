@@ -30,13 +30,20 @@ int main(int argc, char **argv)
         size_t len = 0, i;
         legua_frame f;
         uint32_t rebuilt;
+        uint8_t extra[4];
+        size_t nx;
         if (line[0] == '#' || line[0] == '\n') continue;
         ctr = strtoul(line, &hex, 10);
         while (*hex == ' ') hex++;
         for (i = 0; hexval(hex[i]) >= 0 && hexval(hex[i + 1]) >= 0 && len < sizeof raw; i += 2)
             raw[len++] = (uint8_t)(hexval(hex[i]) * 16 + hexval(hex[i + 1]));
+        nx = 0;                                              /* terceira coluna opcional: dado extra do MIC */
+        if (hex[i] == ' ')
+            for (i++; hexval(hex[i]) >= 0 && hexval(hex[i + 1]) >= 0 && nx < sizeof extra; i += 2)
+                extra[nx++] = (uint8_t)(hexval(hex[i]) * 16 + hexval(hex[i + 1]));
         if (legua_frame_decode(raw, len, &f) < 0) { printf("FALHA decode ctr=%lu\n", ctr); fails++; continue; }
-        if (!legua_frame_verify(raw, len, (uint32_t)ctr, &env)) { printf("FALHA mic ctr=%lu\n", ctr); fails++; continue; }
+        if (!legua_frame_verify_x(raw, len, (uint32_t)ctr, &env, extra, nx)) { printf("FALHA mic ctr=%lu\n", ctr); fails++; continue; }
+        memcpy(f.extra, extra, nx); f.extra_len = (uint8_t)nx;
         if (legua_frame_encode(&f, (uint32_t)ctr, (uint8_t)((f.flags >> 2) & 3u), &env, again) != (int)len ||
             memcmp(raw, again, len) != 0) { printf("FALHA reencode ctr=%lu\n", ctr); fails++; continue; }
         /* reconstrução: com last = ctr - 5 deve devolver ctr */
@@ -45,7 +52,7 @@ int main(int argc, char **argv)
         }
         /* adulteração de um bit deve falhar no MIC */
         raw[LEGUA_HDR_LEN] ^= 1u;
-        if (legua_frame_verify(raw, len, (uint32_t)ctr, &env)) { printf("FALHA adulteracao ctr=%lu\n", ctr); fails++; continue; }
+        if (legua_frame_verify_x(raw, len, (uint32_t)ctr, &env, extra, nx)) { printf("FALHA adulteracao ctr=%lu\n", ctr); fails++; continue; }
         n_ok++;
     }
     fclose(fh);

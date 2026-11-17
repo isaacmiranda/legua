@@ -81,7 +81,8 @@ static int vectors(const char *path)
         uint8_t raw[LEGUA_FRAME_MAX], again[LEGUA_FRAME_MAX], key[16];
         unsigned long kid, ctr;
         char *p;
-        size_t len;
+        size_t len, nx;
+        uint8_t ex[4];
         legua_frame f;
         if (line[0] == '#' || line[0] == '\n') continue;
         if (line[0] == 'K') {
@@ -97,15 +98,21 @@ static int vectors(const char *path)
         ctr = strtoul(p, &p, 10);
         while (*p == ' ') p++;
         len = unhex(p, raw, sizeof raw);
+        nx = 0;                                                 /* quarta coluna opcional: dado extra do MIC */
+        p += len * 2;
+        if (*p == ' ') nx = unhex(p + 1, ex, sizeof ex);
         check(legua_frame_decode(raw, len, &f) == 0, "decode do vetor");
+        memcpy(f.extra, ex, nx); f.extra_len = (uint8_t)nx;
         check(((raw[1] >> 2) & 3u) == kid, "key_id do vetor");
-        check(legua_frame_verify(raw, len, (uint32_t)ctr, &env) == 1, "MIC do vetor");
+        check(legua_frame_verify_x(raw, len, (uint32_t)ctr, &env, ex, nx) == 1, "MIC do vetor");
         check(legua_frame_encode(&f, (uint32_t)ctr, (uint8_t)kid, &env, again) == (int)len &&
               memcmp(raw, again, len) == 0, "encode reproduz o vetor");
-        check(legua_frame_verify(raw, len, (uint32_t)ctr, &env_other) == 0, "chave errada recusa");
-        check(legua_frame_verify(raw, len, (uint32_t)ctr + 0x10000u, &env) == 0, "contador alto errado recusa");
+        check(legua_frame_verify_x(raw, len, (uint32_t)ctr, &env_other, ex, nx) == 0, "chave errada recusa");
+        check(legua_frame_verify_x(raw, len, (uint32_t)ctr + 0x10000u, &env, ex, nx) == 0, "contador alto errado recusa");
         raw[len / 2] ^= 0x10u;
-        check(legua_frame_verify(raw, len, (uint32_t)ctr, &env) == 0, "adulteração recusa");
+        check(legua_frame_verify_x(raw, len, (uint32_t)ctr, &env, ex, nx) == 0, "adulteração recusa");
+        raw[len / 2] ^= 0x10u;
+        if (nx) check(legua_frame_verify(raw, len, (uint32_t)ctr, &env) == 0, "sem o dado extra recusa");
         n++;
     }
     fclose(fh);

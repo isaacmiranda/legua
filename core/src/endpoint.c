@@ -200,6 +200,10 @@ static void emit(legua_endpoint *ep, legua_actions *acts, legua_frame *f, int po
         return;
     }
     ep->ctr++;
+    if (f->type == LEGUA_T_RESYNC_RSP) {              /* o contador completo vai no corpo (docs/07 §6.3) */
+        f->body[0] = (uint8_t)(ep->ctr >> 24); f->body[1] = (uint8_t)(ep->ctr >> 16);
+        f->body[2] = (uint8_t)(ep->ctr >> 8);  f->body[3] = (uint8_t)ep->ctr;
+    }
     n = legua_frame_encode(f, ep->ctr, ep->key_cur, ep->env, buf);
     if (n < 0)
         return;
@@ -490,6 +494,7 @@ void legua_params_default(legua_params *p)
     p->n_up = 20; p->fail_streak_degrade = 3; p->retries = 3; p->k_valid = 3; p->f_valid = 3;
     p->rollback_alarm = 3;
     p->mic_fail_n = 5; p->mic_fail_window_ms = 600000u; p->mic_fail_hold_ms = 3600000u;
+    p->resync_n = 8; p->t_resync_min_ms = 30000u; p->t_resync_max_ms = 600000u;
     p->silence_descent = 1; p->validation = 1; p->power_control = 1;
 }
 
@@ -517,7 +522,8 @@ int legua_init(legua_endpoint *ep, const legua_config *cfg, const legua_env *env
     int b, r, a = -1;
     if (!ep || !cfg || !env || !env->mic || !env->rand32 || !cfg->modes || cfg->n_modes == 0 ||
         cfg->n_modes > LEGUA_MAX_MODES || cfg->id == cfg->peer || cfg->id == LEGUA_BROADCAST ||
-        cfg->params.mic_fail_n > LEGUA_MIC_RING || cfg->key_id > 3u || cfg->key_prev_ok > 1u)
+        cfg->params.mic_fail_n > LEGUA_MIC_RING ||
+        (cfg->params.resync_n && (!cfg->params.t_resync_min_ms || cfg->params.t_resync_max_ms < cfg->params.t_resync_min_ms)) || cfg->key_id > 3u || cfg->key_prev_ok > 1u)
         return -1;
     memset(ep, 0, sizeof *ep);
     ep->cfg = *cfg;
@@ -544,6 +550,8 @@ int legua_init(legua_endpoint *ep, const legua_config *cfg, const legua_env *env
     ep->key_cur = cfg->key_id;
     ep->key_prev_ok = cfg->key_prev_ok;
     ep->neg_backoff = cfg->params.neg_backoff0_ms;
+    ep->rs_next = now_ms;
+    ep->rs_backoff = cfg->params.t_resync_min_ms;
     ep->next_hello = now_ms + rnd_range(ep, 0u, cfg->params.hello_interval_ms);
     ep->next_hb = now_ms + cfg->params.hb_interval_ms;
     ep->seq = (uint8_t)env->rand32(env->ctx);       /* início aleatório: o par não confunde com duplicata */
@@ -616,6 +624,35 @@ static int seq_is_new(legua_endpoint *ep, uint8_t seq)
     }
     ep->rx_seq_top = seq; ep->rx_seq_map = 1u;       /* longe demais: novo ciclo do par */
     return 1;
+}
+
+/* Ressincronização do contador do par (docs/07 §6.3): resync_n quadros do par recusados seguidos, sem nenhum válido,
+ * pedem um RESYNC com nonce novo; recuo exponencial entre pedidos. */
+static void rs_note_fail(legua_endpoint *ep, uint32_t now, legua_actions *acts)
+{
+    const legua_params *c = &ep->cfg.params;
+    legua_frame f;
+    if (!c->resync_n)
+        return;
+    if (ep->rs_fails < 255u)
+        ep->rs_fails++;
+    if (ep->rs_fails < c->resync_n || !reached(now, ep->rs_next))
+        return;
+    ep->rs_nonce = rnd_range(ep, 1u, 0xFFFFFFFFu);
+    ep->rs_nonce_set = 1;
+    ep->rs_next = now + ep->rs_backoff;
+    ep->rs_backoff = min_u32(ep->rs_backoff * 2u, c->t_resync_max_ms);
+    memset(&f, 0, sizeof f);
+    f.type = LEGUA_T_RESYNC;
+    f.src = ep->cfg.id;
+    f.dst = ep->cfg.peer;
+    f.body_len = 4;
+    f.body[0] = (uint8_t)(ep->rs_nonce >> 24); f.body[1] = (uint8_t)(ep->rs_nonce >> 16);
+    f.body[2] = (uint8_t)(ep->rs_nonce >> 8);  f.body[3] = (uint8_t)ep->rs_nonce;
+    emit(ep, acts, &f, cap_of(ep, ep->mode_i));
+    ep->st.tx_ctrl++;
+    ep->st.resync_pedidos++;
+    act_log(acts, LEGUA_LOG_RESYNC, 0);
 }
 
 /* Limite de falhas de MIC: mic_fail_n falhas na janela congelam a negociação, sem mudar de modo (docs/07 §6). */
@@ -735,7 +772,7 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
     legua_frame f;
     uint32_t ctr32;
     float g, rssi, snr;
-    int p_tx;
+    int p_tx, rsp = 0, ok;
 
     if (legua_frame_decode(raw, len, &f) < 0) {
         ep->st.rejeitados++;
@@ -744,21 +781,41 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
     }
     if ((f.dst != ep->cfg.id && f.dst != LEGUA_BROADCAST) || f.src != ep->cfg.peer)
         return;                                       /* não é para nós */
-    if (!legua_ctr_reconstruct(ep->peer_last, f.ctr16, &ctr32)) {
+    if (f.type == LEGUA_T_RESYNC_RSP) {               /* o contador completo vem no corpo (o receptor está perdido) */
+        ctr32 = ((uint32_t)f.body[0] << 24) | ((uint32_t)f.body[1] << 16) | ((uint32_t)f.body[2] << 8) | f.body[3];
+        rsp = 1;
+        if ((uint16_t)ctr32 != f.ctr16 || ctr32 <= ep->peer_last) {      /* nunca desce o piso do par */
+            ep->st.rejeitados++;
+            act_log(acts, LEGUA_LOG_REJ_REPLAY, f.ctr16);
+            rs_note_fail(ep, now, acts);
+            return;
+        }
+    } else if (!legua_ctr_reconstruct(ep->peer_last, f.ctr16, &ctr32)) {
         ep->st.rejeitados++;
         act_log(acts, LEGUA_LOG_REJ_REPLAY, f.ctr16);
+        rs_note_fail(ep, now, acts);
         return;
     }
     if (!key_acceptable(ep, (uint8_t)((f.flags >> 2) & 3u))) {
         ep->st.rejeitados++;
         act_log(acts, LEGUA_LOG_REJ_KEY, f.ctr16);
         mic_fail(ep, now, acts);
+        rs_note_fail(ep, now, acts);
         return;
     }
-    if (!legua_frame_verify(raw, len, ctr32, ep->env)) {
+    if (rsp) {                                        /* o nonce pendente entra no MIC como dado extra */
+        uint8_t nb[4];
+        nb[0] = (uint8_t)(ep->rs_nonce >> 24); nb[1] = (uint8_t)(ep->rs_nonce >> 16);
+        nb[2] = (uint8_t)(ep->rs_nonce >> 8);  nb[3] = (uint8_t)ep->rs_nonce;
+        ok = ep->rs_nonce_set && legua_frame_verify_x(raw, len, ctr32, ep->env, nb, 4);
+    } else {
+        ok = legua_frame_verify(raw, len, ctr32, ep->env);
+    }
+    if (!ok) {
         ep->st.rejeitados++;
         act_log(acts, LEGUA_LOG_REJ_MIC, f.ctr16);
         mic_fail(ep, now, acts);
+        rs_note_fail(ep, now, acts);
         return;
     }
     ep->peer_last = ctr32;
@@ -767,6 +824,31 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
         ep->nv_dirty = 1;
     }
     key_seen(ep, (uint8_t)((f.flags >> 2) & 3u), acts);
+    ep->rs_fails = 0;
+    if (rsp) {                                        /* ressincronizado: o piso do par subiu para o contador do par */
+        ep->rs_nonce_set = 0;
+        ep->rs_backoff = c->t_resync_min_ms;
+        ep->rs_next = now;
+        ep->st.resync_ok++;
+        act_log(acts, LEGUA_LOG_RESYNC, 1);
+        return;
+    }
+    if (f.type == LEGUA_T_RESYNC) {                   /* o par perdeu o contador: responde (no máximo um por t_resync_min) */
+        if (c->resync_n && reached(now, ep->rs_rsp_next)) {
+            legua_frame r;
+            memset(&r, 0, sizeof r);
+            r.type = LEGUA_T_RESYNC_RSP;
+            r.src = ep->cfg.id;
+            r.dst = ep->cfg.peer;
+            r.body_len = 4;
+            r.extra_len = 4;
+            memcpy(r.extra, f.body, 4);               /* o nonce do pedido: entra no MIC e não vai ao ar */
+            ep->rs_rsp_next = now + c->t_resync_min_ms;
+            emit(ep, acts, &r, cap_of(ep, ep->mode_i));
+            ep->st.tx_ctrl++;
+        }
+        return;
+    }
     ep->peer_heard = now;
     if (f.type == LEGUA_T_DATA || f.type == LEGUA_T_ACK) {
         uint32_t k = ep->state != LEGUA_S_VALID ? c->hb_interval_ms : c->hb_interval_ms / 10u;
