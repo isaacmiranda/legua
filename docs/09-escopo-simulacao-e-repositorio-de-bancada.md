@@ -88,6 +88,14 @@ medição, **todo resultado daqui vale só para comparar e dimensionar**.
    que este e o de bancada passam a usar. Alternativas descartadas: levar o `core/` para o repositório de firmware
    (perde a equivalência com o Python) e criar o repositório próprio já agora (três repositórios para coordenar
    enquanto o formato ainda muda).
+   **Tag `core-v0.1.0` (17/11/2026).** Primeira tag do núcleo; versão em `core/VERSION`. Cobre: codec do pacote v0 com
+   os tipos 1 a 8 (docs/07), negociação PROPOSE/VOTE/COMMIT, validação, âncora e rollback, escada e silêncio,
+   controle de potência, perfil móvel e `fade_k`, MIC AES-128-CMAC com limite de falhas, rotação de chave, registro de
+   NVM, teto de TX do par e ressincronização autenticada do contador (RESYNC). Verificada por: testes do núcleo,
+   fuzz com ASan e UBSan, equivalência Py/C nos quatro pares (200 sementes) e vetores do codec e do MIC. **Não cobre:**
+   driver SX1262, porte ESP32-S3, CAD/LBT, guarda das chaves, fragmentação; o BR-2026 segue `nao_verificado` e os
+   parâmetros vêm de simulação, não de medição. Regra de versão: mudança do formato de fio sobe o minor (0.2.0);
+   correção sem mudar o fio sobe o patch; 1.0.0 só depois da calibração e do congelamento do protocolo.
 2. **Licença:** decidida em 16/11/2026, o código é livre sob **Apache-2.0** (arquivo `LICENSE`, README). Contribuições com DCO.
 3. **Como a bancada consome o analisador** (`simsuite/analysis/`): pacote Python instalável ou cópia.
 
