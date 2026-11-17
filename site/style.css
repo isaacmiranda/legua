@@ -165,3 +165,12 @@ code { background: var(--grid); padding: 1px 5px; border-radius: 4px; font-size:
 .gloss dt { font-weight: 600; } .gloss dd { margin: 0; color: var(--text-2); }
 @media (max-width: 560px) { .gloss { grid-template-columns: 1fr; } .gloss dd { margin-bottom: 6px; } }
 th[title] { text-decoration: underline dotted var(--text-3); text-underline-offset: 3px; cursor: help; }
+
+.decisao { border-left: 4px solid var(--accent); }
+.decisao .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0 0; }
+@media print {
+  header.top .btn, #theme, #expl, #scale, nav, .tabs, .sem-impressao, .controls, .card-head .btn, .legend button { display: none !important; }
+  body { background: #fff; color: #000; }
+  .card, .stat { break-inside: avoid; box-shadow: none; border: 1px solid #999; background: #fff; }
+  a[href]::after { content: ""; }
+}

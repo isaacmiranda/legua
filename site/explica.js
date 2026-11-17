@@ -262,6 +262,10 @@
 
   // ------------------------------------------------------------------ glossário
   var GLOS = [
+    ["Zona de Fresnel", "Região em forma de elipsoide em volta da linha reta entre as antenas por onde passa a maior parte da energia do sinal. Obstáculo dentro dela já tira potência, mesmo sem cortar a linha de visada; costuma-se pedir pelo menos 60% da primeira zona livre."],
+    ["Difração", "O sinal contorna a ponta de um obstáculo (um morro, um prédio) e chega atenuado do outro lado. É o que permite algum sinal sem linha de visada, com perda que cresce rápido com a altura do obstáculo."],
+    ["EIRP", "Potência isotrópica equivalente irradiada: potência do transmissor mais o ganho da antena menos a perda no cabo. É o que a regulação limita, não só a potência do rádio."],
+    ["Margem de enlace", "Quantos dB o sinal recebido fica acima da sensibilidade do modo. Margem positiva e folgada (10 a 20 dB) aguenta desvanecimento e sombreamento; margem perto de zero perde pacotes."],
     ["PDR", "Taxa de entrega de pacotes: fração dos pacotes enviados que chegaram ao destino. 1,000 = todos."],
     ["SF", "Fator de espalhamento do LoRa (7 a 12). Mais alto alcança mais longe e é mais lento."],
     ["BW", "Largura de banda do canal em kHz (125, 250 ou 500). Mais larga é mais rápida e menos sensível."],

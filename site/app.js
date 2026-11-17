@@ -905,6 +905,46 @@
   }
   var label_of = { d: "Distância", off: "Ganho extra (mastro +, parede −)", p: "Potência de TX", retries: "Retransmissões", interval: "Intervalo entre pacotes", load: "Tráfego de terceiros (× do ambiente)", target: "Entrega confirmada alvo" };
 
+
+  // ---- estado do estimador no fragmento da URL (#estimativas/full?d=1.2&sf=10...), exportação e cópia.
+  // Tudo local: nada é enviado a lugar nenhum; o fragmento da URL não vai ao servidor.
+  var PLAN_KEYS = ["preset", "env", "d", "off", "sf", "bw", "cr", "p", "retries", "interval", "load", "target", "sig"];
+  function planQuery() {
+    return PLAN_KEYS.map(function (k) { return k + "=" + encodeURIComponent(String(plan[k])); }).join("&");
+  }
+  function planFromQuery(q) {                // valida cada campo; o que não for válido fica como está
+    var m = {};
+    String(q || "").split("&").forEach(function (kv) { var i = kv.indexOf("="); if (i > 0) { try { m[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); } catch (e) { /* ignora */ } } });
+    function num(k, lo, hi) { var v = parseFloat(m[k]); if (isFinite(v) && v >= lo && v <= hi) plan[k] = v; }
+    function one(k, ok) { if (m[k] !== undefined && ok.indexOf(m[k]) >= 0) plan[k] = m[k]; }
+    function oneNum(k, ok) { var v = parseFloat(m[k]); if (ok.indexOf(v) >= 0) plan[k] = v; }
+    one("preset", keys(PRESETS)); one("env", keys(DATA.constantes.envs));
+    num("d", 0.05, 40); num("off", -25, 15); num("p", -9, 28); num("retries", 0, 6); num("interval", 1, 600);
+    num("load", 0, 3); num("target", 0.5, 0.999);
+    oneNum("sf", [7, 8, 9, 10, 11, 12]); oneNum("bw", [125, 250, 500]); oneNum("cr", [1, 2, 3, 4]);
+    one("sig", ["-1", "0", "1", "2"]);
+  }
+  function syncHash() {
+    if (!curTab || curTab.id !== "estimativas") return;
+    try { history.replaceState(null, "", "#estimativas" + (scale === "full" ? "/full" : "") + "?" + planQuery()); } catch (e) { /* ignore */ }
+  }
+  function baixar(nome, tipo, texto) {
+    try {
+      var url = URL.createObjectURL(new Blob([texto], { type: tipo })), a = el("a", { href: url, download: nome });
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      return true;
+    } catch (e) { return false; }
+  }
+  function copiar(texto, aviso) {
+    function fim(ok) { aviso.textContent = ok ? "Copiado." : "Não foi possível copiar; selecione o texto abaixo."; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texto).then(function () { fim(true); }, function () { fim(false); });
+    else { var t = el("textarea", { readonly: "readonly" }); t.value = texto; document.body.appendChild(t); t.select(); var ok = false; try { ok = document.execCommand("copy"); } catch (e) { /* ignore */ } document.body.removeChild(t); fim(ok); }
+  }
+  function csvCell(v) { var t = v == null ? "" : String(v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }
+  function csvDe(head, rows) { return [head].concat(rows).map(function (r) { return r.map(csvCell).join(";"); }).join("\r\n") + "\r\n"; }
+  function nomeModo(r) { return "SF" + r.sf + "/" + r.bw + (r.cr > 1 ? "/CR4" + (r.cr + 4) : "") + (r.fhss ? "/FH" : ""); }
+
   function panelEstimativas(panel) {
     var host = el("div");
     function simFor() {
@@ -945,17 +985,17 @@
       var sims = sim ? sim.pts.map(function (p) { return p.d; }) : [];
       var allx = xs.concat(sims).sort(function (a, b) { return a - b; });
       function curve(sg) { return allx.map(function (dd) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); c.d_km = dd; return EST.estimateOne(c, sg).entregue; }); }
-      var S = ordSeries([{ id: "a", label: "Estimativa, enlace típico", short: "típico" }, { id: "b", label: "Estimativa, +1σ de perda", short: "+1σ" }].concat(sim ? [{ id: "s", label: "Simulação (" + (sim.scale === "full" ? "longa" : "rápida") + ")", short: "simulação" }] : []));
-      S[0].vals = curve(0.0); S[1].vals = curve(1.0);
-      if (sim) S[2].vals = allx.map(function (dd) { var p = sim.pts.filter(function (q) { return q.d === dd; })[0]; return p ? p.pdr : null; });
-      if (sim) { S[2].dash = "1 5"; S[2].mk = "diamond"; }
+      var S = ordSeries([{ id: "a", label: "Estimativa, enlace típico", short: "típico" }, { id: "b", label: "Estimativa, +1σ de perda", short: "+1σ" }, { id: "c", label: "Estimativa, −1σ de perda (enlace favorável)", short: "−1σ" }].concat(sim ? [{ id: "s", label: "Simulação (" + (sim.scale === "full" ? "longa" : "rápida") + ")", short: "simulação" }] : []));
+      S[0].vals = curve(0.0); S[1].vals = curve(1.0); S[2].vals = curve(-1.0);
+      if (sim) S[3].vals = allx.map(function (dd) { var p = sim.pts.filter(function (q) { return q.d === dd; })[0]; return p ? p.pdr : null; });
+      if (sim) { S[3].dash = "1 5"; S[3].mk = "diamond"; }
       var chart = card({
         title: "Entrega do receptor × distância", note: "Mesmo modo e potência; linhas calculadas ao vivo" + (sim ? ". Pontos: simulação de " + sim.cfg + " em " + PRESETS[plan.preset].t + ", escala " + (sim.scale === "full" ? "longa" : "rápida") + (sim.caveat ? " (a simulação usa 28 dBm; a estimativa usa " + plan.p + " dBm)" : "") + "." : "."),
         legend: function () { return legend(S); },
         build: function (h) { lineChart(h, { xs: allx, series: S, yFmt: fmtPdr, ymin: 0, ymax: 1.02, yTick: function (v) { return nf(v, 1); }, xFmt: function (x) { return nf(x, x < 1 ? 2 : 1) + " km"; },
           xTick: function (x) { return nf(x, x < 10 ? 1 : 0); }, xTitle: "distância (km)", aria: "Entrega estimada × distância", hline: { v: 0.9, label: "90%" }, height: 280 }); },
-        table: function () { return { head: ["Distância (km)", "Típico", "+1σ"].concat(sim ? ["Simulação"] : []), num: [true, true, true, true],
-          rows: allx.map(function (dd, j) { return [nf(dd, 2), fmtPdr(S[0].vals[j]), fmtPdr(S[1].vals[j])].concat(sim ? [fmtPdr(S[2].vals[j])] : []); }) }; }
+        table: function () { return { head: ["Distância (km)", "Típico", "+1σ", "−1σ"].concat(sim ? ["Simulação"] : []), num: [true, true, true, true, true],
+          rows: allx.map(function (dd, j) { return [nf(dd, 2), fmtPdr(S[0].vals[j]), fmtPdr(S[1].vals[j]), fmtPdr(S[2].vals[j])].concat(sim ? [fmtPdr(S[3].vals[j])] : []); }) }; }
       });
       // ranking de modos
       var rk = EST.rankModes(o, plan.target, sig), sel = rk.good.slice(0, 6);
@@ -971,7 +1011,40 @@
           ["Distância", "PDR simulado", "PDR estimado (típico)", "PDR estimado (média)", "mJ simulado", "mJ estimado (típico)"], cr, [false, true, true, true, true, true]);
       }
       var warn = el("section", { class: "card warn-card" }, [el("p", { class: "note", text: "Isto é um estimador analítico do enlace (um modo fixo, DATA/ACK com retransmissão), calculado no navegador com o mesmo canal e a mesma curva de demodulação da simulação. Não inclui colisão entre os dois nós, CAD/LBT, salto sincronizado nem a negociação de modo; parâmetros estimados, sem medição em hardware. Contra o simulador de eventos, com sombreamento estático controlado, a entrega estimada erra 1,1 ponto percentual em média (máximo 4,9; 42 pontos); energia e latência não foram comparadas ponto a ponto. Serve para comparar setups e dimensionar, não para prever o campo." })]);
-      [warn, cards, dw, chart, t1, t2, t3].forEach(function (n) { if (n) host.appendChild(n); });
+      var alvo = plan.target, tip = e.cenarios[1], melhor = rk.good[0];
+      var linha = "Neste setup (" + nomeModo({ sf: plan.sf, bw: plan.bw, cr: plan.cr, fhss: fhss }) + ", " + plan.p + " dBm, " + nf(plan.d, 2) + " km, " + K_env().label + ") o enlace típico tem margem de " + nf(e.margem_db, 1) + " dB e entrega confirmada de " + fmtPct(tip.confirmado) +
+        (melhor ? ". O modo de menor energia que atinge " + fmtPct(alvo) + " é " + nomeModo(melhor) + " (" + fmtMj(melhor.energia_mj_entregue) + " por pacote entregue)." : ". Nenhum modo da tabela atinge " + fmtPct(alvo) + " neste enlace.");
+      var resumo = ["Légua, estimativa analítica (não é previsão de campo; parâmetros estimados)", linha,
+        "Parâmetros: ambiente " + plan.env + "; " + nf(plan.d, 2) + " km; ganho extra " + nf(plan.off, 1) + " dB; SF" + plan.sf + "/" + plan.bw + "/CR4" + (plan.cr + 4) + "; " + plan.p + " dBm; " + plan.retries + " retransmissões; pacote a cada " + plan.interval + " s; tráfego de terceiros " + nf(plan.load, 1) + "×.",
+        "Típico: entregue " + fmtPct(tip.entregue) + ", confirmada " + fmtPct(tip.confirmado) + ", energia " + fmtMj(tip.energia_mj_entregue) + ", latência " + fmtS(tip.latencia_s) + ".",
+        "Alcance com 90% confirmado: " + (r90 == null ? "< 0,02 km" : nf(r90, 2) + " km") + " (típico), " + (r90b == null ? "< 0,02 km" : nf(r90b, 2) + " km") + " (+1σ).",
+        "Escala dos dados: " + (scale === "full" ? "longa" : "rápida") + "; gerado em " + DATA.meta.gerado_em + (DATA.meta.commit ? "; commit " + DATA.meta.commit : "") + ".",
+        location.href.split("#")[0] + "#estimativas" + (scale === "full" ? "/full" : "") + "?" + planQuery()].join("\n");
+      var aviso = el("span", { class: "sub", role: "status", "aria-live": "polite" });
+      function btn(txt, fn) { var b = el("button", { type: "button", class: "btn", text: txt }); b.addEventListener("click", fn); return b; }
+      var tags = ["Típico", "+1σ", "−1σ"];
+      var decisao = el("section", { class: "card decisao" }, [el("h2", { text: "Resposta para este setup" }),
+        el("p", {}, [pill(tip.confirmado >= alvo ? "ok" : "bad", tip.confirmado >= alvo ? "atinge o alvo no enlace típico" : "não atinge o alvo no enlace típico"), document.createTextNode(" " + linha)]),
+        el("div", { class: "controls sem-impressao" }, [
+          btn("Copiar resumo e link", function () { copiar(resumo, aviso); }),
+          btn("Baixar CSV (modos)", function () {
+            var csv = csvDe(["modo", "entrega_confirmada", "energia_mj_por_entregue", "latencia_s", "atinge_alvo"],
+              rk.rows.map(function (r) { return [nomeModo(r), r.confirmado == null ? "" : r.confirmado.toFixed(4), r.energia_mj_entregue == null ? "" : r.energia_mj_entregue.toFixed(2), r.latencia_s == null ? "" : r.latencia_s.toFixed(2), r.ok ? "sim" : "nao"]; }));
+            aviso.textContent = baixar("legua-modos.csv", "text/csv;charset=utf-8", "\ufeff" + csv) ? "CSV baixado." : "Não foi possível baixar.";
+          }),
+          btn("Baixar CSV (curva)", function () {
+            var csv = csvDe(["distancia_km", "entregue_tipico", "entregue_mais_1sigma", "entregue_menos_1sigma"], allx.map(function (dd, j) { return [dd.toFixed(3), S[0].vals[j].toFixed(4), S[1].vals[j].toFixed(4), S[2].vals[j].toFixed(4)]; }));
+            aviso.textContent = baixar("legua-curva.csv", "text/csv;charset=utf-8", "\ufeff" + csv) ? "CSV baixado." : "Não foi possível baixar.";
+          }),
+          btn("Baixar JSON", function () {
+            var js = JSON.stringify({ aviso: "Estimativa analítica; parâmetros estimados; não é previsão de campo nem prova de conformidade regulatória.", gerado_em: DATA.meta.gerado_em, commit: DATA.meta.commit || null, escala_dos_dados: scale,
+              parametros: o, estimativa: { margem_db: e.margem_db, toa_dados_ms: e.toa_dados_ms, duty_pct: e.duty_pct, energia_dia_j: e.energia_dia_j, cenarios: e.cenarios, media_enlaces: e.media_enlaces, alcance90_km: { tipico: r90, mais1sigma: r90b } },
+              ranking_modos: rk.rows.map(function (r) { return { modo: nomeModo(r), confirmado: r.confirmado, energia_mj_entregue: r.energia_mj_entregue, latencia_s: r.latencia_s, atinge_alvo: r.ok }; }) }, null, 2);
+            aviso.textContent = baixar("legua-estimativa.json", "application/json", js) ? "JSON baixado." : "Não foi possível baixar.";
+          }),
+          btn("Imprimir", function () { window.print(); }), aviso])]);
+      syncHash();
+      [warn, decisao, cards, dw, chart, t1, t2, t3].forEach(function (n) { if (n) host.appendChild(n); });
       host.querySelectorAll(".card").forEach(function (c) { if (c._render) c._render(); });
     }
     function K_env() { return DATA.constantes.envs[plan.env]; }
@@ -1394,7 +1467,7 @@
     curTab = t;
     d = ESC[scale].dados;
     Array.prototype.forEach.call(tabsEl.children, function (b) { b.setAttribute("aria-selected", String(b.dataset.id === t.id)); b.tabIndex = b.dataset.id === t.id ? 0 : -1; });
-    try { history.replaceState(null, "", "#" + t.id + (scale === "full" ? "/full" : "")); } catch (e) { /* ignore */ }
+    try { history.replaceState(null, "", "#" + t.id + (scale === "full" ? "/full" : "") + (t.id === "estimativas" ? "?" + planQuery() : "")); } catch (e) { /* ignore */ }
     updateBar(t);
     var miss = (t.need || []).filter(function (n) { return d[n] === undefined; });
     if (miss.length && !t.anyScale) { live = []; panel.textContent = ""; panel.appendChild(missingCard(t, miss)); }
@@ -1458,7 +1531,8 @@
 
   var rz;
   window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { live.forEach(function (r) { r(); }); }, 150); });
-  var hp = (location.hash || "").slice(1).split("/");
+  var hq = (location.hash || "").slice(1).split("?"), hp = hq[0].split("/");
+  if (hp[0] === "estimativas" && hq[1]) planFromQuery(hq.slice(1).join("?"));
   try { var se = localStorage.getItem("legua-escala"); if (se && ESC[se]) scale = se; } catch (e) { /* ignore */ }
   if (hp[1] === "full" && ESC.full) scale = "full"; else if (hp[1] === "quick") scale = "quick";
   drawScaleSwitch();

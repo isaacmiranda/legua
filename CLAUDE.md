@@ -34,7 +34,9 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   (`simsuite/results/`) e longa (`simsuite/results_full/`, ignorada pelo git), com seletor de escala, aba de comparação,
   orçamento de tempo e aba de **Estimativas** (estimador analítico no navegador, `site/estimator.js`, com referência
   Python em `simsuite/analysis/estimator.py` e teste de paridade). Gerar dados: `~/.venvs/legua/bin/python tools/build_site.py`
-  (precisa do venv: importa numpy). Abrir `site/index.html` direto também funciona.
+  (precisa do venv: importa numpy). Abrir `site/index.html` direto também funciona. A aba Estimativas guarda o estado no
+  fragmento da URL (`#estimativas?d=2&sf=9...`), copia resumo e link e exporta CSV/JSON; tudo local, sem rede
+  (`test_site_dom.py`, precisa de node+jsdom). Plano das próximas fases: `reports/` (local, fora do git).
 - Site: `site/explica.js` tem as explicações em linguagem simples (uma por cartão, casada pelo título), os diagramas SVG, o guia
   interativo da aba "Comece aqui" e o glossário. Cartão novo no `app.js` = entrada nova em `EX` (o teste `test_explica.py` confere).
 - Validação sim×sim: LoRaSim e Meshtasticator com os **originais executados** (docs/09 §9.1; clones em `~/.cache/ext/`,
