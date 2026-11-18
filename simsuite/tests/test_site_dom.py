@@ -228,3 +228,70 @@ def test_testador_terrarium_so_busca_com_consentimento_e_nao_poe_coordenadas_na_
     assert "terreno=plano" in o["hash_inicial"]                                   # a URL nunca liga a busca de tiles sozinha
     for h in (o["hash_apos_escolher"], o["hash"]):
         assert "22.9" not in h and "43.2" not in h and "latA" not in h and "lonA" not in h   # coordenadas nunca na URL
+
+
+JS_NAV = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const dir = process.argv[2], out = { erros: [] };
+function abre(arq, frag) {
+  const vc = new VirtualConsole(); vc.on("jsdomError", e => { if (!/getContext/.test(String(e.message || e))) out.erros.push(arq + ": " + String(e.message || e)); });
+  const html = fs.readFileSync(path.join(dir, arq), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+    (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+  const w = new JSDOM(html, { url: "http://localhost/" + arq + frag, runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true }).window;
+  w.scrollTo = () => {};
+  return w;
+}
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+const resumo = (w) => { const d = w.document; return {
+  secoes: [...d.querySelectorAll(".gnav-sec")].map(a => a.textContent),
+  atual: (d.querySelector('.gnav-sec[aria-current="true"]') || {}).textContent,
+  sub: [...d.querySelectorAll("#tabs .tab")].map(a => a.textContent),
+  sel: ((d.querySelector('#tabs [aria-selected="true"]') || d.querySelector('#tabs [aria-current="page"]')) || {}).textContent,
+  desc: (d.querySelector(".gnav-desc") || {}).textContent, hash: w.location.hash,
+  passo: [...d.querySelectorAll(".passo a")].map(a => a.textContent) }; };
+(async () => {
+  const w = abre("index.html", "#acordo"); await espera(900);
+  out.acordo = resumo(w);
+  const d = w.document;
+  [...d.querySelectorAll(".gnav-sec")].find(a => a.textContent === "Garantias").click(); await espera(300);
+  out.garantias = resumo(w);
+  [...d.querySelectorAll("#tabs .tab")].find(a => a.textContent === "Segurança e regulação").click(); await espera(300);
+  out.seg = resumo(w);
+  [...d.querySelectorAll(".gnav-sec")].find(a => a.textContent === "Protocolo").click(); await espera(300);
+  out.volta = resumo(w);                                   // lembra a última subseção da seção
+  const px = d.querySelector(".passo a.prox"); if (px) { px.click(); await espera(300); } out.prox = resumo(w);
+  out.legado = resumo(abre("index.html", "#estimativas?d=2&sf=9")); await espera(10);
+  const e = abre("enlace.html", ""); await espera(700); out.enlace = resumo(e);
+  out.enlace_links = [...e.document.querySelectorAll("#tabs a")].map(a => a.getAttribute("href"));
+  const c = abre("consolidado.html", ""); await espera(300); out.consol = resumo(c);
+  out.theme = [w, e, c].map(x => !!x.document.getElementById("theme"));
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_navegacao_em_duas_camadas_comum_as_tres_paginas(tmp_path):
+    f = tmp_path / "nav_dom.js"
+    f.write_text(JS_NAV)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=180, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["acordo"]["secoes"] == ["Começar", "Desempenho", "Protocolo", "Garantias", "Ferramentas", "Referência"]
+    assert o["acordo"]["atual"] == "Protocolo" and o["acordo"]["sel"] == "Acordo e falhas"        # o fragmento antigo continua valendo
+    assert o["acordo"]["sub"] == ["Acordo e falhas", "Mecanismos (V, S)", "Sintonia (F7)"] and "afinar" in o["acordo"]["desc"]
+    assert o["acordo"]["passo"] == ["← Grupos e malha", "Mecanismos (V, S) →"]                # vizinhos na ordem do mapa, atravessando as seções
+    assert o["garantias"]["atual"] == "Garantias" and o["garantias"]["sel"] == "Verificação formal" and "#formal" in o["garantias"]["hash"]
+    assert o["seg"]["sel"] == "Segurança e regulação" and "#seg" in o["seg"]["hash"]
+    assert o["volta"]["atual"] == "Protocolo" and o["volta"]["sel"] == "Acordo e falhas"
+    assert o["prox"]["sel"] == "Mecanismos (V, S)"                                              # o "próxima →" avança na ordem do mapa
+    assert o["legado"]["atual"] == "Ferramentas" and o["legado"]["sel"] == "Estimativas"
+    assert o["enlace"]["atual"] == "Ferramentas" and o["enlace"]["sel"] == "Testador de enlaces"
+    assert "index.html#estimativas" in o["enlace_links"] and "enlace.html" in o["enlace_links"]
+    assert o["consol"]["atual"] == "Referência" and o["consol"]["sel"] == "Consolidado e trabalhos futuros"
+    assert o["theme"] == [True, True, True]

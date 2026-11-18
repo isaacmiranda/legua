@@ -40,7 +40,7 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   (`test_site_dom.py`, precisa de node+jsdom). `site/enlace.html` = testador de enlaces (perfil digitado, `.hgt` local ou tiles Terrarium com consentimento e mapa de relevo em `terrarium.js`, Fresnel, Bullington, margem por modo;
   `propagacao.js`, `terreno.js`, `enlace.js`; referência Python `simsuite/analysis/enlace.py`, docs/09 §7.1). Plano das
   próximas fases (elevação, mapa, calibração): `reports/` (local, fora do git).
-- Site: `site/explica.js` tem as explicações em linguagem simples (uma por cartão, casada pelo título), os diagramas SVG, o guia
+- Site: navegação em duas camadas (seções e subseções) e tema em `site/nav.js`, comuns às três páginas; o mapa do site (`MAPA`) é a fonte única dos ids das abas. `site/explica.js` tem as explicações em linguagem simples (uma por cartão, casada pelo título), os diagramas SVG, o guia
   interativo da aba "Comece aqui" e o glossário. Cartão novo no `app.js` = entrada nova em `EX` (o teste `test_explica.py` confere).
 - Validação sim×sim: LoRaSim e Meshtasticator com os **originais executados** (docs/09 §9.1; clones em `~/.cache/ext/`,
   `simpy==3.0.10` opcional). Rascunho de artigo em `docs/10`. Licença: Apache-2.0 (`LICENSE`). Cenário `P` = varredura de potência de TX; `V` e `S` = varreduras da janela de validação e do silêncio; `X` = estresses (erro de relógio × cristal, perda assimétrica, teto × `fade_k`, desvanecimento lento por sentido). Roteamento por

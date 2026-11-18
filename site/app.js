@@ -1472,7 +1472,7 @@
     { id: "escalas", t: "Escalas e orçamento", f: panelEscalas, need: [], anyScale: true },
     { id: "estimativas", t: "Estimativas", f: panelEstimativas, need: [], anyScale: true }
   ];
-  var tabsEl = document.getElementById("tabs"), panel = document.getElementById("panel"), scaleEl = document.getElementById("scale"), bar = document.getElementById("scalebar");
+  var gnav = document.getElementById("gnav"), panel = document.getElementById("panel"), scaleEl = document.getElementById("scale"), bar = document.getElementById("scalebar");
   var curTab = null;
 
   function missingCard(t, miss) {
@@ -1498,7 +1498,7 @@
     var t = TABS.filter(function (x) { return x.id === id; })[0] || TABS[0];
     curTab = t;
     d = ESC[scale].dados;
-    Array.prototype.forEach.call(tabsEl.children, function (b) { b.setAttribute("aria-selected", String(b.dataset.id === t.id)); b.tabIndex = b.dataset.id === t.id ? 0 : -1; });
+    window.LeguaNav.montar(gnav, { ativo: t.id, ir: function (id) { go(id, false); } });
     try { history.replaceState(null, "", "#" + t.id + (scale === "full" ? "/full" : "") + (t.id === "estimativas" ? "?" + planQuery() : "")); } catch (e) { /* ignore */ }
     updateBar(t);
     var miss = (t.need || []).filter(function (n) { return d[n] === undefined; });
@@ -1509,6 +1509,8 @@
         el("p", { class: "note", text: "Os números desta aba valem para o ambiente médio. Para um terreno específico (morro, mastro, vegetação), informe o perfil e veja a margem de cada modo." }),
         el("a", { class: "btn", href: "enlace.html", text: "Abrir o testador de enlaces" })]));
     }
+    var passo = window.LeguaNav.rodape(t.id, function (id) { go(id, false); window.scrollTo(0, 0); });
+    if (passo) panel.appendChild(passo);
     if (focus) panel.focus({ preventScroll: true });
   }
   function drawScaleSwitch() {
@@ -1526,29 +1528,11 @@
     scale = s; try { localStorage.setItem("legua-escala", s); } catch (e) { /* ignore */ }
     drawScaleSwitch(); go(curTab ? curTab.id : TABS[0].id, false);
   }
-  TABS.forEach(function (t, i) {
-    var b = el("button", { class: "tab", role: "tab", type: "button", text: t.t });
-    b.dataset.id = t.id;
-    b.addEventListener("click", function () { go(t.id, false); });
-    b.addEventListener("keydown", function (e) {
-      var n = i + (e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0);
-      if (n !== i && n >= 0 && n < TABS.length) { go(TABS[n].id, false); tabsEl.children[n].focus(); e.preventDefault(); }
-    });
-    tabsEl.appendChild(b);
-  });
-
   var qm = ESC.quick.meta, fm = ESC.full && ESC.full.meta;
   document.getElementById("meta").textContent = "Gerado em " + DATA.meta.gerado_em + (DATA.meta.commit ? " · commit " + DATA.meta.commit : "") +
     " · rápida: " + keys(ESC.quick.dados).length + " cenários" + (fm ? " · longa: " + keys(ESC.full.dados).length + " cenários" + (fm.completa ? "" : " (parcial)") : " · longa: ainda não gerada");
 
-  var root = document.documentElement;
-  try { var sv0 = localStorage.getItem("legua-tema"); if (sv0 === "light" || sv0 === "dark") root.setAttribute("data-theme", sv0); } catch (e) { /* sem storage */ }
-  document.getElementById("theme").addEventListener("click", function () {
-    var dark = root.getAttribute("data-theme") === "dark" || (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    var next = dark ? "light" : "dark";
-    root.setAttribute("data-theme", next);
-    try { localStorage.setItem("legua-tema", next); } catch (e) { /* ignore */ }
-  });
+  // o tema é tratado por nav.js, comum às três páginas
 
   if (window.MutationObserver && window.LeguaExplica) {          // painéis que se redesenham sozinhos (Alcance, Estimativas)
     new MutationObserver(function () { window.LeguaExplica.anotar(panel); }).observe(panel, { childList: true, subtree: true });

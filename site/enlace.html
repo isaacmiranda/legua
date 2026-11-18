@@ -9,14 +9,13 @@
 </head>
 <body>
 <div class="wrap">
+  <div id="gnav"></div>
   <header class="top">
     <div>
       <h1>Légua · testador de enlaces</h1>
       <p class="sub">Dois pontos, perfil de terreno, zona de Fresnel e margem por modo, calculados no seu navegador.</p>
     </div>
     <div class="hdr-controls">
-      <a class="btn" href="index.html">Resultados da simulação</a>
-      <button class="btn" id="theme" type="button" aria-label="Alternar tema claro e escuro">Tema</button>
     </div>
   </header>
   <div class="notice">
@@ -34,6 +33,8 @@
     Perfil de terreno por CSV, sintético, arquivo .hgt local ou tiles Terrarium da AWS (só com consentimento; <code>site/terrarium.js</code>). Elevação: Terrain Tiles da AWS Open Data, derivados de SRTM, Copernicus DEM e outros. Mapa ainda não existe nesta versão.
   </footer>
 </div>
+<script src="nav.js"></script>
+<script>LeguaNav.montar(document.getElementById("gnav"), { ativo: "enlace" });</script>
 <script src="data.js"></script>
 <script src="estimator.js"></script>
 <script src="propagacao.js"></script>

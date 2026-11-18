@@ -433,16 +433,19 @@ pagina = f"""<!doctype html>
 </head>
 <body>
 <div class="wrap">
+  <div id="gnav"></div>
   <header class="top">
     <div>
       <h1>Légua · consolidado dos resultados</h1>
-      <p class="sub">Achados, discussões e trabalhos futuros · gerado em {hoje} por <code>tools/build_consolidado.py</code> · <a href="index.html">voltar aos gráficos interativos</a></p>
+      <p class="sub">Achados, discussões e trabalhos futuros · gerado em {hoje} por <code>tools/build_consolidado.py</code></p>
     </div>
   </header>
   <nav aria-label="Seções"><ol class="toc">{indice}</ol></nav>
   {corpo}
   <footer>Só números de simulação, sem chaves, GNSS ou dados pessoais. Os gráficos e os dados completos estão em <a href="index.html">index.html</a>.</footer>
 </div>
+<script src="nav.js"></script>
+<script>LeguaNav.montar(document.getElementById("gnav"), {{ ativo: "consolidado" }});</script>
 </body>
 </html>
 """

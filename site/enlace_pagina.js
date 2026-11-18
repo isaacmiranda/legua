@@ -297,12 +297,7 @@
     sincroniza();
   }
 
-  var root = document.documentElement;
-  try { var sv0 = localStorage.getItem("legua-tema"); if (sv0 === "light" || sv0 === "dark") root.setAttribute("data-theme", sv0); } catch (e) { /* sem storage */ }
-  document.getElementById("theme").addEventListener("click", function () {
-    var dark = root.getAttribute("data-theme") === "dark" || (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches), next = dark ? "light" : "dark";
-    root.setAttribute("data-theme", next); try { localStorage.setItem("legua-tema", next); } catch (e) { /* ignore */ }
-  });
+  // o tema é tratado por nav.js, comum às três páginas
   deConsulta((location.hash || "").slice(1));
   app.appendChild(cartao("Parâmetros do enlace", [el("p", { class: "note", text: "Informe o terreno entre as duas antenas (plano, um morro, ou um perfil colado) e os parâmetros do rádio; o resultado se atualiza na hora." }), campos], null));
   app.appendChild(host);
