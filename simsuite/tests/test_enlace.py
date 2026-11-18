@@ -35,8 +35,10 @@ def test_valores_fisicos_conhecidos():
 
 def test_terreno_plano_nao_difrata_e_morro_obstrui():
     d, h = _plano(10.0)
-    p = L.analisar_perfil(d, h, 10, 10, 4 / 3)
+    p = L.analisar_perfil(d, h, 10, 10, 4 / 3, modelo="j")          # gume único: não vê a zona de Fresnel raspando o chão
     assert p["perda_difracao_db"] == 0.0 and not p["obstruido"] and 0 < p["folga_min_razao"] < 0.6
+    pp = L.analisar_perfil(d, h, 10, 10, 4 / 3)                      # P.526: visada marginal custa alguns dB
+    assert 0 < pp["perda_difracao_db"] < 8 and pp["caso"] == "visada" and not pp["obstruido"]
     d, h = _morro(10.0, 100, 60, 0.5, 1.0)
     m = L.analisar_perfil(d, h, 10, 10, 4 / 3)
     assert m["obstruido"] and m["perda_difracao_db"] > 10 and abs(m["d_obst_km"] - 5.0) < 0.6
@@ -47,14 +49,14 @@ def test_terreno_plano_nao_difrata_e_morro_obstrui():
 
 def test_composicao_com_o_estimador_sem_contar_duas_vezes():
     """Terreno plano e curto, antenas padrão (2,15 dBi, 0,5 dB): o estimador recebe offset 0 e a potência recebida
-    é a do espaço livre."""
+    é a do espaço livre (modelo "j": sem perda de difração; a composição de ganhos é o que se testa aqui)."""
     d, h = _plano(2.0, n=21)
-    r = L.analisar(d, h, 3, 3, 4 / 3, 20.0, 2.15, 2.15, 0.5, 0.5, 0.0, "rural_aberto", 10, 125, 1, True)
+    r = L.analisar(d, h, 3, 3, 4 / 3, 20.0, 2.15, 2.15, 0.5, 0.5, 0.0, "rural_aberto", 10, 125, 1, True, modelo="j")
     assert r["offset_db"] == pytest.approx(0.0, abs=1e-12)
     assert r["estimativa"]["rx_tipico_dbm"] == pytest.approx(r["rx_dbm"], abs=1e-9)
     assert r["rx_dbm"] == pytest.approx(20.0 + 2 * 1.65 - L.fspl(2.0), abs=1e-9)
     # ganho extra e perda extra entram como diferença, uma vez só
-    r2 = L.analisar(d, h, 3, 3, 4 / 3, 20.0, 5.15, 2.15, 0.5, 0.5, 4.0, "rural_aberto", 10, 125, 1, True)
+    r2 = L.analisar(d, h, 3, 3, 4 / 3, 20.0, 5.15, 2.15, 0.5, 0.5, 4.0, "rural_aberto", 10, 125, 1, True, modelo="j")
     assert r2["estimativa"]["rx_tipico_dbm"] == pytest.approx(r["rx_dbm"] + 3.0 - 4.0, abs=1e-9)
 
 
@@ -220,7 +222,7 @@ def test_gume_unico_bate_com_a_conta_analitica():
         i_pico = round(pos * (n - 1))
         h = [100.0] * n
         h[i_pico] = alt
-        p = L.analisar_perfil(d, h, 10, 10, k)
+        p = L.analisar_perfil(d, h, 10, 10, k, modelo="j")          # o gume único J(v) puro
         d1, d2 = d[i_pico], D - d[i_pico]
         h_obs = alt + L.bulge(d1, d2, k) - 110.0
         esperado = L.J(L.v_param(h_obs, d1, d2))
@@ -323,3 +325,61 @@ def test_relevo_do_mapa_cobre_os_pontos_e_deixa_vazio_sem_tile():
     assert o["dim"][0] == 200 and o["dim"][1] >= 40 and o["max"] > o["min"] and o["alfa"] == 255 and o["dentro"]
     assert o["A"]["x"] < o["B"]["x"] and abs(o["A"]["y"] - o["B"]["y"]) < 1e-6      # A a oeste de B, na mesma latitude
     assert o["transp"] == 0 and "sem altitudes" in o["vazio"]
+
+
+def test_bullington_p526_equacoes_e_correcao():
+    """ITU-R P.526-16 §4.5.1: em pico agudo Luc = J(v) (eq. 52/56) e Lb = Luc + [1 - exp(-Luc/6)] (10 + 0,02 d) (eq. 57);
+    em visada com folga total (v <= -0,78) não há perda; em visada marginal há perda de J(v) < 6 dB que o gume único ignora."""
+    d, h = _plano(10.0)
+    h = list(h)
+    h[50] = 160.0
+    b = L.bullington_p526(d, h, 10, 10, 4 / 3)
+    j = L.analisar_perfil(d, h, 10, 10, 4 / 3, modelo="j")["perda_difracao_db"]
+    assert b["caso"] == "alem_do_horizonte" and b["luc_db"] == pytest.approx(j, abs=1e-9)
+    assert b["perda_db"] == pytest.approx(j + (1 - math.exp(-j / 6)) * (10 + 0.02 * 10.0), abs=1e-9)
+    assert L.analisar_perfil(d, h, 10, 10, 4 / 3)["perda_difracao_db"] == pytest.approx(b["perda_db"], abs=1e-12)
+    d2, h2 = _plano(10.0, 100.0)
+    alto = L.bullington_p526(d2, h2, 60, 60, 4 / 3)                    # mastros altos: Fresnel livre
+    assert alto["caso"] == "visada" and alto["perda_db"] == 0.0
+    baixo = L.bullington_p526(d2, h2, 8, 8, 4 / 3)                     # visada marginal: o terreno raspa a zona de Fresnel
+    assert baixo["caso"] == "visada" and baixo["luc_db"] > 0.5
+    assert L.analisar_perfil(d2, h2, 8, 8, 4 / 3, modelo="j")["perda_difracao_db"] == 0.0
+
+
+def _vetores_itm():
+    with open(os.path.join(RAIZ, "simsuite", "tests", "vetores_itm.json")) as fh:
+        return json.load(fh)
+
+
+def test_difracao_contra_o_itm_da_ntia():
+    """Vetores gerados por `tools/comparar_itm.py` com o ITM da NTIA (P2P, 915 MHz, mediana). O testador é otimista frente
+    ao ITM (que inclui reflexão no solo, rugosidade e espalhamento); este teste trava o tamanho do erro e a vantagem do
+    Bullington da P.526 sobre o gume único. Não é validação do modelo: é regressão de um número conhecido."""
+    v = _vetores_itm()
+    assert len(v["casos"]) >= 40 and all(c["itm_rc"] in (0, 1) for c in v["casos"])      # 1 = sucesso com avisos do ITM
+    e_j, e_p = [], []
+    for c in v["casos"]:
+        d, h = c["d_km"], c["h_m"]
+        base = L.fspl(d[-1])
+        e_j.append(base + L.analisar_perfil(d, h, c["h_tx"], c["h_rx"], 4 / 3, modelo="j")["perda_difracao_db"] - c["itm_perda_db"])
+        e_p.append(base + L.analisar_perfil(d, h, c["h_tx"], c["h_rx"], 4 / 3)["perda_difracao_db"] - c["itm_perda_db"])
+    m_j, m_p = sum(e_j) / len(e_j), sum(e_p) / len(e_p)
+    assert -22 < m_j < -19 and -13 < m_p < -10, (m_j, m_p)
+    assert m_p > m_j + 7                                               # a correção da eq. (57) aproxima do ITM
+    assert max(e_p) < 4 and min(e_p) > -36                             # nunca mais de ~4 dB pessimista, até ~35 dB otimista
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="sem node")
+def test_bullington_p526_javascript_igual_ao_python_nos_perfis_do_itm():
+    js = r"""
+    const P = require(process.argv[1] + '/propagacao.js'), v = JSON.parse(require('fs').readFileSync(process.argv[2], 'utf8'));
+    console.log(JSON.stringify(v.casos.map(c => [P.analisarPerfil({ d: c.d_km, h: c.h_m }, c.h_tx, c.h_rx, 4 / 3, 915).perda_difracao_db,
+      P.analisarPerfil({ d: c.d_km, h: c.h_m }, c.h_tx, c.h_rx, 4 / 3, 915, 'j').perda_difracao_db])));
+    """
+    r = subprocess.run(["node", "-e", js, os.path.join(RAIZ, "site"), os.path.join(RAIZ, "simsuite", "tests", "vetores_itm.json")],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    for c, (p, j) in zip(_vetores_itm()["casos"], json.loads(r.stdout)):
+        d, h = c["d_km"], c["h_m"]
+        assert p == pytest.approx(L.analisar_perfil(d, h, c["h_tx"], c["h_rx"], 4 / 3)["perda_difracao_db"], abs=1e-9), c["nome"]
+        assert j == pytest.approx(L.analisar_perfil(d, h, c["h_tx"], c["h_rx"], 4 / 3, modelo="j")["perda_difracao_db"], abs=1e-9), c["nome"]

@@ -24,7 +24,7 @@
     /* inp: perfil, hTx, hRx (m), k, p_dbm, gTx, gRx (dBi), lTx, lRx (dB), extra_db, env, sf, bw, cr, fhss, retries,
      * interval_s, load, alvo, sig */
     function analisar(inp) {
-      var pf = P.analisarPerfil(inp.perfil, inp.hTx, inp.hRx, inp.k, F_MHZ), D = pf.D_km;
+      var pf = P.analisarPerfil(inp.perfil, inp.hTx, inp.hRx, inp.k, F_MHZ, inp.modelo_difracao), D = pf.D_km;
       var ex = inp.extra_db || 0, lfs = P.fspl(D, F_MHZ), ld = pf.perda_difracao_db;
       var ganhos = inp.gTx - inp.lTx + inp.gRx - inp.lRx;
       var perda = lfs + ld + ex, rx = inp.p_dbm + ganhos - perda;

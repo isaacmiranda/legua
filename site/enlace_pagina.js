@@ -7,8 +7,8 @@
   var app = document.getElementById("app");
 
   var st = { terreno: "plano", d: 5.0, base: 100, morro_h: 60, morro_pos: 50, morro_w: 0.8, csv: "", hTx: 10, hRx: 10, k: "1.3333", p: 20, gTx: 2.15, gRx: 2.15, lTx: 0.5, lRx: 0.5,
-    extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], tiles: null, tilesMsg: "", consente: false, buscando: false, env: "rural_aberto", sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
-  var CHAVES = ["terreno", "d", "base", "morro_h", "morro_pos", "morro_w", "hTx", "hRx", "k", "p", "gTx", "gRx", "lTx", "lRx", "extra", "env", "sf", "bw", "cr", "alvo", "retries", "interval", "load"];
+    extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], tiles: null, tilesMsg: "", consente: false, buscando: false, env: "rural_aberto", modelo: "p526", sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
+  var CHAVES = ["terreno", "d", "base", "morro_h", "morro_pos", "morro_w", "hTx", "hRx", "k", "p", "gTx", "gRx", "lTx", "lRx", "extra", "env", "modelo", "sf", "bw", "cr", "alvo", "retries", "interval", "load"];
   var NUM = { d: [0.05, 40], base: [-400, 8000], morro_h: [0, 1500], morro_pos: [0, 100], morro_w: [0.05, 20], hTx: [0.5, 100], hRx: [0.5, 100], p: [-9, 28], gTx: [-5, 15], gRx: [-5, 15],
     lTx: [0, 10], lRx: [0, 10], extra: [0, 60], alvo: [0.5, 0.999], retries: [0, 6], interval: [1, 600], load: [0, 3] };
 
@@ -38,7 +38,7 @@
     Object.keys(NUM).forEach(function (k) { var v = parseFloat(m[k]); if (isFinite(v) && v >= NUM[k][0] && v <= NUM[k][1]) st[k] = v; });
     function um(k, ok) { if (m[k] !== undefined && ok.indexOf(m[k]) >= 0) st[k] = m[k]; }
     function umN(k, ok) { var v = parseFloat(m[k]); if (ok.indexOf(v) >= 0) st[k] = v; }
-    um("terreno", ["plano", "morro", "csv", "hgt", "terrarium"]); um("env", Object.keys(DATA.constantes.envs)); um("k", ["1.3333", "1", "0.6667"]);
+    um("terreno", ["plano", "morro", "csv", "hgt", "terrarium"]); um("env", Object.keys(DATA.constantes.envs)); um("modelo", ["p526", "j"]); um("k", ["1.3333", "1", "0.6667"]);
     umN("sf", [7, 8, 9, 10, 11, 12]); umN("bw", [125, 250, 500]); umN("cr", [1, 2, 3, 4]);
     if (st.terreno === "csv" || st.terreno === "hgt" || st.terreno === "terrarium") st.terreno = "plano";   // CSV e coordenadas nunca vêm pela URL
   }
@@ -205,6 +205,7 @@
       campos.appendChild(el("p", { class: "note", style: "grid-column:1/-1", text: "O que sai da sua máquina: só as URLs dos tiles (zoom, x e y), que mostram a região com cerca de 10 km de lado, e o seu endereço IP, para o servidor de tiles da AWS (s3.amazonaws.com). As coordenadas exatas dos pontos não são enviadas, nem ficam no endereço compartilhável, no resumo ou no JSON. Só baixa depois do clique; nada é gravado em disco além do cache normal do navegador. Dados: Terrain Tiles da AWS Open Data (SRTM, Copernicus e outros); modelo de superfície, com copas e telhados contando como terreno; vale a precisão de ~30 m." }));
     }
     campos.appendChild(rng("hTx", "Altura da antena A", 0.5, u([1, "m"]))); campos.appendChild(rng("hRx", "Altura da antena B", 0.5, u([1, "m"])));
+    campos.appendChild(sel("modelo", "Modelo de difração", [["p526", "ITU-R P.526-16, Bullington com correção (padrão)"], ["j", "Gume único (otimista; só para comparar)"]]));
     campos.appendChild(sel("k", "Fator k do raio da Terra", [["1.3333", "4/3 (padrão)"], ["1", "1 (sem refração)"], ["0.6667", "2/3 (pior caso)"]]));
     campos.appendChild(rng("p", "Potência de TX", 1, u([0, "dBm"])));
     campos.appendChild(rng("gTx", "Ganho da antena A", 0.05, u([2, "dBi"]))); campos.appendChild(rng("gRx", "Ganho da antena B", 0.05, u([2, "dBi"])));
@@ -251,7 +252,7 @@
     var pr = perfilAtual();
     if (pr.erro) { host.appendChild(cartao("Perfil inválido", [el("p", { class: "note", text: pr.erro })], "warn-card")); ultimo = null; sincroniza(); return; }
     var inp = { perfil: pr.perfil, hTx: st.hTx, hRx: st.hRx, k: parseFloat(st.k), p_dbm: st.p, gTx: st.gTx, gRx: st.gRx, lTx: st.lTx, lRx: st.lRx, extra_db: st.extra, env: st.env,
-      sf: st.sf, bw: st.bw, cr: st.cr, fhss: st.bw < 500, retries: st.retries, interval_s: st.interval, load: st.load, alvo: st.alvo, sig: 0 };
+      sf: st.sf, bw: st.bw, cr: st.cr, fhss: st.bw < 500, retries: st.retries, interval_s: st.interval, load: st.load, alvo: st.alvo, sig: 0, modelo_difracao: st.modelo };
     var A = LE.analisar(inp); A._perfil = pr.perfil; ultimo = { A: A, inp: inp };
     var pf = A.perfil, e = A.estimativa, tip = e.cenarios[1], D = pf.D_km, fr = pf.folga_min_razao;
     var escolhido = A.modos.filter(function (m) { return m.sf === st.sf && m.bw === st.bw && m.cr === st.cr; })[0];
@@ -306,7 +307,7 @@
       el("dt", { text: "Perda no espaço livre" }), el("dd", { text: "O quanto o sinal enfraquece só por se espalhar no espaço: cresce 20 dB a cada dez vezes a distância. A 915 MHz, cerca de 91,7 dB a 1 km." }),
       el("dt", { text: "Zona de Fresnel" }), el("dd", { text: "O “tubo” em volta da linha reta entre as antenas por onde passa a maior parte do sinal. Com menos de 60% da primeira zona livre, o terreno já tira potência mesmo sem cortar a linha de visada. Antenas mais altas ou menos distância abrem a zona." }),
       el("dt", { text: "Fator k e abaulamento" }), el("dd", { text: "A Terra é curva e a atmosfera curva o sinal um pouco. Com k = 4/3 o abaulamento no meio de 10 km é de cerca de 1,5 m; k menor (pior caso) sobe o “chão” e reduz a folga." }),
-      el("dt", { text: "Difração (Bullington)" }), el("dd", { text: "Quando um morro entra no caminho, o sinal contorna o topo e chega mais fraco. O método troca os obstáculos por um só, equivalente; quanto mais alto acima da linha de visada, maior a perda." }),
+      el("dt", { text: "Difração (Bullington, ITU-R P.526-16)" }), el("dd", { text: "Quando um morro entra no caminho, o sinal contorna o topo e chega mais fraco. O método troca os obstáculos por um só, equivalente, e soma a correção empírica da Recomendação; mesmo com visada, uma zona de Fresnel raspando o chão já custa alguns dB. Em comparação com o ITM da NTIA (44 perfis sintéticos, 915 MHz) o testador ainda é otimista, em média cerca de 11 dB, com até 35 dB em morros altos e isolados; trate o resultado em terreno obstruído como limite superior do que chega e use a perda extra para ser conservador." }),
       el("dt", { text: "Perda extra" }), el("dd", { text: "Onde você lança o que o modelo não vê: folhagem, paredes, caixa metálica. Comece com 0 e teste cenários piores." }),
       el("dt", { text: "Margem" }), el("dd", { text: "Quantos dB o sinal fica acima do mínimo que o modo decodifica. Perto de zero perde pacote; 10 a 20 dB aguentam o desvanecimento. Modos mais lentos (SF maior) têm margem maior." }),
       el("dt", { text: "Entrega confirmada" }), el("dd", { text: "A fração de pacotes cujo ACK volta ao emissor, com as retransmissões escolhidas. É o que a aplicação sente." })

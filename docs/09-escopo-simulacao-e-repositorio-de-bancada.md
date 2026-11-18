@@ -176,7 +176,7 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   resumo copiável, CSV, JSON e impressão. Tudo local, sem rede; o fragmento não vai ao servidor.
 - **Testador de enlaces** (`site/enlace.html`, 17/11/2026): dois pontos, perfil de terreno digitado (plano, morro
   sintético ou CSV colado), curvatura da Terra (k), primeira zona de Fresnel, difração de gume único por Bullington
-  (`site/propagacao.js`, J(v) da ITU-R P.526 em forma aproximada; o texto da Recomendação não foi lido), orçamento
+  (`site/propagacao.js`, Bullington da ITU-R P.526-16 §4.5.1), orçamento
   de enlace e margem por modo, ligados ao estimador pelo campo `offset_db`. O ambiente escolhido contribui só com a
   variabilidade; a perda média é o espaço livre mais a difração mais a perda extra do usuário, e o estimador recebe a
   diferença de ganho de antena (sem contar duas vezes). Referência em `simsuite/analysis/enlace.py` e teste de
@@ -195,13 +195,22 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   para a AWS, sem cookies nem referenciador; as coordenadas exatas nunca são enviadas. **Ainda não verificado:** o CORS do
   bucket num navegador real (testado só com `curl` e com buscador simulado no jsdom); se falhar, a página mostra o erro e o
   `.hgt` local segue valendo.
-  **Validação da difração (17/11/2026):** com um pico agudo, o Bullington do testador é exatamente o gume único J(v) da
-  geometria (teste analítico, tolerância 1e-9), e a perda cresce com a altura do obstáculo e cai com o mastro. **O que
-  isso não prova:** o J(v) é a forma aproximada da P.526 (texto não lido) e não há comparação com o ITM da NTIA nem com
-  medição. Limitações conhecidas do modelo, sem números próprios: obstáculo arredondado perde mais do que o gume agudo
-  (o testador é otimista em morros suaves) e, com vários obstáculos, o método de Bullington tende a subestimar a perda.
-  Uma comparação por Deygout sobre perfis suaves foi tentada e descartada: ela soma arestas espúrias da mesma colina e
-  não serve de referência. A validação de verdade espera os vetores do ITM (NTIA) ou medições da bancada.
+  **Validação da difração (18/11/2026), com a P.526-16 lida e o ITM da NTIA executado.** O texto da Recomendação
+  ITU-R P.526-16 (11/2025) foi lido: o J(v) da equação (31) era o que estava no código. O que faltava era o resto do §4.5.1:
+  o caso em **visada** (J do maior parâmetro v; o gume único ignorava a zona de Fresnel raspando o chão) e a **correção
+  empírica da equação (57)**, Lb = Luc + [1 - exp(-Luc/6)] (10 + 0,02 d), que soma de 6 a 10 dB quando há obstáculo. Agora
+  é o padrão (`bullington_p526`, `site/propagacao.js`); o gume único segue como "modelo j", só para comparar. Comparação
+  com o ITM (NTIA, `github.com/NTIA/itm`, modo P2P, 915 MHz, clima continental temperado, solo médio, mediana, 44 perfis
+  sintéticos: plano, mastros de 3 m, gumes de 10 a 250 m, morros suaves, dois morros, terreno rugoso, de 2 a 20 km;
+  `tools/comparar_itm.py`, vetores em `simsuite/tests/vetores_itm.json`): erro = testador - ITM, em dB. **Gume único:**
+  média -20,5, desvio 9,9, até -43. **P.526-16:** média -11,4, desvio 8,6, de -33 a +3. Ou seja, **o testador continua
+  otimista** frente ao ITM, sobretudo em morros altos e isolados (o ITM soma rugosidade, reflexão no solo e espalhamento) e
+  com mastros baixos sobre terreno plano (o ITM já cobra o chão). A correção da P.526 reduz o erro pela metade, mas não o
+  elimina. Uso prático: tratar a perda em terreno obstruído como **limite inferior da perda** (limite superior do que
+  chega) e usar a "perda extra" para ser conservador. O ITM não é a verdade: é outro modelo; só a bancada fecha a conta.
+  Perfis sintéticos extremos (250 m em 2 km) exageram o erro; em morros suaves de 30 m ele fica entre -3 e -8 dB.
+  Limitações que sobram: obstáculo arredondado perde mais que o gume agudo, vários obstáculos além do equivalente de
+  Bullington, vegetação, prédios e reflexão no solo. A calibração com medições da bancada substitui esta comparação.
   Fonte de elevação e mapa (fases 3 e 4 do relatório de pesquisa) só entram com consentimento explícito e depois de
   testar o CORS num navegador real. É ferramenta de análise: não toca em rádio nem em bancada.
 
