@@ -202,6 +202,7 @@ const campo = (rotulo) => [...d.querySelectorAll("input[type=text]")].find(i => 
   await espera(600);
   out.status = d.getElementById("status-tiles").textContent;
   out.svg = !!d.querySelector("svg.perfil polygon");
+  out.mapa = !!d.querySelector("canvas.mapa-relevo");
   out.hash = w.location.hash;
   console.log(JSON.stringify(out)); process.exit(0);
 })();
@@ -218,7 +219,8 @@ def test_testador_terrarium_so_busca_com_consentimento_e_nao_poe_coordenadas_na_
     r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=120, env=env, cwd=RAIZ)
     assert r.returncode == 0, r.stderr
     o = json.loads(r.stdout.strip().splitlines()[-1])
-    assert not o["erros"], o["erros"]
+    assert not [e for e in o["erros"] if "getContext" not in e], o["erros"]       # o jsdom sem canvas não implementa getContext
+    assert o["mapa"] is True
     assert o["desabilitado_sem_consentimento"] is True and o["urls_sem_consentimento"] == 0
     assert o["habilitado"] is True and len(o["urls"]) >= 1
     assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") and "22" not in u.split("terrarium/")[1].split("/")[0] for u in o["urls"])

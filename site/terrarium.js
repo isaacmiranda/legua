@@ -92,6 +92,37 @@
     });
   }
 
+
+  /* Mapa de relevo sem rede extra: pinta, com os mesmos tiles já baixados, a altitude em rampa de cor com sombreado
+   * (luz de noroeste) na caixa em volta dos pontos A e B. Devolve { w, h, rgba, lat0, lat1, lon0, lon1, min, max } ou
+   * { erro }; áreas sem tile ficam transparentes. Projeção equiretangular com escala de longitude por cos(lat). */
+  function relevo(f, a, b, larg) {
+    larg = larg || 320;
+    var cx = Math.cos((a.lat + b.lat) / 2 * Math.PI / 180), dlat = Math.abs(a.lat - b.lat), dlon = Math.abs(a.lon - b.lon) * cx;
+    var lado = Math.max(dlat, dlon, 0.02), mlat = (lado - dlat) / 2 + 0.25 * lado, mlon = (lado - dlon) / 2 + 0.25 * lado;
+    var lat0 = Math.min(a.lat, b.lat) - mlat, lat1 = Math.max(a.lat, b.lat) + mlat;
+    var lon0 = Math.min(a.lon, b.lon) - mlon / cx, lon1 = Math.max(a.lon, b.lon) + mlon / cx;
+    var w = larg, h = Math.max(40, Math.round(larg * (lat1 - lat0) / ((lon1 - lon0) * cx))), z = new Float32Array(w * h), i, j, lo = Infinity, hi = -Infinity;
+    for (j = 0; j < h; j++) for (i = 0; i < w; i++) {
+      var e = f(lat1 - (lat1 - lat0) * j / (h - 1), lon0 + (lon1 - lon0) * i / (w - 1)), v = e.ok && isFinite(e.v) ? e.v : NaN;
+      z[j * w + i] = v; if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    }
+    if (!(hi >= lo)) return { erro: "sem altitudes nesta área" };
+    var rgba = new Uint8ClampedArray(w * h * 4), esc = Math.max(hi - lo, 1), pxM = (lon1 - lon0) * cx * 111320 / (w - 1);
+    var rampa = [[0, 60, 120, 70], [0.35, 150, 170, 90], [0.7, 150, 110, 70], [1, 245, 240, 235]];
+    function cor(t) { var k = 0; while (k < rampa.length - 2 && t > rampa[k + 1][0]) k++; var u = (t - rampa[k][0]) / (rampa[k + 1][0] - rampa[k][0]); u = Math.min(Math.max(u, 0), 1); return [1, 2, 3].map(function (q) { return rampa[k][q] + (rampa[k + 1][q] - rampa[k][q]) * u; }); }
+    for (j = 0; j < h; j++) for (i = 0; i < w; i++) {
+      var o = (j * w + i) * 4, v = z[j * w + i];
+      if (v !== v) continue;
+      var vx = z[j * w + Math.min(i + 1, w - 1)], vy = z[Math.min(j + 1, h - 1) * w + i], ox = z[j * w + Math.max(i - 1, 0)], oy = z[Math.max(j - 1, 0) * w + i];
+      var gx = ((vx === vx ? vx : v) - (ox === ox ? ox : v)) / (2 * pxM), gy = ((vy === vy ? vy : v) - (oy === oy ? oy : v)) / (2 * pxM);
+      var sombra = Math.min(Math.max(0.85 + 1.6 * (gx - gy) / Math.SQRT2, 0.55), 1.25), c = cor((v - lo) / esc);
+      rgba[o] = Math.min(255, c[0] * sombra); rgba[o + 1] = Math.min(255, c[1] * sombra); rgba[o + 2] = Math.min(255, c[2] * sombra); rgba[o + 3] = 255;
+    }
+    function xy(p) { return { x: (p.lon - lon0) / (lon1 - lon0) * (w - 1), y: (lat1 - p.lat) / (lat1 - lat0) * (h - 1) }; }
+    return { w: w, h: h, rgba: rgba, lat0: lat0, lat1: lat1, lon0: lon0, lon1: lon1, min: lo, max: hi, A: xy(a), B: xy(b), km_por_px: pxM / 1000 };
+  }
+
   /* No navegador: baixa um PNG e devolve as altitudes. Sem cookies nem referenciador. */
   function buscarNoNavegador(url) {
     if (typeof fetch !== "function" || typeof createImageBitmap !== "function") return Promise.reject(new Error("navegador sem fetch/createImageBitmap"));
@@ -106,7 +137,7 @@
     });
   }
 
-  var api = { urlTile: urlTile, tileXY: tileXY, tilesDoCaminho: tilesDoCaminho, decodificar: decodificar, fonte: fonte, carregar: carregar,
+  var api = { urlTile: urlTile, tileXY: tileXY, tilesDoCaminho: tilesDoCaminho, decodificar: decodificar, fonte: fonte, relevo: relevo, carregar: carregar,
     buscarNoNavegador: buscarNoNavegador, Z_PADRAO: Z_PADRAO, MAX_TILES: MAX_TILES, BASE: BASE };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.LeguaTerrarium = api;
 })(typeof window !== "undefined" ? window : this);

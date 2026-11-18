@@ -97,7 +97,8 @@ medição, **todo resultado daqui vale só para comparar e dimensionar**.
    que este e o de bancada passam a usar. Alternativas descartadas: levar o `core/` para o repositório de firmware
    (perde a equivalência com o Python) e criar o repositório próprio já agora (três repositórios para coordenar
    enquanto o formato ainda muda).
-   **Tag `core-v0.1.0` (17/11/2026).** Primeira tag do núcleo; versão em `core/VERSION`. Cobre: codec do pacote v0 com
+   **Tag `core-v0.1.1` (18/11/2026):** mesma cobertura e mesmo formato de fio do 0.1.0; a resposta do RESYNC só reinicia o recuo
+   com salto de contador maior que 32767 (docs/07 §6.3). **Tag `core-v0.1.0` (17/11/2026).** Primeira tag do núcleo; versão em `core/VERSION`. Cobre: codec do pacote v0 com
    os tipos 1 a 8 (docs/07), negociação PROPOSE/VOTE/COMMIT, validação, âncora e rollback, escada e silêncio,
    controle de potência, perfil móvel e `fade_k`, MIC AES-128-CMAC com limite de falhas, rotação de chave, registro de
    NVM, teto de TX do par e ressincronização autenticada do contador (RESYNC). Verificada por: testes do núcleo,
@@ -185,8 +186,10 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   internet", com os mesmos campos de coordenadas. Baixa os PNG do conjunto Terrain Tiles da AWS Open Data
   (`s3.amazonaws.com/elevation-tiles-prod/terrarium/z/x/y.png`, derivado de SRTM, Copernicus e outros; altitude = R*256 + G +
   B/256 - 32768), zoom 12 (~38 m/pixel no equador), no máximo 24 tiles, 2 por vez, interpolação bilinear entre tiles. Só
-  age depois de uma caixa de consentimento marcada e de um clique; a URL nunca liga a busca. **Fora do escopo desta versão:**
-  mapa, vegetação e prédios (use a perda extra), reflexão no solo e mais de um obstáculo além do equivalente de Bullington.
+  age depois de uma caixa de consentimento marcada e de um clique; a URL nunca liga a busca. **Mapa de relevo:** com os mesmos tiles já
+  baixados, a página pinta altitude em rampa de cor com sombreado, a linha A-B e os pontos; **não usa mapa-base de terceiros** (OSM
+  exigiria outras requisições e a política de uso dos tiles deles não serve a um site estático; decisão de 18/11/2026).
+  **Fora do escopo desta versão:** mapa-base de ruas, vegetação e prédios (use a perda extra), reflexão no solo e mais de um obstáculo além do equivalente de Bullington.
   **Privacidade:** o perfil colado e as coordenadas ficam só na página e não vão ao endereço compartilhável. O único `fetch`
   do site é o dos tiles, e o que sai é a URL de cada tile (zoom, x, y: uma região de ~10 km de lado) e o IP do navegador
   para a AWS, sem cookies nem referenciador; as coordenadas exatas nunca são enviadas. **Ainda não verificado:** o CORS do

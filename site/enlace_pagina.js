@@ -220,6 +220,22 @@
   }
 
   function cartao(titulo, kids, cls) { return el("section", { class: "card" + (cls ? " " + cls : "") }, [el("h2", { text: titulo })].concat(kids)); }
+  /* mapa de relevo com os tiles já baixados; nenhuma requisição a mais (sem mapa-base de terceiros) */
+  function cartaoMapa() {
+    var P = function (t) { return parseFloat(String(t).replace(",", ".")); };
+    var A = { lat: P(st.latA), lon: P(st.lonA) }, B = { lat: P(st.latB), lon: P(st.lonB) }, r = TR.relevo(st.tiles.fonte, A, B, 320);
+    if (r.erro) return cartao("Mapa de relevo", [el("p", { class: "note", text: r.erro })]);
+    var cv = el("canvas", { width: String(r.w), height: String(r.h), role: "img", class: "mapa-relevo", style: "max-width:100%;height:auto;border:1px solid var(--line,#8884)",
+      "aria-label": "Relevo em volta dos dois pontos, de " + Math.round(r.min) + " a " + Math.round(r.max) + " m, com a linha do enlace entre A e B" });
+    var g = cv.getContext && cv.getContext("2d");
+    if (g) {
+      g.putImageData(new ImageData(r.rgba, r.w, r.h), 0, 0);
+      g.strokeStyle = "#fff"; g.lineWidth = 3; g.beginPath(); g.moveTo(r.A.x, r.A.y); g.lineTo(r.B.x, r.B.y); g.stroke();
+      g.strokeStyle = "#c0392b"; g.lineWidth = 1.5; g.stroke();
+      [[r.A, "A"], [r.B, "B"]].forEach(function (q) { g.fillStyle = "#c0392b"; g.beginPath(); g.arc(q[0].x, q[0].y, 4, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "bold 12px sans-serif"; g.fillText(q[1], q[0].x + 6, q[0].y - 6); });
+    }
+    return cartao("Mapa de relevo", [cv, el("p", { class: "note", text: "Altitude de " + nf(r.min, 0) + " (verde) a " + nf(r.max, 0) + " m (branco), com sombreado; cada ponto da imagem tem cerca de " + nf(r.km_por_px * 1000, 0) + " m. Feito só com os tiles já baixados: nenhuma outra requisição, sem mapa-base de terceiros. Dados: Terrain Tiles da AWS Open Data." })]);
+  }
   function stat(v, l) { return el("div", { class: "stat" }, [el("div", { class: "v", text: v }), el("div", { class: "l", text: l })]); }
   function tabela(head, rows, num) {
     var t = el("table"), th = el("thead"), hr = el("tr");
@@ -276,7 +292,8 @@
     var tab = cartao("Margem e entrega por modo", [el("p", { class: "note", text: "Modos fixos da tabela BR-2026 (nao_verificado), enlace típico, ordenados pela margem. A Légua negocia entre eles em campo; a energia é de TX, com corrente do PA estimada. A sensibilidade é o centro da curva de erro de pacote usada na simulação, não o limiar do datasheet." }),
       tabela(["Modo", "Tempo no ar", "Margem", "Entrega confirmada", "Energia por entregue", "Alvo " + pct(st.alvo)], linhasModos, [false, true, true, true, true, false])]);
     var cont = el("section", { class: "card warn-card" }, [el("p", { class: "note", text: "Contabilidade de dB: a perda média vem do espaço livre mais a difração do perfil e a perda extra que você informa; o ambiente escolhido contribui só com a variabilidade (sombreamento, desvanecimento, ruído e tráfego), e o estimador recebe a diferença de ganho de antena, sem contar duas vezes. Ficam fora do modelo: reflexão no solo, vegetação e prédios no caminho (use a perda extra), difração em mais de um obstáculo além do equivalente de Bullington e a atmosfera real." })]);
-    [resposta, stats, grafico, tab, cont].forEach(function (n) { host.appendChild(n); });
+    var mapa = st.terreno === "terrarium" && st.tiles ? cartaoMapa() : null;
+    [resposta, stats, grafico, mapa, tab, cont].forEach(function (n) { if (n) host.appendChild(n); });
     sincroniza();
   }
 

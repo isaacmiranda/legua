@@ -302,3 +302,24 @@ def test_terrarium_tiles_matematica_decodificacao_e_perfil():
     assert "falta tile Terrarium 12/" in o["longe"]
     assert "máximo" in o["muitos"] and "CORS" in o["falha"]
     assert "intervalo" in o["polar"] and "zoom" in o["zoom"] and "quatro coordenadas" in o["nan"]
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="sem node")
+def test_relevo_do_mapa_cobre_os_pontos_e_deixa_vazio_sem_tile():
+    js = r"""
+    const TR = require(process.argv[1] + '/terrarium.js');
+    const A = { lat: -22.9, lon: -43.2 }, B = { lat: -22.9, lon: -43.12 }, out = {};
+    const r = TR.relevo((la, lo) => ({ ok: true, v: 100 + 8000 * (lo + 43.3) }), A, B, 200);
+    out.dim = [r.w, r.h]; out.min = r.min; out.max = r.max; out.A = r.A; out.B = r.B; out.alfa = r.rgba[3];
+    out.dentro = [r.A, r.B].every((p) => p.x > 0 && p.x < r.w - 1 && p.y > 0 && p.y < r.h - 1);
+    const meio = TR.relevo((la, lo) => (lo < -43.16 ? { ok: true, v: 50 } : { ok: false, v: NaN }), A, B, 100);
+    out.transp = meio.rgba[3 + 4 * (meio.w - 1)];                            // coluna da direita sem tile: transparente
+    out.vazio = TR.relevo(() => ({ ok: false, v: NaN }), A, B, 100).erro;
+    console.log(JSON.stringify(out));
+    """
+    r = subprocess.run(["node", "-e", js, os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout)
+    assert o["dim"][0] == 200 and o["dim"][1] >= 40 and o["max"] > o["min"] and o["alfa"] == 255 and o["dentro"]
+    assert o["A"]["x"] < o["B"]["x"] and abs(o["A"]["y"] - o["B"]["y"]) < 1e-6      # A a oeste de B, na mesma latitude
+    assert o["transp"] == 0 and "sem altitudes" in o["vazio"]
