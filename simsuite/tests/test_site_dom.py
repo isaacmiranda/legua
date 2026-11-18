@@ -166,3 +166,63 @@ def test_curva_do_melhor_modo_aparece_na_legenda(tmp_path):
     sem = _roda(tmp_path, "#estimativas?d=2&sf=10&bw=125&p=28&hull=0")
     assert not com["erros"] and not sem["erros"], (com["erros"], sem["erros"])
     assert com["legenda"] >= 1 and sem["legenda"] == 0
+
+
+JS_TERRARIUM = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const erros = [];
+const vc = new VirtualConsole(); vc.on("jsdomError", e => erros.push(String(e.message || e))); vc.on("error", e => erros.push(String(e)));
+const dir = process.argv[2];
+const html = fs.readFileSync(path.join(dir, "enlace.html"), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+  (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+const dom = new JSDOM(html, { url: "http://localhost/enlace.html#terreno=terrarium", runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true });
+const w = dom.window, d = w.document, out = { erros, urls: [] };
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+const campo = (rotulo) => [...d.querySelectorAll("input[type=text]")].find(i => (i.getAttribute("aria-label") || "").startsWith(rotulo));
+(async () => {
+  await espera(500);
+  out.hash_inicial = w.location.hash;
+  const s = d.querySelector("select"); s.value = "terrarium"; s.dispatchEvent(new w.Event("change"));
+  await espera(100);
+  out.hash_apos_escolher = w.location.hash;
+  const preenche = (r, v) => { const i = campo(r); i.value = v; i.dispatchEvent(new w.Event("input")); };
+  preenche("Latitude do ponto A", "-22.9"); preenche("Longitude do ponto A", "-43.2");
+  preenche("Latitude do ponto B", "-22.9"); preenche("Longitude do ponto B", "-43.12");
+  w.LeguaTerrariumBuscar = (url) => { out.urls.push(url); const x = new Float32Array(65536); x.fill(120); return Promise.resolve(x); };
+  await espera(300);
+  const bt = d.getElementById("busca-tiles"), ck = d.getElementById("consente-tiles");
+  out.desabilitado_sem_consentimento = bt.disabled;
+  bt.click(); await espera(50);
+  out.urls_sem_consentimento = out.urls.length;
+  out.msg_antes = (d.querySelector(".card, #app") || {}).textContent.includes("Buscar elevação");
+  ck.checked = true; ck.dispatchEvent(new w.Event("change"));
+  out.habilitado = !d.getElementById("busca-tiles").disabled;
+  d.getElementById("busca-tiles").click();
+  await espera(600);
+  out.status = d.getElementById("status-tiles").textContent;
+  out.svg = !!d.querySelector("svg.perfil polygon");
+  out.hash = w.location.hash;
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_testador_terrarium_so_busca_com_consentimento_e_nao_poe_coordenadas_na_url(tmp_path):
+    f = tmp_path / "terrarium_dom.js"
+    f.write_text(JS_TERRARIUM)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=120, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["desabilitado_sem_consentimento"] is True and o["urls_sem_consentimento"] == 0
+    assert o["habilitado"] is True and len(o["urls"]) >= 1
+    assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") and "22" not in u.split("terrarium/")[1].split("/")[0] for u in o["urls"])
+    assert "tiles baixados" in o["status"] and o["svg"]
+    assert "terreno=plano" in o["hash_inicial"]                                   # a URL nunca liga a busca de tiles sozinha
+    for h in (o["hash_apos_escolher"], o["hash"]):
+        assert "22.9" not in h and "43.2" not in h and "latA" not in h and "lonA" not in h   # coordenadas nunca na URL

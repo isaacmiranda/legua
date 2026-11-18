@@ -24,19 +24,21 @@
     perfil que você informa, ligada ao estimador analítico da Légua. Não prevê o campo: vegetação, prédios, reflexão no
     solo e o canal real não estão no modelo, e os parâmetros do rádio vêm de simulação, sem medição em hardware.
     O perfil regulatório BR-2026 vem de fonte secundária e está <b>nao_verificado</b>; nada aqui afirma conformidade ou
-    homologação. <b>Privacidade:</b> nenhum dado deste formulário é enviado a servidor; o perfil colado fica só nesta página
-    e não vai para o endereço compartilhável.
+    homologação. <b>Privacidade:</b> nenhum dado deste formulário é enviado a servidor. A única exceção é a opção de elevação pela internet,
+    que só age depois de um clique com consentimento e envia números de tiles (região de ~10 km), nunca as coordenadas exatas. O perfil
+    colado e as coordenadas ficam só nesta página e não vão para o endereço compartilhável.
   </div>
   <main id="app"></main>
   <footer>
     Modelo: <code>site/propagacao.js</code> (referência Python em <code>simsuite/analysis/enlace.py</code>, com teste de paridade).
-    Perfil de terreno por CSV ou sintético; mapa e elevação automática ainda não existem nesta versão.
+    Perfil de terreno por CSV, sintético, arquivo .hgt local ou tiles Terrarium da AWS (só com consentimento; <code>site/terrarium.js</code>). Elevação: Terrain Tiles da AWS Open Data, derivados de SRTM, Copernicus DEM e outros. Mapa ainda não existe nesta versão.
   </footer>
 </div>
 <script src="data.js"></script>
 <script src="estimator.js"></script>
 <script src="propagacao.js"></script>
 <script src="terreno.js"></script>
+<script src="terrarium.js"></script>
 <script src="enlace.js"></script>
 <script src="enlace_pagina.js"></script>
 </body>

@@ -181,9 +181,17 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   diferença de ganho de antena (sem contar duas vezes). Referência em `simsuite/analysis/enlace.py` e teste de
   paridade com o JavaScript (`test_enlace.py`). **Elevação real:** arquivos `.hgt` (SRTM1 ou SRTM3) carregados do
   disco (`terreno.js`, interpolação bilinear, vazios tratados), com as coordenadas dos dois pontos digitadas; ficam só na
-  memória da página (nem na URL, nem no resumo). **Fora do escopo desta versão:** busca automática de elevação, mapa, vegetação
-  e prédios (use a perda extra), reflexão no solo e mais de um obstáculo além do equivalente de Bullington.
-  **Privacidade:** o perfil colado fica só na página e não vai ao endereço compartilhável; não há `fetch`.
+  memória da página (nem na URL, nem no resumo). **Tiles Terrarium (18/11/2026, `site/terrarium.js`):** opção "Elevação pela
+  internet", com os mesmos campos de coordenadas. Baixa os PNG do conjunto Terrain Tiles da AWS Open Data
+  (`s3.amazonaws.com/elevation-tiles-prod/terrarium/z/x/y.png`, derivado de SRTM, Copernicus e outros; altitude = R*256 + G +
+  B/256 - 32768), zoom 12 (~38 m/pixel no equador), no máximo 24 tiles, 2 por vez, interpolação bilinear entre tiles. Só
+  age depois de uma caixa de consentimento marcada e de um clique; a URL nunca liga a busca. **Fora do escopo desta versão:**
+  mapa, vegetação e prédios (use a perda extra), reflexão no solo e mais de um obstáculo além do equivalente de Bullington.
+  **Privacidade:** o perfil colado e as coordenadas ficam só na página e não vão ao endereço compartilhável. O único `fetch`
+  do site é o dos tiles, e o que sai é a URL de cada tile (zoom, x, y: uma região de ~10 km de lado) e o IP do navegador
+  para a AWS, sem cookies nem referenciador; as coordenadas exatas nunca são enviadas. **Ainda não verificado:** o CORS do
+  bucket num navegador real (testado só com `curl` e com buscador simulado no jsdom); se falhar, a página mostra o erro e o
+  `.hgt` local segue valendo.
   **Validação da difração (17/11/2026):** com um pico agudo, o Bullington do testador é exatamente o gume único J(v) da
   geometria (teste analítico, tolerância 1e-9), e a perda cresce com a altura do obstáculo e cai com o mastro. **O que
   isso não prova:** o J(v) é a forma aproximada da P.526 (texto não lido) e não há comparação com o ITM da NTIA nem com

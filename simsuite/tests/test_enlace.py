@@ -246,3 +246,59 @@ def test_slowfade_media_desvio_e_determinismo():
     assert abs(xs.mean()) < 1.5 and 4.0 < xs.std() < 8.0
     assert f(1234.5) == SlowFade(6.0, 600.0, 1, 200000.0)(1234.5)
     assert SlowFade(6.0, 600.0, 2, 1000.0)(500.0) != f(500.0)
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="sem node")
+def test_terrarium_tiles_matematica_decodificacao_e_perfil():
+    """Tiles Terrarium sintéticos (rampa linear em x): matemática de tiles, decodificação, bilinear entre tiles, limites e
+    privacidade (a URL só leva zoom/x/y inteiros, nunca as coordenadas exatas)."""
+    js = r"""
+    const TR = require(process.argv[1] + '/terrarium.js'), T = require(process.argv[1] + '/terreno.js');
+    const out = {};
+    const g = TR.tileXY(0, 0, 1); out.gw = [g.x, g.y];
+    const rgba = new Uint8ClampedArray(256 * 256 * 4); rgba[0] = 128; rgba[4] = 129; rgba[5] = 5; rgba[6] = 128;
+    const dec = TR.decodificar(rgba); out.dec = [dec[0], dec[1]];
+    out.dec_curto = TR.decodificar(new Uint8ClampedArray(10));
+    const a = { lat: -22.9, lon: -43.2 }, b = { lat: -22.9, lon: -43.12 }, z = 12;
+    const X0 = Math.floor(TR.tileXY(a.lat, a.lon, z).x) * 256 - 512;
+    const urls = [];
+    const buscar = (url) => {
+      urls.push(url);
+      const m = /\/(\d+)\/(\d+)\/(\d+)\.png$/.exec(url), tx = +m[2], d = new Float32Array(65536);
+      for (let r = 0; r < 256; r++) for (let c = 0; c < 256; c++) d[r * 256 + c] = 100 + 0.01 * (tx * 256 + c - X0);
+      return Promise.resolve(d);
+    };
+    TR.carregar(a, b, z, buscar).then((r) => {
+      out.erro = r.erro || null; out.n_tiles = r.n_tiles; out.z = r.z;
+      out.urls_ok = urls.every((u) => u.startsWith(TR.BASE) && /^https:\/\/[^?#]+\/\d+\/\d+\/\d+\.png$/.test(u) && !/-22|-43/.test(u));
+      const p = T.perfilEntre(r.fonte, a, b, 30);
+      out.D = p.D_km; out.h0 = p.perfil.h[0]; out.h1 = p.perfil.h[p.perfil.h.length - 1];
+      const px = (pt) => TR.tileXY(pt.lat, pt.lon, z).x * 256 - 0.5;
+      out.esp0 = 100 + 0.01 * (px(a) - X0); out.esp1 = 100 + 0.01 * (px(b) - X0);
+      out.mono = p.perfil.h.every((v, i, ar) => i === 0 || v >= ar[i - 1] - 1e-6);
+      const longe = T.perfilEntre(r.fonte, a, { lat: -22.9, lon: -42.6 }, 30);   // além dos tiles carregados
+      out.longe = longe.erro;
+      return TR.carregar(a, { lat: -22.9, lon: -40.0 }, z, buscar);
+    }).then((r2) => {
+      out.muitos = r2.erro;
+      return TR.carregar(a, b, z, () => Promise.reject(new Error('CORS')));
+    }).then((r3) => {
+      out.falha = r3.erro;
+      out.polar = TR.tilesDoCaminho({ lat: 89, lon: 0 }, { lat: 89, lon: 1 }, 12).erro;
+      out.zoom = TR.tilesDoCaminho(a, b, 20).erro;
+      out.nan = TR.tilesDoCaminho({ lat: NaN, lon: 0 }, b, 12).erro;
+      console.log(JSON.stringify(out));
+    });
+    """
+    r = subprocess.run(["node", "-e", js, os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout)
+    assert o["gw"] == [1, 1]
+    assert o["dec"] == [0, 261.5]                                  # (128,0,0) = 0 m; (129,5,128) = 129*256 + 5 + 0,5 - 32768
+    assert o["dec_curto"] is None
+    assert o["erro"] is None and 1 <= o["n_tiles"] <= 4 and o["z"] == 12 and o["urls_ok"]
+    assert o["h0"] == pytest.approx(o["esp0"], abs=0.02) and o["h1"] == pytest.approx(o["esp1"], abs=0.02) and o["mono"]
+    assert 7 < o["D"] < 9
+    assert "falta tile Terrarium 12/" in o["longe"]
+    assert "máximo" in o["muitos"] and "CORS" in o["falha"]
+    assert "intervalo" in o["polar"] and "zoom" in o["zoom"] and "quatro coordenadas" in o["nan"]

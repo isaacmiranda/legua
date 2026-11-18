@@ -107,14 +107,15 @@
   }
   /* perfil entre dois pontos (graus decimais), amostrado a cada ~passoM metros; interpolação linear em lat/lon */
   function perfilEntre(grades, a, b, passoM) {
+    var elev = typeof grades === "function" ? grades : function (la, lo) { return elevacao(grades, la, lo); };   // grades .hgt ou fonte (Terrarium)
     if (![a.lat, a.lon, b.lat, b.lon].every(function (x) { return isFinite(x); })) return { erro: "informe as quatro coordenadas" };
-    if (Math.abs(a.lat) > 60 || Math.abs(b.lat) > 60) return { erro: "o SRTM cobre latitudes entre 60° S e 60° N" };
+    if (typeof grades !== "function" && (Math.abs(a.lat) > 60 || Math.abs(b.lat) > 60)) return { erro: "o SRTM cobre latitudes entre 60° S e 60° N" };
     var D = haversineKm(a.lat, a.lon, b.lat, b.lon);
     if (D < 0.02 || D > 100) return { erro: "a distância entre os pontos precisa ficar entre 0,02 e 100 km (agora " + D.toFixed(2) + " km)" };
     var n = Math.min(MAX_PONTOS, Math.max(3, Math.ceil(D * 1000 / (passoM || 30)) + 1)), d = [], h = [], i, vazios = 0;
     for (i = 0; i < n; i++) {
-      var t = i / (n - 1), e = elevacao(grades, a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t);
-      if (!e.ok) return { erro: "falta a grade " + e.falta + ".hgt para cobrir o caminho" };
+      var t = i / (n - 1), e = elev(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t);
+      if (!e.ok) return { erro: "falta " + (/^tile /.test(e.falta) ? e.falta : "a grade " + e.falta + ".hgt") + " para cobrir o caminho" };
       if (!isFinite(e.v)) { if (i === 0 || i === n - 1) return { erro: "a grade tem vazio exatamente no ponto " + (i === 0 ? "A" : "B") + "; mova o ponto alguns metros" }; vazios++; e.v = h[i - 1]; }
       d.push(D * t); h.push(e.v);
     }
