@@ -147,6 +147,7 @@
 
   // ---- formulário
   var host = el("div"), campos = el("div", { class: "form" });
+  var hostRes = el("div"), hostDet = el("div"), camposR = el("div", { class: "form" });   // terreno/mapa, resposta, rádio, detalhes (nesta ordem)
   function fld(rot, ctl, val) { return el("label", { class: "field" }, [el("span", {}, [rot + ": ", val || null]), ctl]); }
   function rng(chave, rot, passo, fmt) {
     var lim = NUM[chave], inp = el("input", { type: "range", min: lim[0], max: lim[1], step: passo, value: st[chave] }), out = el("span", { class: "val", text: fmt(st[chave]) });
@@ -161,14 +162,14 @@
   }
   var tm; function agenda() { clearTimeout(tm); tm = setTimeout(desenha, 40); }
   function monta() {
-    campos.textContent = "";
+    campos.textContent = ""; camposR.textContent = "";
     var u = function (v) { return function (x) { return nf(x, v[0]) + " " + v[1]; }; };
     var csvBox = null;
     /* mapa de pontos (nova opção): vários pontos = saltos em cadeia (relés); cada par seguido é um salto */
     var mapaObj = null;
     function blocoMapa() {
       var caixa = el("div", { class: "field", style: "grid-column:1/-1" }), tabela = el("div", { style: "grid-column:1/-1" }), seletorSalto = el("div", { style: "display:contents" });
-      mapaObj = window.LeguaMapa.criar(caixa, {});
+      mapaObj = window.LeguaMapa.criar(caixa, { altura: 520 });
       mapaObj.definir(st.pontos); mapaObj.consentir(st.consenteMapa);
       if (st.pontos.some(pontoOk)) mapaObj.enquadrar();
       var hist = [];
@@ -232,8 +233,8 @@
         campos.appendChild(fld(c[1], inp));
       });
     }
-    campos.appendChild(sel("terreno", "Terreno", [["plano", "Plano"], ["morro", "Morro entre as antenas"], ["csv", "Perfil colado (CSV)"], ["hgt", "Arquivo de elevação local (.hgt) + coordenadas"], ["terrarium", "Elevação pela internet (tiles Terrarium) + coordenadas"], ["mapa", "Mapa: escolher pontos (um enlace ou vários saltos)"]], monta));
-    campos.appendChild(sel("env", "Variabilidade do canal (ambiente)", Object.keys(DATA.constantes.envs).map(function (k) { return [k, DATA.constantes.envs[k].label]; })));
+    campos.appendChild(sel("terreno", "Terreno", [["mapa", "Mapa: escolher pontos (um enlace ou vários saltos)"], ["plano", "Plano"], ["morro", "Morro entre as antenas"], ["csv", "Perfil colado (CSV)"], ["hgt", "Arquivo de elevação local (.hgt) + coordenadas"], ["terrarium", "Elevação pela internet (tiles Terrarium) + coordenadas"]], monta));
+    camposR.appendChild(sel("env", "Variabilidade do canal (ambiente)", Object.keys(DATA.constantes.envs).map(function (k) { return [k, DATA.constantes.envs[k].label]; })));
     if (st.terreno !== "hgt" && st.terreno !== "terrarium" && st.terreno !== "mapa") campos.appendChild(rng("d", "Distância" + (st.terreno === "csv" ? " (só p/ CSV de uma coluna)" : ""), 0.05, u([2, "km"])));
     if (st.terreno !== "csv" && st.terreno !== "hgt" && st.terreno !== "terrarium") campos.appendChild(rng("base", "Altitude da base", 5, u([0, "m"])));
     if (st.terreno === "morro") {
@@ -290,19 +291,19 @@
       blocoElevacao(function () { return [[{ lat: Pf(st.latA), lon: Pf(st.lonA) }, { lat: Pf(st.latB), lon: Pf(st.lonB) }]]; });
     }
     if (st.terreno === "mapa") blocoMapa();
-    campos.appendChild(rng("hTx", "Altura da antena A", 0.5, u([1, "m"]))); campos.appendChild(rng("hRx", "Altura da antena B", 0.5, u([1, "m"])));
-    campos.appendChild(sel("modelo", "Modelo de difração", [["p526", "ITU-R P.526-16, Bullington com correção (padrão)"], ["j", "Gume único (otimista; só para comparar)"]]));
-    campos.appendChild(sel("k", "Fator k do raio da Terra", [["1.3333", "4/3 (padrão)"], ["1", "1 (sem refração)"], ["0.6667", "2/3 (pior caso)"]]));
-    campos.appendChild(rng("p", "Potência de TX", 1, u([0, "dBm"])));
-    campos.appendChild(rng("gTx", "Ganho da antena A", 0.05, u([2, "dBi"]))); campos.appendChild(rng("gRx", "Ganho da antena B", 0.05, u([2, "dBi"])));
-    campos.appendChild(rng("lTx", "Perda de cabo A", 0.1, u([1, "dB"]))); campos.appendChild(rng("lRx", "Perda de cabo B", 0.1, u([1, "dB"])));
-    campos.appendChild(rng("extra", "Perda extra (vegetação, paredes)", 0.5, u([1, "dB"])));
-    campos.appendChild(sel("sf", "SF do modo escolhido", [7, 8, 9, 10, 11, 12].map(function (x) { return [x, "SF" + x]; })));
-    campos.appendChild(sel("bw", "Largura de banda", [125, 250, 500].map(function (x) { return [x, x + " kHz" + (x < 500 ? " (salto)" : " (digital)")]; })));
-    campos.appendChild(sel("cr", "Taxa de código", [1, 2, 3, 4].map(function (x) { return [x, "4/" + (x + 4)]; })));
-    campos.appendChild(rng("alvo", "Entrega confirmada alvo", 0.005, function (x) { return pct(x); }));
-    campos.appendChild(rng("retries", "Retransmissões", 1, u([0, ""]))); campos.appendChild(rng("interval", "Intervalo entre pacotes", 1, u([0, "s"])));
-    campos.appendChild(rng("load", "Tráfego de terceiros (× do ambiente)", 0.1, u([1, "×"])));
+    camposR.appendChild(rng("hTx", "Altura da antena A", 0.5, u([1, "m"]))); camposR.appendChild(rng("hRx", "Altura da antena B", 0.5, u([1, "m"])));
+    camposR.appendChild(sel("modelo", "Modelo de difração", [["p526", "ITU-R P.526-16, Bullington com correção (padrão)"], ["j", "Gume único (otimista; só para comparar)"]]));
+    camposR.appendChild(sel("k", "Fator k do raio da Terra", [["1.3333", "4/3 (padrão)"], ["1", "1 (sem refração)"], ["0.6667", "2/3 (pior caso)"]]));
+    camposR.appendChild(rng("p", "Potência de TX", 1, u([0, "dBm"])));
+    camposR.appendChild(rng("gTx", "Ganho da antena A", 0.05, u([2, "dBi"]))); camposR.appendChild(rng("gRx", "Ganho da antena B", 0.05, u([2, "dBi"])));
+    camposR.appendChild(rng("lTx", "Perda de cabo A", 0.1, u([1, "dB"]))); camposR.appendChild(rng("lRx", "Perda de cabo B", 0.1, u([1, "dB"])));
+    camposR.appendChild(rng("extra", "Perda extra (vegetação, paredes)", 0.5, u([1, "dB"])));
+    camposR.appendChild(sel("sf", "SF do modo escolhido", [7, 8, 9, 10, 11, 12].map(function (x) { return [x, "SF" + x]; })));
+    camposR.appendChild(sel("bw", "Largura de banda", [125, 250, 500].map(function (x) { return [x, x + " kHz" + (x < 500 ? " (salto)" : " (digital)")]; })));
+    camposR.appendChild(sel("cr", "Taxa de código", [1, 2, 3, 4].map(function (x) { return [x, "4/" + (x + 4)]; })));
+    camposR.appendChild(rng("alvo", "Entrega confirmada alvo", 0.005, function (x) { return pct(x); }));
+    camposR.appendChild(rng("retries", "Retransmissões", 1, u([0, ""]))); camposR.appendChild(rng("interval", "Intervalo entre pacotes", 1, u([0, "s"])));
+    camposR.appendChild(rng("load", "Tráfego de terceiros (× do ambiente)", 0.1, u([1, "×"])));
     desenha();
   }
 
@@ -359,9 +360,9 @@
 
   var ultimo = null;
   function desenha() {
-    host.textContent = "";
+    hostRes.textContent = ""; hostDet.textContent = "";
     var pr = perfilAtual();
-    if (pr.erro) { host.appendChild(cartao("Perfil inválido", [el("p", { class: "note", text: pr.erro })], "warn-card")); ultimo = null; sincroniza(); return; }
+    if (pr.erro) { hostRes.appendChild(cartao("Perfil inválido", [el("p", { class: "note", text: pr.erro })], "warn-card")); ultimo = null; sincroniza(); return; }
     var inp = { perfil: pr.perfil, hTx: st.hTx, hRx: st.hRx, k: parseFloat(st.k), p_dbm: st.p, gTx: st.gTx, gRx: st.gRx, lTx: st.lTx, lRx: st.lRx, extra_db: st.extra, env: st.env,
       sf: st.sf, bw: st.bw, cr: st.cr, fhss: st.bw < 500, retries: st.retries, interval_s: st.interval, load: st.load, alvo: st.alvo, sig: 0, modelo_difracao: st.modelo };
     var A = LE.analisar(inp); A._perfil = pr.perfil; ultimo = { A: A, inp: inp };
@@ -406,14 +407,17 @@
     var cont = el("section", { class: "card warn-card" }, [el("p", { class: "note", text: "Contabilidade de dB: a perda média vem do espaço livre mais a difração do perfil e a perda extra que você informa; o ambiente escolhido contribui só com a variabilidade (sombreamento, desvanecimento, ruído e tráfego), e o estimador recebe a diferença de ganho de antena, sem contar duas vezes. Ficam fora do modelo: reflexão no solo, vegetação e prédios no caminho (use a perda extra), difração em mais de um obstáculo além do equivalente de Bullington e a atmosfera real." })]);
     var mapa = (st.terreno === "terrarium" || st.terreno === "mapa") && st.tiles ? cartaoMapa() : null;
     var rota = st.terreno === "mapa" && st.pontos.length > 2 ? cartaoRota(inp) : null;
-    [resposta, rota, stats, grafico, mapa, tab, cont].forEach(function (n) { if (n) host.appendChild(n); });
+    [resposta, rota].forEach(function (n) { if (n) hostRes.appendChild(n); });
+    [stats, grafico, mapa, tab, cont].forEach(function (n) { if (n) hostDet.appendChild(n); });
     sincroniza();
   }
 
   // o tema é tratado por nav.js, comum às três páginas
   deConsulta((location.hash || "").slice(1));
-  app.appendChild(cartao("Parâmetros do enlace", [el("p", { class: "note", text: "Informe o terreno entre as duas antenas (plano, um morro, ou um perfil colado) e os parâmetros do rádio; o resultado se atualiza na hora." }), campos, (function () { var b = el("button", { type: "button", class: "btn sem-impressao", id: "restaura", text: "Restaurar padrões", title: "Volta todos os campos ao estado inicial (o mapa e a elevação baixada são descartados)" }); b.addEventListener("click", function () { Object.keys(PADRAO).forEach(function (k) { st[k] = JSON.parse(JSON.stringify(PADRAO[k])); }); monta(); agenda(); }); return b; })()], null));
-  app.appendChild(host);
+  app.appendChild(cartao("1. Terreno e pontos", [el("p", { class: "note", text: "Escolha como informar o terreno. Com “Mapa”, marque os pontos no mapa (dois = um enlace; três ou mais = cadeia de saltos); a resposta aparece logo abaixo, e os parâmetros do rádio vêm depois." }), campos], null));
+  app.appendChild(hostRes);
+  app.appendChild(cartao("2. Rádio, antenas e modo", [el("p", { class: "note", text: "Os campos abaixo atualizam a resposta na hora." }), camposR, (function () { var b = el("button", { type: "button", class: "btn sem-impressao", id: "restaura", text: "Restaurar padrões", title: "Volta todos os campos ao estado inicial (o mapa e a elevação baixada são descartados)" }); b.addEventListener("click", function () { Object.keys(PADRAO).forEach(function (k) { st[k] = JSON.parse(JSON.stringify(PADRAO[k])); }); monta(); agenda(); }); return b; })()], null));
+  app.appendChild(hostDet);
   app.appendChild(el("section", { class: "card" }, [el("h2", { text: "Entenda os números" }),
     el("dl", { class: "gloss" }, [
       el("dt", { text: "Perda no espaço livre" }), el("dd", { text: "O quanto o sinal enfraquece só por se espalhar no espaço: cresce 20 dB a cada dez vezes a distância. A 915 MHz, cerca de 91,7 dB a 1 km." }),

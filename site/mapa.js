@@ -69,7 +69,7 @@
     var aviso = doc.createElement("div"), atrib = doc.createElement("div"), mira = doc.createElement("div"), ctl = doc.createElement("div"), status = doc.createElement("span");
     cx.className = "mapa"; cx.tabIndex = 0; cx.setAttribute("role", "application");
     cx.setAttribute("aria-label", "Mapa para escolher os pontos do enlace. Setas movem, mais e menos mudam o zoom, Enter põe um ponto no centro, depois de ativar o mapa-base.");
-    cx.style.cssText = "position:relative;overflow:hidden;height:" + (op.altura || 380) + "px;border:1px solid var(--border);border-radius:8px;background:var(--surface);touch-action:none;cursor:grab";
+    cx.style.cssText = "position:relative;overflow:hidden;height:min(" + (op.altura || 380) + "px,72vh);border:1px solid var(--border);border-radius:8px;background:var(--surface);touch-action:none;cursor:grab";
     camada.style.cssText = "position:absolute;inset:0"; svg.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none"; marc.style.cssText = "position:absolute;inset:0;pointer-events:none";
     mira.style.cssText = "position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border:1px solid #c0392b;border-radius:50%;opacity:.55;pointer-events:none";
     aviso.style.cssText = "position:absolute;left:8px;top:8px;max-width:calc(100% - 70px);background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:12px;box-shadow:0 1px 4px #0003";

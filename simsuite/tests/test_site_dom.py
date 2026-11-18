@@ -348,6 +348,8 @@ const digita = (i, v) => { i.value = v; i.dispatchEvent(new w.Event("input")); }
   out.tem_selecao_salto = !!salto;
   if (salto) { salto.value = "1"; salto.dispatchEvent(new w.Event("change")); await espera(300); }
   out.detalhe = (card ? 1 : 0) && [...d.querySelectorAll(".card")].find(c => /Rota com/.test((c.querySelector("h2") || {}).textContent || "")).textContent.includes("B → C (em detalhe)");
+  out.ordem = [...d.querySelectorAll("#app > .card h2, #app > div > .card h2")].map(h => h.textContent);
+  out.mapa_no_primeiro = !!d.querySelector("#app > .card .mapa") && d.querySelector("#app > .card h2").textContent.startsWith("1.");
   out.hash = w.location.hash;
   out.texto_pagina = d.getElementById("app").textContent;
   console.log(JSON.stringify(out)); process.exit(0);
@@ -375,6 +377,9 @@ def test_mapa_com_varios_pontos_rota_e_privacidade(tmp_path):
     assert "elevação real" in o["rota_texto"] and not o["plano_aviso2"]
     assert "Salto mais fraco" in o["rota_texto"] and "Modos que atingem" in o["rota_texto"] + "Modos que atingem"
     assert o["tem_selecao_salto"] and o["detalhe"]
+    assert o["mapa_no_primeiro"]                                                  # o mapa vem na frente, no primeiro cartão
+    ordem = o["ordem"]                                                            # terreno/mapa, resposta e rota, rádio, detalhes
+    assert ordem.index("1. Terreno e pontos") < ordem.index("Resposta para este enlace") < ordem.index("2. Rádio, antenas e modo") < ordem.index("Perfil do enlace"), ordem
     for sec in (o["hash"], o["rota_texto"]):
         assert "22.9" not in sec and "43.2" not in sec and "43.12" not in sec and "-22.85" not in sec   # coordenadas nunca na URL nem no resumo
     assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") for u in o["urls"]) and 1 <= len(o["urls"]) <= 8

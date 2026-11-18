@@ -186,7 +186,7 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   internet", com os mesmos campos de coordenadas. Baixa os PNG do conjunto Terrain Tiles da AWS Open Data
   (`s3.amazonaws.com/elevation-tiles-prod/terrarium/z/x/y.png`, derivado de SRTM, Copernicus e outros; altitude = R*256 + G +
   B/256 - 32768), zoom 12 (~38 m/pixel no equador), no máximo 24 tiles, 2 por vez, interpolação bilinear entre tiles. Só
-  age depois de uma caixa de consentimento marcada e de um clique; a URL nunca liga a busca. **Mapa para escolher os pontos e rota com vários saltos (18/11/2026, `site/mapa.js`):** terreno "Mapa". Mapa-base com os
+  age depois de uma caixa de consentimento marcada e de um clique; a URL nunca liga a busca. **Mapa para escolher os pontos e rota com vários saltos (18/11/2026, `site/mapa.js`):** **Layout (18/11/2026):** a página segue a ordem 1. terreno e pontos (com "Mapa" como primeira opção, o mapa ocupa o primeiro cartão, com altura de até 520 px ou 72% da tela), 2. resposta (e rota), 3. rádio, antenas e modo, 4. detalhes (perfil, relevo, modos); a resposta fica logo abaixo do mapa, sem rolar até os parâmetros. terreno "Mapa". Mapa-base com os
   tiles do OpenStreetMap (Web Mercator, sem biblioteca): arrastar, roda ou +/- para o zoom, clique (ou Enter, no teclado) para
   pôr um ponto, arrastar o marcador para ajustar, tabela de latitude/longitude editável (o mapa é só conveniência: os pontos
   também são digitados), até 8 pontos. Cada par seguido é um **salto** (cadeia com relés): o cartão "Rota" mostra, por salto,
