@@ -49,10 +49,10 @@ MAPA = [
 
 def job(name, escala, outdir=RES):
     t0 = time.time()
-    cal = os.environ.get("LEGUA_CALIBRACAO")
-    if cal:                                  # constantes medidas (docs/09 §4); vale só neste processo
-        from .analysis.calibracao import carregar, aplicar
-        with aplicar(carregar(cal)[0]):
+    cal = os.environ.get("LEGUA_CALIBRACAO_JSON")        # já validada no main; o arquivo não é relido (docs/09 §4)
+    if cal:                                  # constantes medidas; vale só neste processo
+        from .analysis.calibracao import aplicar
+        with aplicar(json.loads(cal)):
             return _job(name, escala, outdir, t0)
     return _job(name, escala, outdir, t0)
 
@@ -129,9 +129,8 @@ def _job(name, escala, outdir, t0):
         else:
             raise KeyError(name)
         r = {"cenario": name, "escala": escala, "segundos": round(time.time() - t0, 1), "resultado": r}
-        if os.environ.get("LEGUA_CALIBRACAO"):            # resultado com constantes medidas: rotula (docs/09 §4)
-            from .analysis.calibracao import carregar
-            r["calibracao"] = carregar(os.environ["LEGUA_CALIBRACAO"])[0]["id"]
+        if os.environ.get("LEGUA_CALIBRACAO_JSON"):       # resultado com constantes medidas: rotula (docs/09 §4)
+            r["calibracao"] = json.loads(os.environ["LEGUA_CALIBRACAO_JSON"])["id"]
     except Exception as e:  # noqa
         r = {"cenario": name, "erro": repr(e), "trace": traceback.format_exc()}
     os.makedirs(outdir, exist_ok=True)
@@ -223,7 +222,7 @@ def main():
             cal_json, _ = carregar(a.calibracao)
         except (CalibracaoInvalida, OSError, ValueError) as e:
             raise SystemExit(f"calibração inválida: {e}")
-        os.environ["LEGUA_CALIBRACAO"] = os.path.abspath(a.calibracao)      # herdado pelos processos filhos (job)
+        os.environ["LEGUA_CALIBRACAO_JSON"] = json.dumps(cal_json)          # cópia validada, herdada pelos filhos (job)
     if a.teto is not None:
         os.environ["LEGUA_TETO_MAX"] = f"{a.teto:g}"           # herdado pelos processos filhos (common.TETO_MAX)
     names = a.so or (CENARIOS_DE_TETO if a.teto is not None else ALL)
@@ -232,10 +231,6 @@ def main():
         outdir = os.path.join(outdir, f"teto_{a.teto:g}")
     if a.calibracao and not a.saida:
         outdir = os.path.join(outdir, f"cal_{cal_json['id']}")
-    if a.calibracao:
-        import shutil
-        os.makedirs(outdir, exist_ok=True)
-        shutil.copyfile(a.calibracao, os.path.join(outdir, "calibracao.json"))
     if a.escala == "full" and not a.forcar:
         from .analysis.orcamento import estimar_execucao, fmt
         est = estimar_execucao(os.path.join(HERE, "results"), outdir, names)
@@ -247,6 +242,10 @@ def main():
             if est["central"] > a.limite_horas * 3600:
                 print("acima do limite: rodada adiada. Use --so para um subconjunto ou --forcar para rodar assim mesmo.")
                 raise SystemExit(2)
+    if a.calibracao:                 # só depois de aceita a rodada; o que vale é a cópia validada, não o arquivo
+        os.makedirs(outdir, exist_ok=True)
+        with open(os.path.join(outdir, "calibracao.json"), "w", encoding="utf-8") as fh:
+            json.dump(cal_json, fh, ensure_ascii=False, indent=2)
     t0 = time.time()
     results = {}
     with ProcessPoolExecutor(max_workers=a.procs) as ex:
