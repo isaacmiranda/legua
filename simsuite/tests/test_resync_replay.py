@@ -5,8 +5,9 @@ from simsuite.tests.test_equivalencia import FAST
 
 def test_replay_em_massa_provoca_resync_mas_nao_prejudica_o_enlace():
     """Limite conhecido: quadros antigos repetidos pelo atacante contam como recusas. Abaixo de ~1 repetição
-    a cada 3 s (menos de 8 entre dois quadros válidos) nada acontece; acima, o alvo pede RESYNC e o par responde, mas a
-    entrega e o modo do enlace não mudam. Só Python (a equivalência com o C já cobre RESYNC); mede o custo em quadros."""
+    a cada 3 s (menos de 8 entre dois quadros válidos) nada acontece; acima, o alvo pede RESYNC e o par responde, mas o
+    recuo segue dobrando (a resposta só o reinicia se o contador do par saltou mais de 32767), então os pedidos ficam
+    em poucos por hora, e a entrega e o modo do enlace não mudam. Só Python (a equivalência com o C cobre o RESYNC)."""
     T = 1_800_000
     base = dict(cfg=FAST, gain=lambda t: -138.0, T=T, chan_seed=3)
     sem = H.rodar(base, ("py", "py"))
@@ -14,7 +15,7 @@ def test_replay_em_massa_provoca_resync_mas_nao_prejudica_o_enlace():
     forte = H.rodar(dict(base, inject=[(t, 2, "replay") for t in range(100_000, T - 100_000, 1_000)]), ("py", "py"))
     assert raro["stats"][2]["resync_pedidos"] == 0
     b = forte["stats"][2]
-    assert b["resync_pedidos"] >= 10 and b["resync_ok"] >= 5, b       # o alvo é induzido a pedir
-    assert b["resync_ok"] <= T / 1000 / 30 + 1                         # no máximo uma resposta por t_resync_min
+    assert 3 <= b["resync_pedidos"] <= 10 and b["resync_ok"] >= 1, b   # induzido a pedir, mas poucas vezes (sem a regra: ~60 em 30 min)
+    assert b["resync_ok"] <= b["resync_pedidos"]
     for k in ("entregues", "trocas", "rollbacks"):                     # o enlace legítimo não sofre
         assert forte["stats"][2][k] == sem["stats"][2][k], k

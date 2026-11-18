@@ -770,7 +770,7 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
 {
     const legua_params *c = &ep->cfg.params;
     legua_frame f;
-    uint32_t ctr32;
+    uint32_t ctr32, old_last;
     float g, rssi, snr;
     int p_tx, rsp = 0, ok;
 
@@ -818,6 +818,7 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
         rs_note_fail(ep, now, acts);
         return;
     }
+    old_last = ep->peer_last;
     ep->peer_last = ctr32;
     if (ctr32 / LEGUA_CTR_BLOCK > ep->peer_blk) {     /* piso do par: grava a cada bloco de 64 */
         ep->peer_blk = ctr32 / LEGUA_CTR_BLOCK;
@@ -827,8 +828,10 @@ static void on_rx_impl(legua_endpoint *ep, const uint8_t *raw, size_t len, const
     ep->rs_fails = 0;
     if (rsp) {                                        /* ressincronizado: o piso do par subiu para o contador do par */
         ep->rs_nonce_set = 0;
-        ep->rs_backoff = c->t_resync_min_ms;
-        ep->rs_next = now;
+        if (ctr32 - old_last > 0x7FFFu) {             /* desvio real: o recuo volta ao início; senão (replay em massa) segue dobrando */
+            ep->rs_backoff = c->t_resync_min_ms;
+            ep->rs_next = now;
+        }
         ep->st.resync_ok++;
         act_log(acts, LEGUA_LOG_RESYNC, 1);
         return;

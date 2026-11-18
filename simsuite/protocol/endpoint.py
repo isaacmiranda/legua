@@ -334,6 +334,7 @@ class Endpoint:
             # key_id fora do aceito ou MIC inválido: contador na janela, conta como falha de MIC
             self.stats["rejeitados"] += 1
             return [("log", {"ev": "rejeitado", "tipo": f.kind})] + self._mic_fail(now) + self._rs_note_fail(now)
+        antigo = self.peer_ctr
         self.peer_ctr = f.ctr
         if f.ctr // 64 > self.nvm["peer_blk"]:           # grava o piso do par a cada bloco de 64
             self.nvm["peer_blk"] = f.ctr // 64
@@ -341,7 +342,9 @@ class Endpoint:
         acts += self._key_seen(f.key)
         self.rs_fails = 0
         if f.kind == "RESYNC_RSP":           # ressincronizado: o piso do par subiu para o contador do par
-            self.rs_nonce, self.rs_backoff, self.rs_next = None, self.cfg.t_resync_min, now
+            self.rs_nonce = None
+            if f.ctr - antigo > 0x7FFF:      # desvio real do contador: o recuo volta ao início; senão (replay em massa) segue dobrando
+                self.rs_backoff, self.rs_next = self.cfg.t_resync_min, now
             self.stats["resync_ok"] += 1
             return acts + [("log", {"ev": "resync", "arg": 1})]
         if f.kind == "RESYNC":               # o par perdeu o contador: responde (no máximo uma por t_resync_min)
