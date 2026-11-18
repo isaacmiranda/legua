@@ -234,3 +234,20 @@ def test_resync_recusa_resposta_forjada_antiga_e_sem_pedido(shim):
         raw = wire.pack(wire.T_RESYNC_RSP, 1, 2, 70000, (70000).to_bytes(4, "big"), extra=(1234).to_bytes(4, "big"))
         a.on_rx(raw, H.mode_id_of(H.BASE_MODE), -900, 100, 1000)
         assert a.stats()["resync_ok"] == 0 and a.stats()["rejeitados"] == 1, kind
+
+
+def test_replay_em_massa_provoca_resync_mas_nao_prejudica_o_enlace():
+    """docs/07 §6.3, limite conhecido: quadros antigos repetidos pelo atacante contam como recusas. Abaixo de ~1 repetição
+    a cada 3 s (menos de 8 entre dois quadros válidos) nada acontece; acima, o alvo pede RESYNC e o par responde, mas a
+    entrega e o modo do enlace não mudam. Só Python (a equivalência com o C já cobre RESYNC); mede o custo em quadros."""
+    T = 1_800_000
+    base = dict(cfg=FAST, gain=lambda t: -138.0, T=T, chan_seed=3)
+    sem = H.rodar(base, ("py", "py"))
+    raro = H.rodar(dict(base, inject=[(t, 2, "replay") for t in range(100_000, T - 100_000, 60_000)]), ("py", "py"))
+    forte = H.rodar(dict(base, inject=[(t, 2, "replay") for t in range(100_000, T - 100_000, 1_000)]), ("py", "py"))
+    assert raro["stats"][2]["resync_pedidos"] == 0
+    b = forte["stats"][2]
+    assert b["resync_pedidos"] >= 10 and b["resync_ok"] >= 5, b       # o alvo é induzido a pedir
+    assert b["resync_ok"] <= T / 1000 / 30 + 1                         # no máximo uma resposta por t_resync_min
+    for k in ("entregues", "trocas", "rollbacks"):                     # o enlace legítimo não sofre
+        assert forte["stats"][2][k] == sem["stats"][2][k], k

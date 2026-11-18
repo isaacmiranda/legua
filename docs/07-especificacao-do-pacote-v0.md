@@ -240,6 +240,16 @@ Em desafio e resposta (o receptor perdido é quem pede):
   resposta só vale para o nonce pendente, uma vez, dentro de `t_resync_timeout`. Um único candidato por quadro, então
   a chance de falsificação segue 2^-32 por tentativa. O custo para o respondente é um quadro por pedido autenticado.
   As falhas que levam ao pedido já contam no alarme de MIC (§6): a negociação fica congelada até a volta.
+- **Repetição em massa (medido, 18/11/2026, simulador, 1 h, SF10/125, 16 B = 0,33 s no ar):** o atacante repete quadros
+  antigos do par; cada um é recusado por contador "antigo". Com uma repetição a cada 10 s ou mais devagar, nada acontece
+  (os quadros válidos zeram a contagem). A partir de uma a cada ~3 s o alvo pede RESYNC e o par responde, e o recuo
+  **não contém** isso como se esperava: toda resposta válida volta o recuo a `t_resync_min`, então o teto é uma resposta
+  por 30 s (cerca de 110 por hora). Com 0,5 repetição/s: 193 pedidos do alvo e 100 respostas por hora (cerca de 65 s e
+  33 s de tempo no ar, 1,8 % e 0,9 % do ciclo); com 10 repetições/s: 219 e 114. O enlace legítimo não muda (mesmas
+  entregas, trocas e rollbacks que sem ataque; `test_replay_em_massa_provoca_resync_mas_nao_prejudica_o_enlace`), e o
+  alarme de MIC já dispara pelas recusas (§6). O custo é energia e ocupação do canal, não perda de dados. Mitigação
+  possível, **não implementada** (mudaria o comportamento nos dois núcleos, sem mexer no fio): só voltar o recuo a
+  `t_resync_min` se a resposta subir o piso do par em mais de 32767; senão manter o recuo dobrando até 600 s.
 - **Não resolve:** par que perdeu a NVM e voltou com contador **menor** (parece replay; só reprovisionando, §6.1) e
   chave divergente (§6.2).
 - **Custo no formato (pago):** dois tipos novos e o dado extra do MIC (`legua_frame_verify_x`, campo `extra` de
