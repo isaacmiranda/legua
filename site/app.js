@@ -899,6 +899,7 @@
   };
   var SIMCFG = { "10|125|1|1": "Fixo SF10/125 salto (base)", "7|125|1|1": "Fixo SF7/125 salto (rápido)", "12|500|1|0": "Fixo SF12/500 digital" };
   var plan = { preset: "F1", env: "urbano_denso", d: 1.0, off: 0, sf: 10, bw: 125, cr: 1, p: 28, retries: 3, interval: 60, load: 1, target: 0.95, sig: "0", perfil: "padrao", hull: 0 };
+  var PLAN0 = JSON.parse(JSON.stringify(plan));            // para “Restaurar padrões”
 
   function fld(label, ctl, valNode) {
     return el("label", { class: "field" }, [el("span", {}, [document.createTextNode(label + ": "), valNode || null]), ctl]);
@@ -1099,6 +1100,9 @@
           sfF, bwF, crF, rng(-9, 28, 1, "p", function (v) { return nf(v, 0) + " dBm"; }, redraw), rng(0, 6, 1, "retries", function (v) { return String(v); }, redraw),
           rng(1, 600, 1, "interval", function (v) { return nf(v, 0) + " s"; }, redraw), rng(0, 3, 0.1, "load", function (v) { return nf(v, 1) + "×"; }, redraw),
           rng(0.5, 0.999, 0.005, "target", function (v) { return fmtPct(v); }, redraw), sgF, hullF])]);
+      var rest = el("button", { type: "button", class: "btn sem-impressao", id: "restaura-plano", text: "Restaurar padrões", title: "Volta todos os parâmetros do setup ao estado inicial" });
+      rest.addEventListener("click", function () { Object.keys(PLAN0).forEach(function (k) { plan[k] = PLAN0[k]; }); build(); });
+      form.appendChild(rest);
       panel.textContent = ""; live = [];
       panel.appendChild(form); panel.appendChild(host); draw();
       appendDiscussion(panel);

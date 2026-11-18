@@ -405,6 +405,30 @@
     return nodes;
   }
 
+  // ------------------------------------------------------------------ siglas com definição ao passar o mouse
+  /* Na primeira ocorrência de cada sigla em cada cartão, envolve o texto num <abbr title="definição do glossário">.
+   * Idempotente (o observador do app.js chama de novo a cada mudança): não toca em texto já dentro de <abbr>. */
+  var SIGLAS = /\b(PDR|ToA|EIRP|MIC)\b|\b(SF|BW|CR)(?=\d|\b)/;
+  function abreviar(panel) {
+    panel.querySelectorAll(".card").forEach(function (c) {
+      var vistos = c.__siglas || (c.__siglas = {}), w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT, null), n, alvos = [];
+      while ((n = w.nextNode())) {
+        var pai = n.parentNode;
+        if (!pai || pai.closest("abbr,script,style,svg,summary,button,input,select,option,textarea,h2,h3,th,code,pre,.legend")) continue;
+        if (SIGLAS.test(n.nodeValue)) alvos.push(n);
+      }
+      alvos.forEach(function (t) {
+        var m = SIGLAS.exec(t.nodeValue), sig = m && (m[1] || m[2]);
+        if (!sig || vistos[sig] || !TERMS[sig]) return;
+        vistos[sig] = 1;
+        var ab = document.createElement("abbr"), i = m.index, v = t.nodeValue;
+        ab.title = TERMS[sig]; ab.textContent = sig; ab.style.cssText = "text-decoration:underline dotted;cursor:help";
+        var depois = t.splitText(i + sig.length); t.nodeValue = v.slice(0, i);
+        depois.parentNode.insertBefore(ab, depois);
+      });
+    });
+  }
+
   // ------------------------------------------------------------------ anotação dos cartões
   function anotar(panel) {
     panel.querySelectorAll(".card").forEach(function (c) {
@@ -427,6 +451,7 @@
       while (after.parentNode !== c) after = after.parentNode;
       c.insertBefore(det, after.nextSibling);
     });
+    abreviar(panel);
     // dicas nos cabeçalhos de tabela e rótulos
     panel.querySelectorAll("th").forEach(function (t) {
       var k = t.textContent.trim();

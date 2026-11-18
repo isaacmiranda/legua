@@ -8,6 +8,7 @@
 
   var st = { terreno: "plano", d: 5.0, base: 100, morro_h: 60, morro_pos: 50, morro_w: 0.8, csv: "", hTx: 10, hRx: 10, k: "1.3333", p: 20, gTx: 2.15, gRx: 2.15, lTx: 0.5, lRx: 0.5,
     extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], tiles: null, tilesMsg: "", consente: false, buscando: false, env: "rural_aberto", modelo: "p526", pontos: [], salto: 0, consenteMapa: false, sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
+  var PADRAO = JSON.parse(JSON.stringify(st));                 // estado inicial, para “Restaurar padrões”
   var CHAVES = ["terreno", "d", "base", "morro_h", "morro_pos", "morro_w", "hTx", "hRx", "k", "p", "gTx", "gRx", "lTx", "lRx", "extra", "env", "modelo", "sf", "bw", "cr", "alvo", "retries", "interval", "load"];
   var NUM = { d: [0.05, 40], base: [-400, 8000], morro_h: [0, 1500], morro_pos: [0, 100], morro_w: [0.05, 20], hTx: [0.5, 100], hRx: [0.5, 100], p: [-9, 28], gTx: [-5, 15], gRx: [-5, 15],
     lTx: [0, 10], lRx: [0, 10], extra: [0, 60], alvo: [0.5, 0.999], retries: [0, 6], interval: [1, 600], load: [0, 3] };
@@ -68,7 +69,7 @@
     if (st.tiles) {
       var r = TE.perfilEntre(st.tiles.fonte, A, B, 30);
       if (!r.erro) return { perfil: r.perfil, D_km: r.D_km, vazios: r.vazios };
-      if (!/falta tile/.test(r.erro)) return { erro: r.erro };
+      if (!/saíram da área de elevação/.test(r.erro)) return { erro: r.erro };
     }
     var D = TE.haversineKm(A.lat, A.lon, B.lat, B.lon);
     if (!(D >= 0.02 && D <= 100)) return { erro: "a distância entre os pontos precisa ficar entre 0,02 e 100 km (agora " + D.toFixed(2) + " km)" };
@@ -97,7 +98,7 @@
       if (!st.tiles) return { erro: "marque o consentimento e clique em “Buscar elevação” para baixar os tiles do caminho" };
       var rt = TE.perfilEntre(st.tiles.fonte, { lat: parseFloat(String(st.latA).replace(",", ".")), lon: parseFloat(String(st.lonA).replace(",", ".")) },
         { lat: parseFloat(String(st.latB).replace(",", ".")), lon: parseFloat(String(st.lonB).replace(",", ".")) }, 30);
-      if (rt.erro) return { erro: rt.erro + (/falta tile/.test(rt.erro) ? "; clique em “Buscar elevação” de novo" : "") };
+      if (rt.erro) return { erro: rt.erro };
       st.d = Math.round(rt.D_km * 100) / 100;
       return { perfil: rt.perfil, vazios: rt.vazios };
     }
@@ -167,12 +168,13 @@
     var mapaObj = null;
     function blocoMapa() {
       var caixa = el("div", { class: "field", style: "grid-column:1/-1" }), tabela = el("div", { style: "grid-column:1/-1" }), seletorSalto = el("div", { style: "display:contents" });
-      var ckm = el("input", { type: "checkbox", id: "consente-mapa", "aria-label": "Consinto em baixar o mapa-base do OpenStreetMap" }); ckm.checked = st.consenteMapa;
       mapaObj = window.LeguaMapa.criar(caixa, {});
       mapaObj.definir(st.pontos); mapaObj.consentir(st.consenteMapa);
       if (st.pontos.some(pontoOk)) mapaObj.enquadrar();
-      mapaObj.aoMudar(function (pts) { st.pontos = pts; listaPontos(); agenda(); });
-      ckm.addEventListener("change", function () { st.consenteMapa = ckm.checked; mapaObj.consentir(ckm.checked); });
+      var hist = [];
+      function snap() { hist.push(st.pontos.map(function (p) { return { lat: p.lat, lon: p.lon }; })); if (hist.length > 30) hist.shift(); }
+      mapaObj.aoMudar(function (pts) { snap(); st.pontos = pts; listaPontos(); agenda(); });
+      mapaObj.aoConsentir(function (v) { st.consenteMapa = v; });
       function sinc() { mapaObj.definir(st.pontos); }
       function listaPontos() {
         tabela.textContent = "";
@@ -182,20 +184,31 @@
         st.pontos.forEach(function (p, i) {
           var tr = el("tr"), la = el("input", { type: "text", inputmode: "decimal", autocomplete: "off", "aria-label": "Latitude do ponto " + window.LeguaMapa.rotulo(i), style: "width:9em" }), lo = el("input", { type: "text", inputmode: "decimal", autocomplete: "off", "aria-label": "Longitude do ponto " + window.LeguaMapa.rotulo(i), style: "width:9em" });
           la.value = isFinite(p.lat) ? p.lat.toFixed(5) : ""; lo.value = isFinite(p.lon) ? p.lon.toFixed(5) : "";
-          function mudou() { st.pontos[i] = { lat: Pf(la.value), lon: Pf(lo.value) }; sinc(); agenda(); }
+          var dica = el("span", { class: "sub", role: "alert", style: "color:var(--bad)" });
+          function valida() {
+            var a = Pf(la.value), b = Pf(lo.value), m = "";
+            if (la.value.trim() && !(Math.abs(a) <= 90)) m = "A latitude vai de −90 a 90" + (Math.abs(a) <= 180 && Math.abs(b) <= 90 ? "; parece que latitude e longitude estão trocadas." : ".");
+            else if (lo.value.trim() && !(Math.abs(b) <= 180)) m = "A longitude vai de −180 a 180.";
+            la.setAttribute("aria-invalid", String(!!m && /latitude/i.test(m))); lo.setAttribute("aria-invalid", String(!!m && /longitude/i.test(m)));
+            la.style.borderColor = la.getAttribute("aria-invalid") === "true" ? "var(--bad)" : ""; lo.style.borderColor = lo.getAttribute("aria-invalid") === "true" ? "var(--bad)" : "";
+            dica.textContent = m;
+          }
+          function mudou() { st.pontos[i] = { lat: Pf(la.value), lon: Pf(lo.value) }; valida(); sinc(); agenda(); }
           la.addEventListener("input", mudou); lo.addEventListener("input", mudou);
           var rm = el("button", { type: "button", class: "btn", text: "Remover", "aria-label": "Remover o ponto " + window.LeguaMapa.rotulo(i) });
-          rm.addEventListener("click", function () { st.pontos.splice(i, 1); st.salto = Math.max(0, Math.min(st.salto, st.pontos.length - 2)); sinc(); listaPontos(); monta(); });
-          [el("td", { text: window.LeguaMapa.rotulo(i) }), el("td", {}, [la]), el("td", {}, [lo]), el("td", {}, [rm])].forEach(function (c) { tr.appendChild(c); });
+          rm.addEventListener("click", function () { snap(); st.pontos.splice(i, 1); st.salto = Math.max(0, Math.min(st.salto, st.pontos.length - 2)); sinc(); listaPontos(); monta(); });
+          [el("td", { text: window.LeguaMapa.rotulo(i) }), el("td", {}, [la]), el("td", {}, [lo]), el("td", {}, [rm, document.createTextNode(" "), dica])].forEach(function (c) { tr.appendChild(c); }); valida();
           tb.appendChild(tr);
         });
         t.appendChild(tb);
         var ops = el("div", { class: "controls sem-impressao", style: "display:flex;gap:8px;flex-wrap:wrap;margin-top:8px" });
         function ob(txt, fn, id) { var b = el("button", { type: "button", class: "btn", text: txt }); if (id) b.id = id; b.addEventListener("click", fn); ops.appendChild(b); }
-        ob("Adicionar ponto digitando", function () { if (st.pontos.length < window.LeguaMapa.MAX_PONTOS) { st.pontos.push({ lat: NaN, lon: NaN }); listaPontos(); } }, "add-ponto");
-        ob("Inverter a ordem", function () { st.pontos.reverse(); sinc(); listaPontos(); agenda(); });
+        ob("Adicionar ponto digitando", function () { if (st.pontos.length < window.LeguaMapa.MAX_PONTOS) { snap(); st.pontos.push({ lat: NaN, lon: NaN }); listaPontos(); } }, "add-ponto");
+        ob("Inverter a ordem", function () { snap(); st.pontos.reverse(); sinc(); listaPontos(); agenda(); });
         ob("Enquadrar no mapa", function () { mapaObj.enquadrar(); });
-        ob("Limpar pontos", function () { st.pontos = []; st.salto = 0; st.tiles = null; st.tilesMsg = ""; sinc(); listaPontos(); monta(); });
+        ob("Desfazer", function () { if (!hist.length) return; st.pontos = hist.pop(); sinc(); listaPontos(); monta(); }, "desfaz-ponto");
+        ops.lastChild.disabled = !hist.length; ops.lastChild.title = hist.length ? "Volta o último ajuste dos pontos" : "Nada para desfazer";
+        ob("Limpar pontos", function () { snap(); st.pontos = []; st.salto = 0; st.tiles = null; st.tilesMsg = ""; sinc(); listaPontos(); monta(); });
         tabela.appendChild(el("p", { class: "sub", text: st.pontos.length < 2 ? "Clique no mapa (ou digite) para pôr os pontos: com dois, um enlace; com três ou mais, uma cadeia de saltos com relés. Até " + window.LeguaMapa.MAX_PONTOS + " pontos." : (st.pontos.length - 1) + " salto(s) em cadeia: " + st.pontos.map(function (_, i) { return window.LeguaMapa.rotulo(i); }).join(" → ") + "." }));
         tabela.appendChild(el("div", { class: "tbl-wrap", style: "overflow-x:auto" }, [t])); tabela.appendChild(ops);
         seletorSalto.textContent = "";                                      // o seletor de salto acompanha o número de pontos
@@ -206,8 +219,7 @@
         }
       }
       campos.appendChild(caixa);
-      campos.appendChild(el("div", { class: "field", style: "grid-column:1/-1" }, [el("label", {}, [ckm, document.createTextNode(" Consinto: o navegador vai baixar do OpenStreetMap os tiles do mapa da região que eu estiver vendo")])]));
-      campos.appendChild(el("p", { class: "note", style: "grid-column:1/-1", text: "O que sai da sua máquina para o mapa: as URLs dos tiles da janela que você está vendo (zoom, x e y) e o seu IP, para tile.openstreetmap.org, com o referenciador reduzido à origem do site. A vista começa no Brasil inteiro, que não revela nada; quanto mais você aproxima, mais precisa fica a região exposta. As coordenadas dos pontos não vão em nenhuma URL, no endereço compartilhável, no resumo nem no JSON. Mapa-base: © colaboradores do OpenStreetMap (ODbL); uso leve, sem varredura." }));
+      campos.appendChild(el("p", { class: "sub", style: "grid-column:1/-1;margin:-4px 0 0", text: "Arraste para mover, use + e − (ou a roda) para o zoom e clique para pôr um ponto. Os pontos ficam só nesta página." }));
       campos.appendChild(tabela);
       campos.appendChild(seletorSalto);
       listaPontos();
@@ -255,24 +267,22 @@
     }
     /* elevação por tiles Terrarium (consentimento próprio); `saltosFn()` devolve [[A, B], ...] */
     function blocoElevacao(saltosFn) {
-      var ck = el("input", { type: "checkbox", id: "consente-tiles", "aria-label": "Consinto em baixar tiles de elevação da internet" }); ck.checked = st.consente;
-      var bt = el("button", { type: "button", class: "btn", id: "busca-tiles", text: st.buscando ? "Baixando…" : "Buscar elevação" });
+      var bt = el("button", { type: "button", class: "btn", id: "busca-tiles", text: st.buscando ? "Baixando…" : (st.tiles ? "Atualizar elevação" : "Buscar elevação") });
       var stt = el("span", { class: "sub", role: "status", "aria-live": "polite", id: "status-tiles", text: st.tilesMsg });
-      function atualizaBt() { bt.disabled = !ck.checked || st.buscando; }
-      ck.addEventListener("change", function () { st.consente = ck.checked; atualizaBt(); });
+      bt.disabled = st.buscando;
       bt.addEventListener("click", function () {
-        if (!st.consente || st.buscando) return;
-        st.buscando = true; st.tilesMsg = "Baixando tiles…"; stt.textContent = st.tilesMsg; atualizaBt(); bt.textContent = "Baixando…";
+        if (st.buscando) return;
+        st.buscando = true; st.tilesMsg = "Baixando os tiles de elevação…"; stt.textContent = st.tilesMsg; bt.disabled = true; bt.textContent = "Baixando…";
         var buscar = window.LeguaTerrariumBuscar || TR.buscarNoNavegador;               // o teste troca o buscador; nada vai à rede
         TR.carregarSaltos(saltosFn(), TR.Z_PADRAO, buscar).then(function (r) {
-          st.buscando = false;
-          if (r.erro) { st.tiles = null; st.tilesMsg = r.erro; } else { st.tiles = r; st.tilesMsg = r.n_tiles + " tiles baixados (zoom " + r.z + "). Mudar os pontos para fora deles pede nova busca."; }
-          stt.textContent = st.tilesMsg; bt.textContent = "Buscar elevação"; atualizaBt(); agenda();
+          st.buscando = false; bt.disabled = false;
+          if (r.erro) { st.tiles = null; st.tilesMsg = r.erro; bt.textContent = "Tentar de novo"; } else { st.tiles = r; st.tilesMsg = "Elevação pronta (" + r.n_tiles + " tiles). Se mover os pontos para fora da área, busque de novo."; bt.textContent = "Atualizar elevação"; }
+          stt.textContent = st.tilesMsg; agenda();
         });
       });
-      atualizaBt();
-      campos.appendChild(el("div", { class: "field", style: "grid-column:1/-1" }, [el("label", {}, [ck, document.createTextNode(" Consinto: o navegador vai baixar da AWS os tiles de elevação que cobrem o caminho")]), bt, stt]));
-      campos.appendChild(el("p", { class: "note", style: "grid-column:1/-1", text: "O que sai da sua máquina: só as URLs dos tiles (zoom, x e y), que mostram a região com cerca de 10 km de lado, e o seu endereço IP, para o servidor de tiles da AWS (s3.amazonaws.com). As coordenadas exatas dos pontos não são enviadas, nem ficam no endereço compartilhável, no resumo ou no JSON. Só baixa depois do clique; nada é gravado em disco além do cache normal do navegador. Dados: Terrain Tiles da AWS Open Data (SRTM, Copernicus e outros); modelo de superfície, com copas e telhados contando como terreno; vale a precisão de ~30 m." }));
+      var det = el("details", { class: "sub", style: "margin-top:4px" }, [el("summary", { style: "cursor:pointer", text: "O que é enviado?" }),
+        el("p", { class: "note", text: "Ao clicar, o navegador baixa da AWS (s3.amazonaws.com) os tiles de elevação que cobrem o caminho. O servidor vê os números desses tiles (uma região de uns 10 km) e o seu IP; as coordenadas exatas dos pontos não são enviadas nem ficam em URL, resumo ou JSON. Dados: Terrain Tiles da AWS Open Data (SRTM, Copernicus e outros), com precisão de cerca de 30 m; copas e telhados contam como terreno." })]);
+      campos.appendChild(el("div", { class: "field", style: "grid-column:1/-1" }, [el("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, [bt, stt]), det]));
     }
     function Pf(t) { return parseFloat(String(t).replace(",", ".")); }
     if (st.terreno === "terrarium") {
@@ -402,7 +412,7 @@
 
   // o tema é tratado por nav.js, comum às três páginas
   deConsulta((location.hash || "").slice(1));
-  app.appendChild(cartao("Parâmetros do enlace", [el("p", { class: "note", text: "Informe o terreno entre as duas antenas (plano, um morro, ou um perfil colado) e os parâmetros do rádio; o resultado se atualiza na hora." }), campos], null));
+  app.appendChild(cartao("Parâmetros do enlace", [el("p", { class: "note", text: "Informe o terreno entre as duas antenas (plano, um morro, ou um perfil colado) e os parâmetros do rádio; o resultado se atualiza na hora." }), campos, (function () { var b = el("button", { type: "button", class: "btn sem-impressao", id: "restaura", text: "Restaurar padrões", title: "Volta todos os campos ao estado inicial (o mapa e a elevação baixada são descartados)" }); b.addEventListener("click", function () { Object.keys(PADRAO).forEach(function (k) { st[k] = JSON.parse(JSON.stringify(PADRAO[k])); }); monta(); agenda(); }); return b; })()], null));
   app.appendChild(host);
   app.appendChild(el("section", { class: "card" }, [el("h2", { text: "Entenda os números" }),
     el("dl", { class: "gloss" }, [

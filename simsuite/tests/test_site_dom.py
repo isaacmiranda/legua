@@ -191,12 +191,8 @@ const campo = (rotulo) => [...d.querySelectorAll("input[type=text]")].find(i => 
   preenche("Latitude do ponto B", "-22.9"); preenche("Longitude do ponto B", "-43.12");
   w.LeguaTerrariumBuscar = (url) => { out.urls.push(url); const x = new Float32Array(65536); x.fill(120); return Promise.resolve(x); };
   await espera(300);
-  const bt = d.getElementById("busca-tiles"), ck = d.getElementById("consente-tiles");
-  out.desabilitado_sem_consentimento = bt.disabled;
-  bt.click(); await espera(50);
-  out.urls_sem_consentimento = out.urls.length;
-  out.msg_antes = (d.querySelector(".card, #app") || {}).textContent.includes("Buscar elevação");
-  ck.checked = true; ck.dispatchEvent(new w.Event("change"));
+  out.urls_antes_do_clique = out.urls.length;                  // nada é pedido enquanto o usuário não clica
+  out.detalhes = !!d.querySelector("#app details summary");    // "O que é enviado?" fica recolhido
   out.habilitado = !d.getElementById("busca-tiles").disabled;
   d.getElementById("busca-tiles").click();
   await espera(600);
@@ -221,10 +217,10 @@ def test_testador_terrarium_so_busca_com_consentimento_e_nao_poe_coordenadas_na_
     o = json.loads(r.stdout.strip().splitlines()[-1])
     assert not [e for e in o["erros"] if "getContext" not in e], o["erros"]       # o jsdom sem canvas não implementa getContext
     assert o["mapa"] is True
-    assert o["desabilitado_sem_consentimento"] is True and o["urls_sem_consentimento"] == 0
+    assert o["urls_antes_do_clique"] == 0 and o["detalhes"] is True                # só baixa depois do clique, com a explicação à mão
     assert o["habilitado"] is True and len(o["urls"]) >= 1
     assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") and "22" not in u.split("terrarium/")[1].split("/")[0] for u in o["urls"])
-    assert "tiles baixados" in o["status"] and o["svg"]
+    assert "Elevação pronta" in o["status"] and o["svg"]
     assert "terreno=plano" in o["hash_inicial"]                                   # a URL nunca liga a busca de tiles sozinha
     for h in (o["hash_apos_escolher"], o["hash"]):
         assert "22.9" not in h and "43.2" not in h and "latA" not in h and "lonA" not in h   # coordenadas nunca na URL
@@ -315,7 +311,7 @@ const digita = (i, v) => { i.value = v; i.dispatchEvent(new w.Event("input")); }
   out.hash_inicial = w.location.hash;
   const s = d.querySelector("select"); s.value = "mapa"; s.dispatchEvent(new w.Event("change")); await espera(150);
   out.imgs_antes = d.querySelectorAll(".mapa img").length;
-  out.aviso_visivel = /ainda não foi pedido/.test(d.querySelector(".mapa").textContent);
+  out.aviso_visivel = /Mapa-base desligado/.test(d.querySelector(".mapa").textContent);
   const pts = [[-22.9, -43.2], [-22.9, -43.12], [-22.85, -43.05]];
   for (let k = 0; k < pts.length; k++) {
     d.getElementById("add-ponto").click(); await espera(30);
@@ -326,14 +322,21 @@ const digita = (i, v) => { i.value = v; i.dispatchEvent(new w.Event("input")); }
   out.marcadores = d.querySelectorAll(".mapa [data-i]").length;
   out.titulo_rota_antes = [...d.querySelectorAll(".card h2")].map(h => h.textContent).find(t => /Rota/.test(t)) || null;
   out.plano_aviso = /sem elevação real/.test(d.getElementById("app").textContent);
-  const ckm = d.getElementById("consente-mapa"); ckm.checked = true; ckm.dispatchEvent(new w.Event("change")); await espera(100);
+  const rot = (r) => d.querySelector('.mapa button[aria-label="' + r + '"]');
+  out.zoom_sem_consentimento = !!rot("Aproximar") && !!rot("Afastar");        // o zoom existe antes de ativar o mapa-base
+  d.getElementById("ativa-mapa").click(); await espera(100);
   const imgs = [...d.querySelectorAll(".mapa img")];
+  const zdo = (i) => +i.getAttribute("src").split("/").slice(-3)[0];
+  out.z0 = zdo(imgs[0]); rot("Aproximar").click(); await espera(50);
+  out.z1 = zdo(d.querySelector(".mapa img")); rot("Afastar").click(); rot("Afastar").click(); await espera(50);
+  out.z2 = zdo(d.querySelector(".mapa img"));
+  d.querySelector(".mapa").dispatchEvent(new w.WheelEvent("wheel", { deltaY: -100, clientX: 100, clientY: 100, bubbles: true, cancelable: true })); await espera(50);
+  out.z3 = zdo(d.querySelector(".mapa img"));
   out.imgs_depois = imgs.length;
   out.img_urls_ok = imgs.every(i => /^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/.test(i.getAttribute("src")));
   out.img_ref = imgs.every(i => i.getAttribute("referrerpolicy") === "origin");
   out.atribuicao = /OpenStreetMap/.test(d.querySelector(".mapa").textContent);
   w.LeguaTerrariumBuscar = (url) => { out.urls.push(url); const x = new Float32Array(65536); x.fill(120); return Promise.resolve(x); };
-  const ck = d.getElementById("consente-tiles"); ck.checked = true; ck.dispatchEvent(new w.Event("change"));
   d.getElementById("busca-tiles").click(); await espera(700);
   out.status = d.getElementById("status-tiles").textContent;
   const card = [...d.querySelectorAll(".card")].find(c => /Rota com/.test((c.querySelector("h2") || {}).textContent || ""));
@@ -367,10 +370,71 @@ def test_mapa_com_varios_pontos_rota_e_privacidade(tmp_path):
     assert o["imgs_antes"] == 0 and o["aviso_visivel"]                            # sem consentimento, nenhum tile
     assert o["marcadores"] == 3 and "Rota com 2 saltos" in (o["titulo_rota_antes"] or "") and o["plano_aviso"]
     assert o["imgs_depois"] >= 4 and o["img_urls_ok"] and o["img_ref"] and o["atribuicao"]
-    assert "tiles baixados" in o["status"] and o["rota_titulo"] == "Rota com 2 saltos" and o["rota_linhas"] == 2
+    assert o["zoom_sem_consentimento"] and o["z1"] == o["z0"] + 1 and o["z2"] == o["z0"] - 1 and o["z3"] == o["z2"] + 1   # botões e roda mudam o zoom
+    assert "Elevação pronta" in o["status"] and o["rota_titulo"] == "Rota com 2 saltos" and o["rota_linhas"] == 2
     assert "elevação real" in o["rota_texto"] and not o["plano_aviso2"]
     assert "Salto mais fraco" in o["rota_texto"] and "Modos que atingem" in o["rota_texto"] + "Modos que atingem"
     assert o["tem_selecao_salto"] and o["detalhe"]
     for sec in (o["hash"], o["rota_texto"]):
         assert "22.9" not in sec and "43.2" not in sec and "43.12" not in sec and "-22.85" not in sec   # coordenadas nunca na URL nem no resumo
     assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") for u in o["urls"]) and 1 <= len(o["urls"]) <= 8
+
+
+JS_USO = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const dir = process.argv[2], out = { erros: [] };
+function abre(arq, frag) {
+  const vc = new VirtualConsole(); vc.on("jsdomError", e => { if (!/getContext/.test(String(e.message || e))) out.erros.push(arq + ": " + String(e.message || e)); });
+  const html = fs.readFileSync(path.join(dir, arq), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+    (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+  return new JSDOM(html, { url: "http://localhost/" + arq + frag, runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true }).window;
+}
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const w = abre("index.html", "#campo"); await espera(700); let d = w.document;
+  out.tema = d.getElementById("theme").textContent;
+  out.aviso_recolhido = !!d.querySelector(".notice details summary");
+  const abbrs = [...d.querySelectorAll("#panel abbr[title]")];
+  out.abbr = abbrs.length; out.abbr_ok = abbrs.every(a => a.title.length > 20);
+  out.abbr_dup = [...d.querySelectorAll("#panel .card")].some(c => { const t = [...c.querySelectorAll("abbr")].map(a => a.textContent); return new Set(t).size !== t.length; });
+  const e = abre("index.html", "#estimativas"); await espera(800);
+  out.restaura_plano = !!e.document.getElementById("restaura-plano");
+  const p = abre("enlace.html", ""); await espera(600); d = p.document;
+  out.ajuda_3passos = [...d.querySelectorAll(".notice details summary")].map(s => s.textContent);
+  const sel = d.querySelector("select"); sel.value = "morro"; sel.dispatchEvent(new p.Event("change")); await espera(200);
+  d.getElementById("restaura").click(); await espera(300);
+  out.restaurou = d.querySelector("select").value;
+  sel.value = "mapa"; d.querySelector("select").value = "mapa"; d.querySelector("select").dispatchEvent(new p.Event("change")); await espera(200);
+  out.desfazer_inicial = d.getElementById("desfaz-ponto").disabled;      // nada a desfazer no começo
+  d.getElementById("add-ponto").click(); await espera(50);
+  const la = [...d.querySelectorAll("input[type=text]")].find(i => (i.getAttribute("aria-label") || "").startsWith("Latitude do ponto A"));
+  const lo = [...d.querySelectorAll("input[type=text]")].find(i => (i.getAttribute("aria-label") || "").startsWith("Longitude do ponto A"));
+  la.value = "-120"; la.dispatchEvent(new p.Event("input")); lo.value = "-22.9"; lo.dispatchEvent(new p.Event("input")); await espera(50);
+  out.invalido = d.querySelectorAll('input[aria-invalid="true"]').length; out.alerta = [...d.querySelectorAll('[role=alert]')].map(a => a.textContent).join(" ");
+  d.getElementById("add-ponto").click(); await espera(50);
+  out.pontos_apos = d.querySelectorAll('input[aria-label^="Latitude do ponto"]').length;
+  out.desfazer_habilitado = !d.getElementById("desfaz-ponto").disabled;
+  d.getElementById("desfaz-ponto").click(); await espera(100);
+  out.pontos_desfeito = d.querySelectorAll('input[aria-label^="Latitude do ponto"]').length;
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_usabilidade_siglas_avisos_recolhidos_restaurar_validar_e_desfazer(tmp_path):
+    f = tmp_path / "uso_dom.js"
+    f.write_text(JS_USO)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["tema"] in ("Tema: claro", "Tema: escuro")                         # o botão mostra o estado atual
+    assert o["aviso_recolhido"] and o["abbr"] >= 1 and o["abbr_ok"] and not o["abbr_dup"]   # siglas com definição, uma vez por cartão
+    assert o["restaura_plano"] and "Como usar em 3 passos" in o["ajuda_3passos"] and o["restaurou"] == "plano"
+    assert o["invalido"] >= 1 and "trocadas" in o["alerta"]                      # latitude -120 fora do intervalo, com longitude plausível
+    assert o["desfazer_inicial"] is True and o["desfazer_habilitado"] is True and o["pontos_apos"] == 2 and o["pontos_desfeito"] == 1

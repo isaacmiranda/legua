@@ -25,7 +25,7 @@
   function tilesDoCaminho(a, b, z) {
     z = z || Z_PADRAO;
     if (![a.lat, a.lon, b.lat, b.lon].every(isFinite)) return { erro: "informe as quatro coordenadas" };
-    if (Math.abs(a.lat) > 84 || Math.abs(b.lat) > 84 || Math.abs(a.lon) > 180 || Math.abs(b.lon) > 180) return { erro: "coordenada fora do intervalo válido" };
+    if (Math.abs(a.lat) > 84 || Math.abs(b.lat) > 84 || Math.abs(a.lon) > 180 || Math.abs(b.lon) > 180) return { erro: "Coordenada fora do intervalo válido: a latitude vai de −90 a 90 e a longitude de −180 a 180. Confira se não trocou latitude e longitude." };
     if (z < Z_MIN || z > Z_MAX) return { erro: "zoom fora de " + Z_MIN + " a " + Z_MAX };
     var n = Math.pow(2, z), vistos = {}, tiles = [], passos = 400, i, dx, dy;
     for (i = 0; i <= passos; i++) {
@@ -38,7 +38,7 @@
         if (!vistos[k]) { vistos[k] = 1; tiles.push({ z: z, x: tx, y: ty }); }
       }
     }
-    if (tiles.length > MAX_TILES) return { erro: "o caminho precisaria de " + tiles.length + " tiles (máximo " + MAX_TILES + "); reduza a distância" };
+    if (tiles.length > MAX_TILES) return { erro: "O caminho é longo demais para baixar a elevação (" + tiles.length + " pedaços, máximo " + MAX_TILES + "). Reduza a distância" };
     return { tiles: tiles };
   }
 
@@ -84,7 +84,7 @@
       if (r.erro) return Promise.resolve({ erro: (saltos.length > 1 ? "salto " + (k + 1) + ": " : "") + r.erro });
       for (i = 0; i < r.tiles.length; i++) { var t = r.tiles[i], c = t.z + "/" + t.x + "/" + t.y; if (!vistos[c]) { vistos[c] = 1; fila.push(t); } }
     }
-    if (fila.length > MAX_TILES_TOTAL) return Promise.resolve({ erro: "a rota precisaria de " + fila.length + " tiles (máximo " + MAX_TILES_TOTAL + "); reduza os saltos" });
+    if (fila.length > MAX_TILES_TOTAL) return Promise.resolve({ erro: "A rota é grande demais para baixar a elevação de uma vez (" + fila.length + " pedaços, máximo " + MAX_TILES_TOTAL + "). Reduza as distâncias ou o número de saltos" });
     var mapa = {}, falhas = [], total = fila.length, zz = fila[0].z;
     function um() {
       var t = fila.shift();
@@ -94,7 +94,7 @@
       }, function (e) { falhas.push(t.z + "/" + t.x + "/" + t.y + " (" + (e && e.message ? e.message : "falha") + ")"); }).then(um);
     }
     return Promise.all([um(), um()]).then(function () {
-      if (falhas.length) return { erro: "não consegui baixar " + falhas.length + " de " + total + " tiles (rede bloqueada, sem CORS ou fora do ar): " + falhas.slice(0, 2).join(", ") };
+      if (falhas.length) return { erro: "Não consegui baixar a elevação (" + falhas.length + " de " + total + " pedaços). Causas comuns: sem internet, bloqueador de anúncios ou rede da empresa. Você pode tentar de novo, colar um perfil (CSV) ou carregar um arquivo .hgt. Detalhe técnico: " + falhas.slice(0, 2).join(", ") };
       return { fonte: fonte(mapa, zz), n_tiles: total, z: zz };
     });
   }

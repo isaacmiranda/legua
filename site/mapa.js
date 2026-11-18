@@ -66,17 +66,26 @@
     op = op || {};
     var doc = host.ownerDocument, vista = { lat: VISTA_INICIAL.lat, lon: VISTA_INICIAL.lon, z: VISTA_INICIAL.z }, pontos = [], consentiu = false, ouvintes = [];
     var cx = doc.createElement("div"), camada = doc.createElement("div"), svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg"), marc = doc.createElement("div");
-    var aviso = doc.createElement("div"), atrib = doc.createElement("div"), mira = doc.createElement("div");
+    var aviso = doc.createElement("div"), atrib = doc.createElement("div"), mira = doc.createElement("div"), ctl = doc.createElement("div"), status = doc.createElement("span");
     cx.className = "mapa"; cx.tabIndex = 0; cx.setAttribute("role", "application");
-    cx.setAttribute("aria-label", "Mapa para escolher os pontos do enlace. Setas movem, mais e menos mudam o zoom, Enter põe um ponto no centro.");
+    cx.setAttribute("aria-label", "Mapa para escolher os pontos do enlace. Setas movem, mais e menos mudam o zoom, Enter põe um ponto no centro, depois de ativar o mapa-base.");
     cx.style.cssText = "position:relative;overflow:hidden;height:" + (op.altura || 380) + "px;border:1px solid var(--border);border-radius:8px;background:var(--surface);touch-action:none;cursor:grab";
     camada.style.cssText = "position:absolute;inset:0"; svg.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none"; marc.style.cssText = "position:absolute;inset:0;pointer-events:none";
     mira.style.cssText = "position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border:1px solid #c0392b;border-radius:50%;opacity:.55;pointer-events:none";
-    aviso.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:13px;color:var(--text-2);background:var(--surface)";
-    aviso.textContent = "O mapa-base ainda não foi pedido. Marque o consentimento abaixo para baixar os tiles do OpenStreetMap; os pontos também podem ser digitados na tabela.";
+    aviso.style.cssText = "position:absolute;left:8px;top:8px;max-width:calc(100% - 70px);background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:12px;box-shadow:0 1px 4px #0003";
+    var btAtivar = doc.createElement("button"), det = doc.createElement("details");
+    btAtivar.type = "button"; btAtivar.className = "btn"; btAtivar.id = "ativa-mapa"; btAtivar.textContent = "Ativar mapa-base"; btAtivar.style.cssText = "padding:3px 8px;font-size:12px";
+    det.style.cssText = "margin-top:4px;color:var(--text-2)";
+    det.innerHTML = "<summary style='cursor:pointer'>O que é enviado?</summary><div style='margin-top:4px'>Ao ativar, o navegador baixa tiles do OpenStreetMap: ficam visíveis ao servidor deles só os números dos tiles da área que você está vendo e o seu IP (o endereço do site vai como referência). Os pontos que você marca não são enviados. Para aproximar sem expor nada, use o zoom antes de ativar; você pode desligar a qualquer momento.</div>";
+    var rotuloAviso = doc.createElement("span"); rotuloAviso.textContent = "Mapa-base desligado. ";
+    aviso.appendChild(rotuloAviso); aviso.appendChild(btAtivar); aviso.appendChild(det);
+    ctl.style.cssText = "position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:4px";
+    function bt(txt, rot, fn) { var b = doc.createElement("button"); b.type = "button"; b.className = "btn"; b.textContent = txt; b.setAttribute("aria-label", rot); b.title = rot; b.style.cssText = "width:30px;height:30px;padding:0;font:600 16px/1 sans-serif"; b.addEventListener("pointerdown", function (e) { e.stopPropagation(); }); b.addEventListener("pointerup", function (e) { e.stopPropagation(); }); b.addEventListener("click", function (e) { e.stopPropagation(); fn(); }); ctl.appendChild(b); return b; }
+    status.style.cssText = "margin-right:8px";
     atrib.style.cssText = "position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#222;font-size:11px;padding:1px 6px";
-    atrib.innerHTML = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:#1a5fb4">colaboradores do OpenStreetMap</a>';
-    [camada, svg, marc, mira, aviso, atrib].forEach(function (n) { cx.appendChild(n); });
+    atrib.appendChild(status);
+    atrib.insertAdjacentHTML("beforeend", '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:#1a5fb4">colaboradores do OpenStreetMap</a>');
+    [camada, svg, marc, mira, aviso, ctl, atrib].forEach(function (n) { cx.appendChild(n); });
     host.appendChild(cx);
 
     function tam() { var r = cx.getBoundingClientRect(); return { w: r.width || 640, h: r.height || (op.altura || 380) }; }
@@ -84,15 +93,23 @@
     function px(lat, lon) { var s = tam(), c = proj(vista.lat, vista.lon, vista.z), p = proj(lat, lon, vista.z); return { x: p.x - c.x + s.w / 2, y: p.y - c.y + s.h / 2 }; }
     function geo(x, y) { var s = tam(), c = proj(vista.lat, vista.lon, vista.z); var g = inv(c.x - s.w / 2 + x, c.y - s.h / 2 + y, vista.z); return { lat: g.lat, lon: normLon(g.lon) }; }
 
+    var carregados = 0, falhas = 0;
+    function atualizaStatus() {
+      status.textContent = falhas ? "Falha em " + falhas + " tile(s): confira a rede ou desative o bloqueador." : "";
+      status.style.color = falhas ? "#a3231f" : "inherit";
+    }
     function desenha() {
       var s = tam();
-      aviso.style.display = consentiu ? "none" : "flex";
+      aviso.style.display = consentiu ? "none" : "block"; btOff.style.display = consentiu ? "" : "none";
+      status.textContent = ""; carregados = 0; falhas = 0;
       camada.textContent = "";
       if (consentiu) tilesVisiveis(vista, s.w, s.h).forEach(function (t) {
         var im = doc.createElement("img");
         im.alt = ""; im.width = TILE; im.height = TILE; im.draggable = false; im.decoding = "async";
         im.referrerPolicy = "origin"; im.setAttribute("referrerpolicy", "origin");
         im.style.cssText = "position:absolute;left:" + Math.round(t.px) + "px;top:" + Math.round(t.py) + "px;width:" + TILE + "px;height:" + TILE + "px;user-select:none";
+        im.addEventListener("load", function () { carregados++; atualizaStatus(); });
+        im.addEventListener("error", function () { falhas++; atualizaStatus(); });
         im.src = urlTile(t);
         camada.appendChild(im);
       });
@@ -116,7 +133,7 @@
     function pos(ev) { var r = cx.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
     var arrasto = null;
     cx.addEventListener("pointerdown", function (ev) {
-      if (!consentiu || ev.button > 0) return;
+      if (ev.button > 0 || (ev.target && ev.target.closest && ev.target.closest("details,button"))) return;
       var p = pos(ev), alvo = ev.target && ev.target.dataset && ev.target.dataset.i;
       arrasto = { x: p.x, y: p.y, mover: alvo != null && alvo !== "" ? +alvo : -1, vista: { lat: vista.lat, lon: vista.lon, z: vista.z }, andou: false };
       try { cx.setPointerCapture(ev.pointerId); } catch (e) { /* jsdom */ }
@@ -134,30 +151,35 @@
       if (!arrasto) return;
       var a = arrasto; arrasto = null; cx.style.cursor = "grab";
       if (a.mover >= 0 && a.andou) { avisa(); return; }
-      if (!a.andou && a.mover < 0 && ev.type === "pointerup") { var p = pos(ev), g = geo(p.x, p.y); adicionar(g.lat, g.lon); }
+      if (!a.andou && a.mover < 0 && ev.type === "pointerup" && consentiu) { var p = pos(ev), g = geo(p.x, p.y); adicionar(g.lat, g.lon); }
     }
     cx.addEventListener("pointerup", solta); cx.addEventListener("pointercancel", function () { arrasto = null; cx.style.cursor = "grab"; });
     cx.addEventListener("wheel", function (ev) {
-      if (!consentiu) return;
       ev.preventDefault(); var p = pos(ev), s = tam();
       vista = zoomEm(vista, s.w, s.h, p.x, p.y, ev.deltaY < 0 ? 1 : -1); desenha();
     }, { passive: false });
+    cx.addEventListener("dblclick", function (ev) { var p = pos(ev), s = tam(); vista = zoomEm(vista, s.w, s.h, p.x, p.y, 1); desenha(); });
     cx.addEventListener("keydown", function (ev) {
-      if (!consentiu) return;
       var s = tam(), c = proj(vista.lat, vista.lon, vista.z), passo = 80, d = null;
       if (ev.key === "ArrowLeft") d = [-passo, 0]; else if (ev.key === "ArrowRight") d = [passo, 0]; else if (ev.key === "ArrowUp") d = [0, -passo]; else if (ev.key === "ArrowDown") d = [0, passo];
       if (d) { var n = inv(c.x + d[0], c.y + d[1], vista.z); vista = { lat: clampLat(n.lat), lon: normLon(n.lon), z: vista.z }; desenha(); ev.preventDefault(); }
       else if (ev.key === "+" || ev.key === "=") { vista = zoomEm(vista, s.w, s.h, s.w / 2, s.h / 2, 1); desenha(); ev.preventDefault(); }
       else if (ev.key === "-") { vista = zoomEm(vista, s.w, s.h, s.w / 2, s.h / 2, -1); desenha(); ev.preventDefault(); }
-      else if (ev.key === "Enter") { adicionar(vista.lat, vista.lon); ev.preventDefault(); }
+      else if (ev.key === "Enter" && consentiu) { adicionar(vista.lat, vista.lon); ev.preventDefault(); }
     });
 
     function adicionar(lat, lon) {
       if (pontos.length >= MAX_PONTOS) return false;
       pontos.push({ lat: lat, lon: lon }); desenha(); avisa(); return true;
     }
+    bt("+", "Aproximar", function () { api.zoom(1); });
+    bt("−", "Afastar", function () { api.zoom(-1); });
+    var btOff = bt("⏻", "Desligar o mapa-base (para de baixar tiles)", function () { api.consentir(false); ouvConsent.forEach(function (f) { f(false); }); });
+    btOff.style.fontSize = "13px";
+    btAtivar.addEventListener("click", function () { api.consentir(true); ouvConsent.forEach(function (f) { f(true); }); });
+    var ouvConsent = [];
     var api = {
-      elemento: cx, adicionar: adicionar,
+      elemento: cx, aoConsentir: function (f) { ouvConsent.push(f); }, adicionar: adicionar,
       pontos: function () { return pontos.map(function (p) { return { lat: p.lat, lon: p.lon }; }); },
       definir: function (arr) { pontos = (arr || []).slice(0, MAX_PONTOS).map(function (p) { return { lat: p.lat, lon: p.lon }; }); desenha(); },
       consentir: function (sim) { consentiu = !!sim; desenha(); },

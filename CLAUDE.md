@@ -19,6 +19,7 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   teste (FNV-1a), que não é segurança. `mic()` devolve <0 sem chave e o codec recusa. Limite de falhas de MIC
   (`mic_fail_n`/`_window`/`_hold`): congela a negociação, mantém o modo. Chaves (docs/07 §6.1 e §6.2): uma por
   enlace; rotação em ciclo pelo `key_id` (`legua_key_rotate`, `Endpoint.rotate_key`), estado no registro de NVM.
+- Revisão de usabilidade do site (heurísticas de Nielsen, achados e pendências): `docs/11`.
 - Formato do pacote: `docs/07`; interfaces: `docs/08`. `simsuite/protocol/wire.py` e `core/src/frame.c` devem
   concordar (vetores em `core/tests/vectors/`; `make -C core vectors` regenera, junto com a tabela de modos
   `core/profiles/br2026.h` gerada por `tools/gen_modetab.py`).

@@ -44,9 +44,12 @@
   function tema(botao) {
     var r = doc.documentElement;
     try { var v = localStorage.getItem("legua-tema"); if (v === "light" || v === "dark") r.setAttribute("data-theme", v); } catch (e) { /* sem storage */ }
+    function escuro() { return r.getAttribute("data-theme") === "dark" || (!r.getAttribute("data-theme") && root.matchMedia && root.matchMedia("(prefers-color-scheme: dark)").matches); }
+    function rotulo() { botao.textContent = escuro() ? "Tema: escuro" : "Tema: claro"; botao.title = "Trocar para o tema " + (escuro() ? "claro" : "escuro"); }
+    rotulo();
     botao.addEventListener("click", function () {
-      var escuro = r.getAttribute("data-theme") === "dark" || (!r.getAttribute("data-theme") && root.matchMedia && root.matchMedia("(prefers-color-scheme: dark)").matches), prox = escuro ? "light" : "dark";
-      r.setAttribute("data-theme", prox);
+      var prox = escuro() ? "light" : "dark";
+      r.setAttribute("data-theme", prox); rotulo();
       try { localStorage.setItem("legua-tema", prox); } catch (e) { /* ignore */ }
     });
   }

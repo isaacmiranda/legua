@@ -180,7 +180,7 @@ def test_leitura_de_hgt_e_perfil_entre_pontos():
     assert o["fora"]["ok"] is False and o["fora"]["falta"] == "S22W046"
     assert 80 < o["D"] < 85
     assert o["h1"] > o["h0"] and o["mono"]
-    assert "falta a grade S23W045.hgt" in o["sem_grade"]
+    assert "Falta o arquivo S23W045.hgt" in o["sem_grade"]
     assert "nome do arquivo" in o["nome_ruim"] and "tamanho" in o["tamanho_ruim"]
     assert "60" in o["polar"] and "0,02" in o["curto"]
     assert o["hav"] == pytest.approx(111.19, abs=0.05)
@@ -301,7 +301,7 @@ def test_terrarium_tiles_matematica_decodificacao_e_perfil():
     assert o["erro"] is None and 1 <= o["n_tiles"] <= 4 and o["z"] == 12 and o["urls_ok"]
     assert o["h0"] == pytest.approx(o["esp0"], abs=0.02) and o["h1"] == pytest.approx(o["esp1"], abs=0.02) and o["mono"]
     assert 7 < o["D"] < 9
-    assert "falta tile Terrarium 12/" in o["longe"]
+    assert "saíram da área de elevação" in o["longe"]
     assert "máximo" in o["muitos"] and "CORS" in o["falha"]
     assert "intervalo" in o["polar"] and "zoom" in o["zoom"] and "quatro coordenadas" in o["nan"]
 

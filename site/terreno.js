@@ -115,7 +115,7 @@
     var n = Math.min(MAX_PONTOS, Math.max(3, Math.ceil(D * 1000 / (passoM || 30)) + 1)), d = [], h = [], i, vazios = 0;
     for (i = 0; i < n; i++) {
       var t = i / (n - 1), e = elev(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t);
-      if (!e.ok) return { erro: "falta " + (/^tile /.test(e.falta) ? e.falta : "a grade " + e.falta + ".hgt") + " para cobrir o caminho" };
+      if (!e.ok) return { erro: /^tile /.test(e.falta) ? "Os pontos saíram da área de elevação já baixada. Clique em “Buscar elevação” de novo." : "Falta o arquivo " + e.falta + ".hgt para cobrir o caminho." };
       if (!isFinite(e.v)) { if (i === 0 || i === n - 1) return { erro: "a grade tem vazio exatamente no ponto " + (i === 0 ? "A" : "B") + "; mova o ponto alguns metros" }; vazios++; e.v = h[i - 1]; }
       d.push(D * t); h.push(e.v);
     }
