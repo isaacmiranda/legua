@@ -17,7 +17,7 @@ Formato (versão 1). Cada constante leva o valor medido e a incerteza (mesma uni
 Só as constantes presentes mudam; o resto fica como está. Nada de coordenada, chave ou dado bruto no arquivo.
 
 Uso:
-  python3 -m simsuite.analysis.calibracao calibracao.json          # valida e mostra atual -> novo
+  ~/.venvs/legua/bin/python -m simsuite.analysis.calibracao calibracao.json          # valida e mostra atual -> novo
   python3 -m simsuite.run_suite --calibracao calibracao.json ...   # roda a suíte com ela (saída própria)
 """
 import contextlib
@@ -27,7 +27,7 @@ import sys
 from ..core import channel_static, radio
 
 VERSAO = 1
-PROIBIDAS = {"lat", "lon", "latitude", "longitude", "alt", "gnss", "chave", "key", "senha", "segredo"}
+PROIBIDAS = ("lat", "lon", "alt", "gnss", "chave", "key", "senha", "segredo")   # por trecho: latitude_deg, gnss_fix...
 ESCALARES = {"per_offset_db": ("PER_OFFSET_DB", 0.0, 10.0), "per_slope_db": ("PER_SLOPE_DB", 0.1, 3.0),
              "nf_db": ("NF_DB", 0.5, 15.0)}
 CANAL_CAMPOS = {"pl1km": (80.0, 180.0), "n": (1.5, 6.0), "sigma_static": (0.0, 20.0)}
@@ -40,7 +40,7 @@ class CalibracaoInvalida(ValueError):
 def _proibidas(x, caminho=""):
     if isinstance(x, dict):
         for k, v in x.items():
-            if str(k).lower() in PROIBIDAS:
+            if any(w in str(k).lower() for w in PROIBIDAS):
                 raise CalibracaoInvalida(f"campo não permitido (dado sensível) em {caminho}/{k}")
             _proibidas(v, f"{caminho}/{k}")
     elif isinstance(x, list):
@@ -58,7 +58,7 @@ def validar(cal):
     """Levanta CalibracaoInvalida se o arquivo não serve; devolve o dicionário de constantes normalizado."""
     if not isinstance(cal, dict) or cal.get("versao") != VERSAO:
         raise CalibracaoInvalida(f"versao deve ser {VERSAO}")
-    if not isinstance(cal.get("id"), str) or not cal["id"].strip() or not all(c.isalnum() or c in "-_." for c in cal["id"]):
+    if not isinstance(cal.get("id"), str) or not cal["id"].strip() or not all(c.isascii() and (c.isalnum() or c in "-_.") for c in cal["id"]) or cal["id"].strip(".") == "":
         raise CalibracaoInvalida("id obrigatório (letras, números, - _ .)")
     _proibidas(cal)
     cs = cal.get("constantes")
@@ -79,7 +79,7 @@ def validar(cal):
             chaves, lo, hi = ((range(5, 13), -40.0, 0.0) if nome == "snr_thr" else (range(1, 5), 0.0, 3.0))
             d = {}
             for k, x in v.items():
-                if not str(k).isdigit() or int(k) not in chaves:
+                if not (str(k).isascii() and str(k).isdigit()) or int(k) not in chaves:
                     raise CalibracaoInvalida(f"{nome}: chave {k!r} inválida")
                 d[int(k)] = _num(x, f"{nome}[{k}]", lo, hi)
             out[nome] = (d, unc)

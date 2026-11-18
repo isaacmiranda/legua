@@ -55,6 +55,9 @@ def test_sensibilidade_acompanha_a_conta_com_os_valores_novos():
 
 @pytest.mark.parametrize("mut", [
     lambda c: c.update(versao=2),
+    lambda c: c.update(id=".."),
+    lambda c: c["constantes"]["snr_thr"]["valor"].update({"²": -20.0}),
+    lambda c: c.update(latitude_deg=-3.7),
     lambda c: c.update(id="../x"),
     lambda c: c["constantes"].update(nf_db={"valor": 99.0, "incerteza": 1}),
     lambda c: c["constantes"].update(nf_db={"valor": 6.0}),
