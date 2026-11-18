@@ -37,7 +37,7 @@ Leia `docs/` antes de mudar protocolo, perfil regulatório ou plano de testes.
   Python em `simsuite/analysis/estimator.py` e teste de paridade). Gerar dados: `~/.venvs/legua/bin/python tools/build_site.py`
   (precisa do venv: importa numpy). Abrir `site/index.html` direto também funciona. A aba Estimativas guarda o estado no
   fragmento da URL (`#estimativas?d=2&sf=9...`), copia resumo e link e exporta CSV/JSON; tudo local, sem rede
-  (`test_site_dom.py`, precisa de node+jsdom). `site/enlace.html` = testador de enlaces (perfil digitado, `.hgt` local ou tiles Terrarium com consentimento e mapa de relevo em `terrarium.js`, Fresnel, Bullington, margem por modo;
+  (`test_site_dom.py`, precisa de node+jsdom). `site/enlace.html` = testador de enlaces (perfil digitado, `.hgt` local ou tiles Terrarium com consentimento e mapa de relevo em `terrarium.js`, mapa OSM com consentimento e rota de vários saltos em `mapa.js`, difração pela ITU-R P.526-16 comparada ao ITM em `tools/comparar_itm.py`, Fresnel, Bullington, margem por modo;
   `propagacao.js`, `terreno.js`, `enlace.js`; referência Python `simsuite/analysis/enlace.py`, docs/09 §7.1). Plano das
   próximas fases (elevação, mapa, calibração): `reports/` (local, fora do git).
 - Site: navegação em duas camadas (seções e subseções) e tema em `site/nav.js`, comuns às três páginas; o mapa do site (`MAPA`) é a fonte única dos ids das abas. `site/explica.js` tem as explicações em linguagem simples (uma por cartão, casada pelo título), os diagramas SVG, o guia

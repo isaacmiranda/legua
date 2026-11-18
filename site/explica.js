@@ -343,7 +343,7 @@
     ["seg", "E se alguém atacar?", "Replay, quadro forjado, jammer e o perfil regulatório."],
     ["validacao", "O simulador é confiável?", "Comparação com o LoRaSim, o Meshtasticator e o código C."],
     ["estimativas", "Quero estimar o meu caso", "Digite a distância e o ambiente e veja os modos que fecham."],
-    ["enlace.html", "O meu enlace fecha com este terreno?", "Perfil do terreno, zona de Fresnel e margem por modo, no navegador (abre outra página)."]
+    ["enlace.html", "O meu enlace fecha com este terreno?", "Escolha os pontos no mapa (um enlace ou uma cadeia de saltos com relés), veja o perfil do terreno, a zona de Fresnel e a margem por modo (abre outra página)."]
   ];
 
   function h(tag, attrs, kids) {

@@ -7,7 +7,7 @@
   var app = document.getElementById("app");
 
   var st = { terreno: "plano", d: 5.0, base: 100, morro_h: 60, morro_pos: 50, morro_w: 0.8, csv: "", hTx: 10, hRx: 10, k: "1.3333", p: 20, gTx: 2.15, gRx: 2.15, lTx: 0.5, lRx: 0.5,
-    extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], tiles: null, tilesMsg: "", consente: false, buscando: false, env: "rural_aberto", modelo: "p526", sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
+    extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], tiles: null, tilesMsg: "", consente: false, buscando: false, env: "rural_aberto", modelo: "p526", pontos: [], salto: 0, consenteMapa: false, sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
   var CHAVES = ["terreno", "d", "base", "morro_h", "morro_pos", "morro_w", "hTx", "hRx", "k", "p", "gTx", "gRx", "lTx", "lRx", "extra", "env", "modelo", "sf", "bw", "cr", "alvo", "retries", "interval", "load"];
   var NUM = { d: [0.05, 40], base: [-400, 8000], morro_h: [0, 1500], morro_pos: [0, 100], morro_w: [0.05, 20], hTx: [0.5, 100], hRx: [0.5, 100], p: [-9, 28], gTx: [-5, 15], gRx: [-5, 15],
     lTx: [0, 10], lRx: [0, 10], extra: [0, 60], alvo: [0.5, 0.999], retries: [0, 6], interval: [1, 600], load: [0, 3] };
@@ -38,9 +38,9 @@
     Object.keys(NUM).forEach(function (k) { var v = parseFloat(m[k]); if (isFinite(v) && v >= NUM[k][0] && v <= NUM[k][1]) st[k] = v; });
     function um(k, ok) { if (m[k] !== undefined && ok.indexOf(m[k]) >= 0) st[k] = m[k]; }
     function umN(k, ok) { var v = parseFloat(m[k]); if (ok.indexOf(v) >= 0) st[k] = v; }
-    um("terreno", ["plano", "morro", "csv", "hgt", "terrarium"]); um("env", Object.keys(DATA.constantes.envs)); um("modelo", ["p526", "j"]); um("k", ["1.3333", "1", "0.6667"]);
+    um("terreno", ["plano", "morro", "csv", "hgt", "terrarium", "mapa"]); um("env", Object.keys(DATA.constantes.envs)); um("modelo", ["p526", "j"]); um("k", ["1.3333", "1", "0.6667"]);
     umN("sf", [7, 8, 9, 10, 11, 12]); umN("bw", [125, 250, 500]); umN("cr", [1, 2, 3, 4]);
-    if (st.terreno === "csv" || st.terreno === "hgt" || st.terreno === "terrarium") st.terreno = "plano";   // CSV e coordenadas nunca vêm pela URL
+    if (st.terreno === "csv" || st.terreno === "hgt" || st.terreno === "terrarium" || st.terreno === "mapa") st.terreno = "plano";   // CSV e coordenadas nunca vêm pela URL
   }
   function sincroniza() { try { history.replaceState(null, "", "#" + consulta()); } catch (e) { /* ignore */ } }
 
@@ -59,6 +59,21 @@
   function csvCell(v) { var t = v == null ? "" : String(v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }
 
   // ---- perfil
+  function pontoOk(p) { return p && isFinite(p.lat) && isFinite(p.lon); }
+  /* perfil do salto i (do ponto i ao i+1): com elevação baixada, o terreno real; sem ela (ou fora dos tiles), plano na
+   * altitude base, marcado com `plano: true` para a interface avisar. */
+  function perfilSalto(i) {
+    var A = st.pontos[i], B = st.pontos[i + 1];
+    if (!pontoOk(A) || !pontoOk(B)) return { erro: "ponha ao menos dois pontos válidos no mapa ou na tabela" };
+    if (st.tiles) {
+      var r = TE.perfilEntre(st.tiles.fonte, A, B, 30);
+      if (!r.erro) return { perfil: r.perfil, D_km: r.D_km, vazios: r.vazios };
+      if (!/falta tile/.test(r.erro)) return { erro: r.erro };
+    }
+    var D = TE.haversineKm(A.lat, A.lon, B.lat, B.lon);
+    if (!(D >= 0.02 && D <= 100)) return { erro: "a distância entre os pontos precisa ficar entre 0,02 e 100 km (agora " + D.toFixed(2) + " km)" };
+    return { perfil: TE.plano(D, st.base), D_km: D, plano: true };
+  }
   function perfilAtual() {
     if (st.terreno === "csv") {
       var r = TE.lerCsv(st.csv, st.d);
@@ -71,6 +86,12 @@
       if (rh.erro) return { erro: rh.erro };
       st.d = Math.round(rh.D_km * 100) / 100;
       return { perfil: rh.perfil, vazios: rh.vazios };
+    }
+    if (st.terreno === "mapa") {
+      var rs = perfilSalto(st.salto);
+      if (rs.erro) return { erro: rs.erro };
+      st.d = Math.round(rs.D_km * 100) / 100;
+      return { perfil: rs.perfil, vazios: rs.vazios, plano: rs.plano };
     }
     if (st.terreno === "terrarium") {
       if (!st.tiles) return { erro: "marque o consentimento e clique em “Buscar elevação” para baixar os tiles do caminho" };
@@ -142,6 +163,56 @@
     campos.textContent = "";
     var u = function (v) { return function (x) { return nf(x, v[0]) + " " + v[1]; }; };
     var csvBox = null;
+    /* mapa de pontos (nova opção): vários pontos = saltos em cadeia (relés); cada par seguido é um salto */
+    var mapaObj = null;
+    function blocoMapa() {
+      var caixa = el("div", { class: "field", style: "grid-column:1/-1" }), tabela = el("div", { style: "grid-column:1/-1" }), seletorSalto = el("div", { style: "display:contents" });
+      var ckm = el("input", { type: "checkbox", id: "consente-mapa", "aria-label": "Consinto em baixar o mapa-base do OpenStreetMap" }); ckm.checked = st.consenteMapa;
+      mapaObj = window.LeguaMapa.criar(caixa, {});
+      mapaObj.definir(st.pontos); mapaObj.consentir(st.consenteMapa);
+      if (st.pontos.some(pontoOk)) mapaObj.enquadrar();
+      mapaObj.aoMudar(function (pts) { st.pontos = pts; listaPontos(); agenda(); });
+      ckm.addEventListener("change", function () { st.consenteMapa = ckm.checked; mapaObj.consentir(ckm.checked); });
+      function sinc() { mapaObj.definir(st.pontos); }
+      function listaPontos() {
+        tabela.textContent = "";
+        var t = el("table"), th = el("thead"), hr = el("tr");
+        ["Ponto", "Latitude", "Longitude", ""].forEach(function (h) { hr.appendChild(el("th", { text: h })); }); th.appendChild(hr); t.appendChild(th);
+        var tb = el("tbody");
+        st.pontos.forEach(function (p, i) {
+          var tr = el("tr"), la = el("input", { type: "text", inputmode: "decimal", autocomplete: "off", "aria-label": "Latitude do ponto " + window.LeguaMapa.rotulo(i), style: "width:9em" }), lo = el("input", { type: "text", inputmode: "decimal", autocomplete: "off", "aria-label": "Longitude do ponto " + window.LeguaMapa.rotulo(i), style: "width:9em" });
+          la.value = isFinite(p.lat) ? p.lat.toFixed(5) : ""; lo.value = isFinite(p.lon) ? p.lon.toFixed(5) : "";
+          function mudou() { st.pontos[i] = { lat: Pf(la.value), lon: Pf(lo.value) }; sinc(); agenda(); }
+          la.addEventListener("input", mudou); lo.addEventListener("input", mudou);
+          var rm = el("button", { type: "button", class: "btn", text: "Remover", "aria-label": "Remover o ponto " + window.LeguaMapa.rotulo(i) });
+          rm.addEventListener("click", function () { st.pontos.splice(i, 1); st.salto = Math.max(0, Math.min(st.salto, st.pontos.length - 2)); sinc(); listaPontos(); monta(); });
+          [el("td", { text: window.LeguaMapa.rotulo(i) }), el("td", {}, [la]), el("td", {}, [lo]), el("td", {}, [rm])].forEach(function (c) { tr.appendChild(c); });
+          tb.appendChild(tr);
+        });
+        t.appendChild(tb);
+        var ops = el("div", { class: "controls sem-impressao", style: "display:flex;gap:8px;flex-wrap:wrap;margin-top:8px" });
+        function ob(txt, fn, id) { var b = el("button", { type: "button", class: "btn", text: txt }); if (id) b.id = id; b.addEventListener("click", fn); ops.appendChild(b); }
+        ob("Adicionar ponto digitando", function () { if (st.pontos.length < window.LeguaMapa.MAX_PONTOS) { st.pontos.push({ lat: NaN, lon: NaN }); listaPontos(); } }, "add-ponto");
+        ob("Inverter a ordem", function () { st.pontos.reverse(); sinc(); listaPontos(); agenda(); });
+        ob("Enquadrar no mapa", function () { mapaObj.enquadrar(); });
+        ob("Limpar pontos", function () { st.pontos = []; st.salto = 0; st.tiles = null; st.tilesMsg = ""; sinc(); listaPontos(); monta(); });
+        tabela.appendChild(el("p", { class: "sub", text: st.pontos.length < 2 ? "Clique no mapa (ou digite) para pôr os pontos: com dois, um enlace; com três ou mais, uma cadeia de saltos com relés. Até " + window.LeguaMapa.MAX_PONTOS + " pontos." : (st.pontos.length - 1) + " salto(s) em cadeia: " + st.pontos.map(function (_, i) { return window.LeguaMapa.rotulo(i); }).join(" → ") + "." }));
+        tabela.appendChild(el("div", { class: "tbl-wrap", style: "overflow-x:auto" }, [t])); tabela.appendChild(ops);
+        seletorSalto.textContent = "";                                      // o seletor de salto acompanha o número de pontos
+        if (st.pontos.length > 1) {
+          var opt = []; for (var q = 0; q < st.pontos.length - 1; q++) opt.push([q, "Salto " + (q + 1) + ": " + window.LeguaMapa.rotulo(q) + " → " + window.LeguaMapa.rotulo(q + 1)]);
+          st.salto = Math.max(0, Math.min(st.salto, st.pontos.length - 2));
+          seletorSalto.appendChild(sel("salto", "Salto em detalhe (perfil e modos)", opt));
+        }
+      }
+      campos.appendChild(caixa);
+      campos.appendChild(el("div", { class: "field", style: "grid-column:1/-1" }, [el("label", {}, [ckm, document.createTextNode(" Consinto: o navegador vai baixar do OpenStreetMap os tiles do mapa da região que eu estiver vendo")])]));
+      campos.appendChild(el("p", { class: "note", style: "grid-column:1/-1", text: "O que sai da sua máquina para o mapa: as URLs dos tiles da janela que você está vendo (zoom, x e y) e o seu IP, para tile.openstreetmap.org, com o referenciador reduzido à origem do site. A vista começa no Brasil inteiro, que não revela nada; quanto mais você aproxima, mais precisa fica a região exposta. As coordenadas dos pontos não vão em nenhuma URL, no endereço compartilhável, no resumo nem no JSON. Mapa-base: © colaboradores do OpenStreetMap (ODbL); uso leve, sem varredura." }));
+      campos.appendChild(tabela);
+      campos.appendChild(seletorSalto);
+      listaPontos();
+      blocoElevacao(function () { var h = []; for (var q = 0; q < st.pontos.length - 1; q++) h.push([st.pontos[q], st.pontos[q + 1]]); return h; });
+    }
     function coordenadas() {
       [["latA", "Latitude do ponto A (graus decimais)"], ["lonA", "Longitude do ponto A"], ["latB", "Latitude do ponto B"], ["lonB", "Longitude do ponto B"]].forEach(function (c) {
         var inp = el("input", { type: "text", inputmode: "decimal", autocomplete: "off", "aria-label": c[1] }); inp.value = st[c[0]];
@@ -149,9 +220,9 @@
         campos.appendChild(fld(c[1], inp));
       });
     }
-    campos.appendChild(sel("terreno", "Terreno", [["plano", "Plano"], ["morro", "Morro entre as antenas"], ["csv", "Perfil colado (CSV)"], ["hgt", "Arquivo de elevação local (.hgt) + coordenadas"], ["terrarium", "Elevação pela internet (tiles Terrarium) + coordenadas"]], monta));
+    campos.appendChild(sel("terreno", "Terreno", [["plano", "Plano"], ["morro", "Morro entre as antenas"], ["csv", "Perfil colado (CSV)"], ["hgt", "Arquivo de elevação local (.hgt) + coordenadas"], ["terrarium", "Elevação pela internet (tiles Terrarium) + coordenadas"], ["mapa", "Mapa: escolher pontos (um enlace ou vários saltos)"]], monta));
     campos.appendChild(sel("env", "Variabilidade do canal (ambiente)", Object.keys(DATA.constantes.envs).map(function (k) { return [k, DATA.constantes.envs[k].label]; })));
-    if (st.terreno !== "hgt" && st.terreno !== "terrarium") campos.appendChild(rng("d", "Distância" + (st.terreno === "csv" ? " (só p/ CSV de uma coluna)" : ""), 0.05, u([2, "km"])));
+    if (st.terreno !== "hgt" && st.terreno !== "terrarium" && st.terreno !== "mapa") campos.appendChild(rng("d", "Distância" + (st.terreno === "csv" ? " (só p/ CSV de uma coluna)" : ""), 0.05, u([2, "km"])));
     if (st.terreno !== "csv" && st.terreno !== "hgt" && st.terreno !== "terrarium") campos.appendChild(rng("base", "Altitude da base", 5, u([0, "m"])));
     if (st.terreno === "morro") {
       campos.appendChild(rng("morro_h", "Altura do morro", 1, u([0, "m"])));
@@ -182,8 +253,8 @@
       coordenadas();
       campos.appendChild(el("p", { class: "note", style: "grid-column:1/-1", text: "As coordenadas ficam só na memória desta página: não vão para o endereço compartilhável, nem para o resumo, nem para o JSON. O SRTM é um modelo de superfície (copas e telhados contam como terreno)." }));
     }
-    if (st.terreno === "terrarium") {
-      coordenadas();
+    /* elevação por tiles Terrarium (consentimento próprio); `saltosFn()` devolve [[A, B], ...] */
+    function blocoElevacao(saltosFn) {
       var ck = el("input", { type: "checkbox", id: "consente-tiles", "aria-label": "Consinto em baixar tiles de elevação da internet" }); ck.checked = st.consente;
       var bt = el("button", { type: "button", class: "btn", id: "busca-tiles", text: st.buscando ? "Baixando…" : "Buscar elevação" });
       var stt = el("span", { class: "sub", role: "status", "aria-live": "polite", id: "status-tiles", text: st.tilesMsg });
@@ -191,19 +262,24 @@
       ck.addEventListener("change", function () { st.consente = ck.checked; atualizaBt(); });
       bt.addEventListener("click", function () {
         if (!st.consente || st.buscando) return;
-        var A = { lat: parseFloat(String(st.latA).replace(",", ".")), lon: parseFloat(String(st.lonA).replace(",", ".")) }, B = { lat: parseFloat(String(st.latB).replace(",", ".")), lon: parseFloat(String(st.lonB).replace(",", ".")) };
         st.buscando = true; st.tilesMsg = "Baixando tiles…"; stt.textContent = st.tilesMsg; atualizaBt(); bt.textContent = "Baixando…";
         var buscar = window.LeguaTerrariumBuscar || TR.buscarNoNavegador;               // o teste troca o buscador; nada vai à rede
-        TR.carregar(A, B, TR.Z_PADRAO, buscar).then(function (r) {
+        TR.carregarSaltos(saltosFn(), TR.Z_PADRAO, buscar).then(function (r) {
           st.buscando = false;
           if (r.erro) { st.tiles = null; st.tilesMsg = r.erro; } else { st.tiles = r; st.tilesMsg = r.n_tiles + " tiles baixados (zoom " + r.z + "). Mudar os pontos para fora deles pede nova busca."; }
           stt.textContent = st.tilesMsg; bt.textContent = "Buscar elevação"; atualizaBt(); agenda();
         });
       });
       atualizaBt();
-      campos.appendChild(el("div", { class: "field", style: "grid-column:1/-1" }, [el("label", {}, [ck, document.createTextNode(" Consinto: o navegador vai baixar da AWS os tiles que cobrem o caminho")]), bt, stt]));
+      campos.appendChild(el("div", { class: "field", style: "grid-column:1/-1" }, [el("label", {}, [ck, document.createTextNode(" Consinto: o navegador vai baixar da AWS os tiles de elevação que cobrem o caminho")]), bt, stt]));
       campos.appendChild(el("p", { class: "note", style: "grid-column:1/-1", text: "O que sai da sua máquina: só as URLs dos tiles (zoom, x e y), que mostram a região com cerca de 10 km de lado, e o seu endereço IP, para o servidor de tiles da AWS (s3.amazonaws.com). As coordenadas exatas dos pontos não são enviadas, nem ficam no endereço compartilhável, no resumo ou no JSON. Só baixa depois do clique; nada é gravado em disco além do cache normal do navegador. Dados: Terrain Tiles da AWS Open Data (SRTM, Copernicus e outros); modelo de superfície, com copas e telhados contando como terreno; vale a precisão de ~30 m." }));
     }
+    function Pf(t) { return parseFloat(String(t).replace(",", ".")); }
+    if (st.terreno === "terrarium") {
+      coordenadas();
+      blocoElevacao(function () { return [[{ lat: Pf(st.latA), lon: Pf(st.lonA) }, { lat: Pf(st.latB), lon: Pf(st.lonB) }]]; });
+    }
+    if (st.terreno === "mapa") blocoMapa();
     campos.appendChild(rng("hTx", "Altura da antena A", 0.5, u([1, "m"]))); campos.appendChild(rng("hRx", "Altura da antena B", 0.5, u([1, "m"])));
     campos.appendChild(sel("modelo", "Modelo de difração", [["p526", "ITU-R P.526-16, Bullington com correção (padrão)"], ["j", "Gume único (otimista; só para comparar)"]]));
     campos.appendChild(sel("k", "Fator k do raio da Terra", [["1.3333", "4/3 (padrão)"], ["1", "1 (sem refração)"], ["0.6667", "2/3 (pior caso)"]]));
@@ -224,7 +300,8 @@
   /* mapa de relevo com os tiles já baixados; nenhuma requisição a mais (sem mapa-base de terceiros) */
   function cartaoMapa() {
     var P = function (t) { return parseFloat(String(t).replace(",", ".")); };
-    var A = { lat: P(st.latA), lon: P(st.lonA) }, B = { lat: P(st.latB), lon: P(st.lonB) }, r = TR.relevo(st.tiles.fonte, A, B, 320);
+    var A = st.terreno === "mapa" ? st.pontos[st.salto] : { lat: P(st.latA), lon: P(st.lonA) }, B = st.terreno === "mapa" ? st.pontos[st.salto + 1] : { lat: P(st.latB), lon: P(st.lonB) };
+    var r = TR.relevo(st.tiles.fonte, A, B, 320);
     if (r.erro) return cartao("Mapa de relevo", [el("p", { class: "note", text: r.erro })]);
     var cv = el("canvas", { width: String(r.w), height: String(r.h), role: "img", class: "mapa-relevo", style: "max-width:100%;height:auto;border:1px solid var(--line,#8884)",
       "aria-label": "Relevo em volta dos dois pontos, de " + Math.round(r.min) + " a " + Math.round(r.max) + " m, com a linha do enlace entre A e B" });
@@ -236,6 +313,30 @@
       [[r.A, "A"], [r.B, "B"]].forEach(function (q) { g.fillStyle = "#c0392b"; g.beginPath(); g.arc(q[0].x, q[0].y, 4, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "bold 12px sans-serif"; g.fillText(q[1], q[0].x + 6, q[0].y - 6); });
     }
     return cartao("Mapa de relevo", [cv, el("p", { class: "note", text: "Altitude de " + nf(r.min, 0) + " (verde) a " + nf(r.max, 0) + " m (branco), com sombreado; cada ponto da imagem tem cerca de " + nf(r.km_por_px * 1000, 0) + " m. Feito só com os tiles já baixados: nenhuma outra requisição, sem mapa-base de terceiros. Dados: Terrain Tiles da AWS Open Data." })]);
+  }
+  /* cadeia de saltos: um enlace por par de pontos seguidos, com o mesmo rádio e o mesmo modo; mostra o salto mais fraco e
+   * os modos que atendem o alvo em todos os saltos. Sem coordenadas na saída (só distâncias e dB). */
+  function cartaoRota(inpBase) {
+    var n = st.pontos.length - 1, rows = [], comuns = null, pior = null, plano = 0, erros = 0, i;
+    for (i = 0; i < n; i++) {
+      var rot = window.LeguaMapa.rotulo(i) + " → " + window.LeguaMapa.rotulo(i + 1) + (i === st.salto ? " (em detalhe)" : "");
+      var ps = perfilSalto(i);
+      if (ps.erro) { rows.push([rot, "–", "–", "–", "–", "–", "–", { pill: "bad", text: "erro" }]); erros++; comuns = []; continue; }
+      var inp = {}; Object.keys(inpBase).forEach(function (k) { inp[k] = inpBase[k]; }); inp.perfil = ps.perfil;
+      var Ai = LE.analisar(inp), esc = Ai.modos.filter(function (m) { return m.sf === st.sf && m.bw === st.bw && m.cr === st.cr; })[0], marg = Ai.estimativa.margem_db, fr = Ai.perfil.folga_min_razao;
+      if (ps.plano) plano++;
+      var ok = Ai.modos.filter(function (m) { return m.atinge; }).map(nomeModo);
+      comuns = comuns === null ? ok : comuns.filter(function (x) { return ok.indexOf(x) >= 0; });
+      if (!pior || marg < pior.marg) pior = { rot: rot.replace(" (em detalhe)", ""), marg: marg };
+      rows.push([rot, nf(Ai.perfil.D_km, 2) + " km", ps.plano ? "plano (sem elevação)" : "elevação real", nf(Ai.perda.total_db, 1) + " dB", nf(Ai.rx_dbm, 1) + " dBm", nf(marg, 1) + " dB", fr == null ? "–" : nf(100 * Math.min(Math.max(fr, 0), 9.99), 0) + "%", { pill: esc && esc.atinge ? "ok" : "bad", text: esc && esc.atinge ? "atinge" : "não atinge" }]);
+    }
+    var kids = [el("p", { class: "note", text: "Cada par seguido de pontos é um enlace, com o mesmo rádio, antenas e modo. A rota só fecha se todos os saltos fecharem; o salto mais fraco manda." })];
+    if (pior) kids.push(el("p", {}, ["Salto mais fraco: " + pior.rot + ", margem de " + nf(pior.marg, 1) + " dB no modo escolhido. " +
+      (comuns && comuns.length ? "Modos que atingem " + pct(st.alvo) + " de entrega em todos os saltos: " + comuns.join(", ") + "." : "Nenhum modo da tabela atinge " + pct(st.alvo) + " em todos os saltos.")]));
+    if (plano) kids.push(el("p", { class: "note", text: plano + " salto(s) sem elevação real (terreno plano na altitude base): baixe a elevação com o consentimento acima para valer o terreno." }));
+    if (erros) kids.push(el("p", { class: "note", text: erros + " salto(s) com ponto inválido ou distância fora de 0,02 a 100 km." }));
+    kids.push(tabela(["Salto", "Distância", "Terreno", "Perda total", "Recebido", "Margem", "Fresnel livre", "Modo escolhido"], rows, [0, 1, 0, 1, 1, 1, 1, 0]));
+    return cartao("Rota com " + n + " saltos", kids);
   }
   function stat(v, l) { return el("div", { class: "stat" }, [el("div", { class: "v", text: v }), el("div", { class: "l", text: l })]); }
   function tabela(head, rows, num) {
@@ -267,7 +368,7 @@
     var resumo = ["Légua, testador de enlaces (estimativa; não é previsão de campo)", frase,
       "Perdas: espaço livre " + nf(A.perda.espaco_livre_db, 1) + " dB + difração " + nf(A.perda.difracao_db, 1) + " dB + extra " + nf(A.perda.extra_db, 1) + " dB = " + nf(A.perda.total_db, 1) + " dB.",
       "Parâmetros: terreno " + st.terreno + "; antenas " + st.hTx + " m e " + st.hRx + " m; k " + st.k + "; ganhos " + st.gTx + " e " + st.gRx + " dBi; cabos " + st.lTx + " e " + st.lRx + " dB; ambiente " + st.env + ".",
-      st.terreno === "csv" || st.terreno === "hgt" || st.terreno === "terrarium" ? "(perfil local não incluído no link)" : location.href.split("#")[0] + "#" + consulta()].join("\n");
+      st.terreno === "csv" || st.terreno === "hgt" || st.terreno === "terrarium" || st.terreno === "mapa" ? "(perfil local não incluído no link)" : location.href.split("#")[0] + "#" + consulta()].join("\n");
     var aviso = el("span", { class: "sub", role: "status", "aria-live": "polite" });
     function btn(t, fn) { var b = el("button", { type: "button", class: "btn", text: t }); b.addEventListener("click", fn); return b; }
     var resposta = cartao("Resposta para este enlace", [el("p", {}, [frase]), el("p", {}, avisos.reduce(function (a, p) { a.push(p, document.createTextNode("  ")); return a; }, [])),
@@ -293,8 +394,9 @@
     var tab = cartao("Margem e entrega por modo", [el("p", { class: "note", text: "Modos fixos da tabela BR-2026 (nao_verificado), enlace típico, ordenados pela margem. A Légua negocia entre eles em campo; a energia é de TX, com corrente do PA estimada. A sensibilidade é o centro da curva de erro de pacote usada na simulação, não o limiar do datasheet." }),
       tabela(["Modo", "Tempo no ar", "Margem", "Entrega confirmada", "Energia por entregue", "Alvo " + pct(st.alvo)], linhasModos, [false, true, true, true, true, false])]);
     var cont = el("section", { class: "card warn-card" }, [el("p", { class: "note", text: "Contabilidade de dB: a perda média vem do espaço livre mais a difração do perfil e a perda extra que você informa; o ambiente escolhido contribui só com a variabilidade (sombreamento, desvanecimento, ruído e tráfego), e o estimador recebe a diferença de ganho de antena, sem contar duas vezes. Ficam fora do modelo: reflexão no solo, vegetação e prédios no caminho (use a perda extra), difração em mais de um obstáculo além do equivalente de Bullington e a atmosfera real." })]);
-    var mapa = st.terreno === "terrarium" && st.tiles ? cartaoMapa() : null;
-    [resposta, stats, grafico, mapa, tab, cont].forEach(function (n) { if (n) host.appendChild(n); });
+    var mapa = (st.terreno === "terrarium" || st.terreno === "mapa") && st.tiles ? cartaoMapa() : null;
+    var rota = st.terreno === "mapa" && st.pontos.length > 2 ? cartaoRota(inp) : null;
+    [resposta, rota, stats, grafico, mapa, tab, cont].forEach(function (n) { if (n) host.appendChild(n); });
     sincroniza();
   }
 

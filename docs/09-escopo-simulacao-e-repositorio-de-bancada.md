@@ -186,7 +186,20 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   internet", com os mesmos campos de coordenadas. Baixa os PNG do conjunto Terrain Tiles da AWS Open Data
   (`s3.amazonaws.com/elevation-tiles-prod/terrarium/z/x/y.png`, derivado de SRTM, Copernicus e outros; altitude = R*256 + G +
   B/256 - 32768), zoom 12 (~38 m/pixel no equador), no máximo 24 tiles, 2 por vez, interpolação bilinear entre tiles. Só
-  age depois de uma caixa de consentimento marcada e de um clique; a URL nunca liga a busca. **Mapa de relevo:** com os mesmos tiles já
+  age depois de uma caixa de consentimento marcada e de um clique; a URL nunca liga a busca. **Mapa para escolher os pontos e rota com vários saltos (18/11/2026, `site/mapa.js`):** terreno "Mapa". Mapa-base com os
+  tiles do OpenStreetMap (Web Mercator, sem biblioteca): arrastar, roda ou +/- para o zoom, clique (ou Enter, no teclado) para
+  pôr um ponto, arrastar o marcador para ajustar, tabela de latitude/longitude editável (o mapa é só conveniência: os pontos
+  também são digitados), até 8 pontos. Cada par seguido é um **salto** (cadeia com relés): o cartão "Rota" mostra, por salto,
+  distância, perda, potência recebida, margem no modo escolhido e folga de Fresnel, o salto mais fraco e os **modos que
+  atingem o alvo em todos os saltos**; o perfil e os modos em detalhe valem para o salto escolhido. Sem elevação baixada, o
+  salto usa terreno plano e a tela avisa. **Privacidade:** o mapa só pede tiles depois de um consentimento próprio (separado
+  do da elevação); o que sai é a URL dos tiles da janela vista (zoom, x, y) e o IP, para `tile.openstreetmap.org`, com o
+  referenciador reduzido à origem do site (a política de uso dos tiles do OSM pede Referer válido; a origem não leva caminho nem
+  fragmento). A vista inicial é o Brasil inteiro (zoom 4); aproximar expõe uma região menor. As coordenadas dos pontos não vão
+  em URL, resumo, CSV nem JSON. Atribuição "© colaboradores do OpenStreetMap" visível no mapa; uso leve. **Não verificado:** o
+  carregamento dos tiles e a interação com mouse num navegador real (os testes usam jsdom, que não pinta imagens nem tem
+  layout). Fora do escopo: malha "todos contra todos"; a cadeia é o uso prático com relés, e uma malha se obtém analisando os
+  pares um a um. **Mapa de relevo:** com os mesmos tiles já
   baixados, a página pinta altitude em rampa de cor com sombreado, a linha A-B e os pontos; **não usa mapa-base de terceiros** (OSM
   exigiria outras requisições e a política de uso dos tiles deles não serve a um site estático; decisão de 18/11/2026).
   **Fora do escopo desta versão:** mapa-base de ruas, vegetação e prédios (use a perda extra), reflexão no solo e mais de um obstáculo além do equivalente de Bullington.

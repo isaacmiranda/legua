@@ -383,3 +383,32 @@ def test_bullington_p526_javascript_igual_ao_python_nos_perfis_do_itm():
         d, h = c["d_km"], c["h_m"]
         assert p == pytest.approx(L.analisar_perfil(d, h, c["h_tx"], c["h_rx"], 4 / 3)["perda_difracao_db"], abs=1e-9), c["nome"]
         assert j == pytest.approx(L.analisar_perfil(d, h, c["h_tx"], c["h_rx"], 4 / 3, modelo="j")["perda_difracao_db"], abs=1e-9), c["nome"]
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="sem node")
+def test_mapa_matematica_zoom_fixo_tiles_e_url():
+    js = r"""
+    const M = require(process.argv[1] + '/mapa.js'), out = {};
+    const p = M.proj(-22.9, -43.2, 12), q = M.inv(p.x, p.y, 12); out.ida_volta = [q.lat, q.lon];
+    out.greenwich = M.proj(0, 0, 1);                                    // (256, 256): centro do mapa no zoom 1
+    const v = { lat: -22.9, lon: -43.2, z: 10 }, w = 800, h = 400, c = M.proj(v.lat, v.lon, v.z);
+    const g0 = M.inv(c.x - w / 2 + 600, c.y - h / 2 + 100, v.z), v2 = M.zoomEm(v, w, h, 600, 100, 1), c2 = M.proj(v2.lat, v2.lon, v2.z);
+    const g1 = M.inv(c2.x - w / 2 + 600, c2.y - h / 2 + 100, v2.z);
+    out.fixo = [g0.lat - g1.lat, g0.lon - g1.lon]; out.z2 = v2.z;
+    out.zmax = M.zoomEm({ lat: 0, lon: 0, z: 17 }, w, h, 0, 0, 1).z; out.zmin = M.zoomEm({ lat: 0, lon: 0, z: 3 }, w, h, 0, 0, -1).z;
+    const ts = M.tilesVisiveis(v, w, h); out.n = ts.length;
+    out.urls_ok = ts.every(t => /^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/.test(M.urlTile(t)));
+    out.sem_coord = ts.every(t => !/22|43\./.test(M.urlTile(t).replace(/^https:\/\/tile\.openstreetmap\.org\//, '').split('/').slice(1).join('')) || true);
+    const volta = M.tilesVisiveis({ lat: 0, lon: 179.9, z: 3 }, 1200, 400); out.envolve = volta.some(t => t.x === 0) && volta.every(t => t.x >= 0 && t.x < 8);
+    out.enq2 = M.enquadrar([{ lat: -22.9, lon: -43.2 }, { lat: -22.9, lon: -43.12 }], w, h).z; out.enq1 = M.enquadrar([{ lat: -22.9, lon: -43.2 }], w, h).z; out.enq0 = M.enquadrar([], w, h);
+    out.rot = [M.rotulo(0), M.rotulo(2)];
+    console.log(JSON.stringify(out));
+    """
+    r = subprocess.run(["node", "-e", js, os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout)
+    assert o["ida_volta"] == pytest.approx([-22.9, -43.2], abs=1e-9)
+    assert o["greenwich"]["x"] == pytest.approx(256) and o["greenwich"]["y"] == pytest.approx(256)
+    assert abs(o["fixo"][0]) < 1e-9 and abs(o["fixo"][1]) < 1e-9 and o["z2"] == 11     # o ponto sob o cursor não se mexe no zoom
+    assert o["zmax"] == 17 and o["zmin"] == 3 and 6 <= o["n"] <= 12 and o["urls_ok"] and o["envolve"]
+    assert 11 <= o["enq2"] <= 17 and o["enq1"] == 13 and o["enq0"]["z"] == 4 and o["rot"] == ["A", "C"]

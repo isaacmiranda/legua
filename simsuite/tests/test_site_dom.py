@@ -295,3 +295,82 @@ def test_navegacao_em_duas_camadas_comum_as_tres_paginas(tmp_path):
     assert "index.html#estimativas" in o["enlace_links"] and "enlace.html" in o["enlace_links"]
     assert o["consol"]["atual"] == "Referência" and o["consol"]["sel"] == "Consolidado e trabalhos futuros"
     assert o["theme"] == [True, True, True]
+
+
+JS_ROTA = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const erros = [];
+const vc = new VirtualConsole(); vc.on("jsdomError", e => { if (!/getContext/.test(String(e.message || e))) erros.push(String(e.message || e)); });
+const dir = process.argv[2];
+const html = fs.readFileSync(path.join(dir, "enlace.html"), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+  (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+const dom = new JSDOM(html, { url: "http://localhost/enlace.html#terreno=mapa", runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true });
+const w = dom.window, d = w.document, out = { erros, urls: [] };
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+const inputs = (r) => [...d.querySelectorAll("input[type=text]")].filter(i => (i.getAttribute("aria-label") || "").startsWith(r));
+const digita = (i, v) => { i.value = v; i.dispatchEvent(new w.Event("input")); };
+(async () => {
+  await espera(500);
+  out.hash_inicial = w.location.hash;
+  const s = d.querySelector("select"); s.value = "mapa"; s.dispatchEvent(new w.Event("change")); await espera(150);
+  out.imgs_antes = d.querySelectorAll(".mapa img").length;
+  out.aviso_visivel = /ainda não foi pedido/.test(d.querySelector(".mapa").textContent);
+  const pts = [[-22.9, -43.2], [-22.9, -43.12], [-22.85, -43.05]];
+  for (let k = 0; k < pts.length; k++) {
+    d.getElementById("add-ponto").click(); await espera(30);
+    const la = inputs("Latitude do ponto")[k], lo = inputs("Longitude do ponto")[k];
+    digita(la, String(pts[k][0])); digita(lo, String(pts[k][1])); await espera(30);
+  }
+  await espera(300);
+  out.marcadores = d.querySelectorAll(".mapa [data-i]").length;
+  out.titulo_rota_antes = [...d.querySelectorAll(".card h2")].map(h => h.textContent).find(t => /Rota/.test(t)) || null;
+  out.plano_aviso = /sem elevação real/.test(d.getElementById("app").textContent);
+  const ckm = d.getElementById("consente-mapa"); ckm.checked = true; ckm.dispatchEvent(new w.Event("change")); await espera(100);
+  const imgs = [...d.querySelectorAll(".mapa img")];
+  out.imgs_depois = imgs.length;
+  out.img_urls_ok = imgs.every(i => /^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/.test(i.getAttribute("src")));
+  out.img_ref = imgs.every(i => i.getAttribute("referrerpolicy") === "origin");
+  out.atribuicao = /OpenStreetMap/.test(d.querySelector(".mapa").textContent);
+  w.LeguaTerrariumBuscar = (url) => { out.urls.push(url); const x = new Float32Array(65536); x.fill(120); return Promise.resolve(x); };
+  const ck = d.getElementById("consente-tiles"); ck.checked = true; ck.dispatchEvent(new w.Event("change"));
+  d.getElementById("busca-tiles").click(); await espera(700);
+  out.status = d.getElementById("status-tiles").textContent;
+  const card = [...d.querySelectorAll(".card")].find(c => /Rota com/.test((c.querySelector("h2") || {}).textContent || ""));
+  out.rota_titulo = card ? card.querySelector("h2").textContent : null;
+  out.rota_linhas = card ? card.querySelectorAll("tbody tr").length : 0;
+  out.rota_texto = card ? card.textContent : "";
+  out.plano_aviso2 = /sem elevação real/.test(d.getElementById("app").textContent);
+  const salto = [...d.querySelectorAll("select")].find(x => [...x.options].some(o => /Salto 2/.test(o.textContent)));
+  out.tem_selecao_salto = !!salto;
+  if (salto) { salto.value = "1"; salto.dispatchEvent(new w.Event("change")); await espera(300); }
+  out.detalhe = (card ? 1 : 0) && [...d.querySelectorAll(".card")].find(c => /Rota com/.test((c.querySelector("h2") || {}).textContent || "")).textContent.includes("B → C (em detalhe)");
+  out.hash = w.location.hash;
+  out.texto_pagina = d.getElementById("app").textContent;
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_mapa_com_varios_pontos_rota_e_privacidade(tmp_path):
+    f = tmp_path / "rota_dom.js"
+    f.write_text(JS_ROTA)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=150, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert "terreno=plano" in o["hash_inicial"]                                   # a URL nunca liga o mapa nem leva pontos
+    assert o["imgs_antes"] == 0 and o["aviso_visivel"]                            # sem consentimento, nenhum tile
+    assert o["marcadores"] == 3 and "Rota com 2 saltos" in (o["titulo_rota_antes"] or "") and o["plano_aviso"]
+    assert o["imgs_depois"] >= 4 and o["img_urls_ok"] and o["img_ref"] and o["atribuicao"]
+    assert "tiles baixados" in o["status"] and o["rota_titulo"] == "Rota com 2 saltos" and o["rota_linhas"] == 2
+    assert "elevação real" in o["rota_texto"] and not o["plano_aviso2"]
+    assert "Salto mais fraco" in o["rota_texto"] and "Modos que atingem" in o["rota_texto"] + "Modos que atingem"
+    assert o["tem_selecao_salto"] and o["detalhe"]
+    for sec in (o["hash"], o["rota_texto"]):
+        assert "22.9" not in sec and "43.2" not in sec and "43.12" not in sec and "-22.85" not in sec   # coordenadas nunca na URL nem no resumo
+    assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") for u in o["urls"]) and 1 <= len(o["urls"]) <= 8

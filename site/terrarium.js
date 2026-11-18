@@ -10,7 +10,7 @@
 (function (root) {
   "use strict";
   var BASE = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/";
-  var Z_PADRAO = 12, Z_MIN = 8, Z_MAX = 14, MAX_TILES = 24, TAM = 256;
+  var Z_PADRAO = 12, Z_MIN = 8, Z_MAX = 14, MAX_TILES = 24, MAX_TILES_TOTAL = 64, TAM = 256;
 
   function urlTile(z, x, y) { return BASE + z + "/" + x + "/" + y + ".png"; }
 
@@ -73,12 +73,19 @@
     };
   }
 
-  /* Busca os tiles do caminho com `buscar(url) -> Promise<Float32Array|null>` (injetado: no navegador, fetch + canvas).
-   * Concorrência baixa (2) para não castigar o servidor nem a máquina. Resolve { fonte, n_tiles, z } ou { erro }. */
-  function carregar(a, b, z, buscar) {
-    var r = tilesDoCaminho(a, b, z);
-    if (r.erro) return Promise.resolve({ erro: r.erro });
-    var mapa = {}, fila = r.tiles.slice(), falhas = [], total = fila.length;
+  /* Busca os tiles de um ou mais saltos [[a, b], ...] com `buscar(url) -> Promise<Float32Array|null>` (injetado: no
+   * navegador, fetch + canvas). Tiles repetidos entre saltos são baixados uma vez. Concorrência baixa (2) para não
+   * castigar o servidor nem a máquina. Resolve { fonte, n_tiles, z } ou { erro }. */
+  function carregarSaltos(saltos, z, buscar) {
+    var vistos = {}, fila = [], k, r, i;
+    if (!saltos.length) return Promise.resolve({ erro: "informe ao menos dois pontos" });
+    for (k = 0; k < saltos.length; k++) {
+      r = tilesDoCaminho(saltos[k][0], saltos[k][1], z);
+      if (r.erro) return Promise.resolve({ erro: (saltos.length > 1 ? "salto " + (k + 1) + ": " : "") + r.erro });
+      for (i = 0; i < r.tiles.length; i++) { var t = r.tiles[i], c = t.z + "/" + t.x + "/" + t.y; if (!vistos[c]) { vistos[c] = 1; fila.push(t); } }
+    }
+    if (fila.length > MAX_TILES_TOTAL) return Promise.resolve({ erro: "a rota precisaria de " + fila.length + " tiles (máximo " + MAX_TILES_TOTAL + "); reduza os saltos" });
+    var mapa = {}, falhas = [], total = fila.length, zz = fila[0].z;
     function um() {
       var t = fila.shift();
       if (!t) return Promise.resolve();
@@ -88,10 +95,10 @@
     }
     return Promise.all([um(), um()]).then(function () {
       if (falhas.length) return { erro: "não consegui baixar " + falhas.length + " de " + total + " tiles (rede bloqueada, sem CORS ou fora do ar): " + falhas.slice(0, 2).join(", ") };
-      return { fonte: fonte(mapa, r.tiles[0].z), n_tiles: total, z: r.tiles[0].z };
+      return { fonte: fonte(mapa, zz), n_tiles: total, z: zz };
     });
   }
-
+  function carregar(a, b, z, buscar) { return carregarSaltos([[a, b]], z, buscar); }
 
   /* Mapa de relevo sem rede extra: pinta, com os mesmos tiles já baixados, a altitude em rampa de cor com sombreado
    * (luz de noroeste) na caixa em volta dos pontos A e B. Devolve { w, h, rgba, lat0, lat1, lon0, lon1, min, max } ou
@@ -137,7 +144,7 @@
     });
   }
 
-  var api = { urlTile: urlTile, tileXY: tileXY, tilesDoCaminho: tilesDoCaminho, decodificar: decodificar, fonte: fonte, relevo: relevo, carregar: carregar,
+  var api = { urlTile: urlTile, tileXY: tileXY, tilesDoCaminho: tilesDoCaminho, decodificar: decodificar, fonte: fonte, relevo: relevo, carregar: carregar, carregarSaltos: carregarSaltos,
     buscarNoNavegador: buscarNoNavegador, Z_PADRAO: Z_PADRAO, MAX_TILES: MAX_TILES, BASE: BASE };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.LeguaTerrarium = api;
 })(typeof window !== "undefined" ? window : this);
