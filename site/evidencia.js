@@ -25,6 +25,7 @@
     seg: { nivel: 1, itens: ["Vetores de teste do AES-CMAC e testes de replay e forjamento", "Regulação BR-2026: fonte secundária, nao_verificado"], ref: "docs/07 §6" },
     estimativas: { nivel: 1, itens: ["Estimador conferido contra o simulador (tools/validar_estimador.py)", "Parâmetros do canal estimados"], ref: "docs/09 §7" },
     calc: { nivel: 1, itens: ["Tempo no ar idêntico ao do simulador (teste de paridade com 960 combinações)", "Consumo, sensibilidade e perfil BR-2026 estimados ou de fonte secundária"], ref: "docs/09 §4" },
+    pacote: { nivel: 1, itens: ["Decodificador e gerador iguais ao codec de referência nos 48 vetores (teste de paridade)", "MIC conferido é o de teste, não o AES-CMAC real"], ref: "docs/07" },
     modos: { nivel: 1, itens: ["Tabela de modos conferida pelos testes de tempo no ar", "Perfil BR-2026: nao_verificado"], ref: "docs/05" },
     enlace: { nivel: 2, itens: ["Difração pela ITU-R P.526-16, comparada com o ITM da NTIA em 44 perfis (testador ~11 dB otimista em média)", "Sem medição de campo"], ref: "docs/09 §7.1" }
   };

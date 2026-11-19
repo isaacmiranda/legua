@@ -145,6 +145,13 @@ def main(argv=None):
     os.makedirs(os.path.dirname(a.saida) or ".", exist_ok=True)
     with open(a.saida, "w") as fh:
         json.dump(saida, fh, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+    # vetores de teste do codec e do MIC, para quem porta o protocolo (a aba "Pacotes" do site os oferece)
+    import shutil
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    destino = os.path.join(os.path.dirname(a.saida) or ".", "vetores")
+    os.makedirs(destino, exist_ok=True)
+    for nome in ("frames.txt", "mic.txt"):
+        shutil.copyfile(os.path.join(raiz, "core", "tests", "vectors", nome), os.path.join(destino, nome))
     js = os.path.splitext(a.saida)[0] + ".js"
     with open(a.saida) as src, open(js, "w") as out:
         out.write("window.LEGUA_DATA=" + src.read() + ";\n")

@@ -72,3 +72,40 @@ def test_calculadoras_paridade_com_o_python():
     assert o["digital"]["classe"]["canais_min"] == 17 and o["ciclo"] == pytest.approx(0.004) and o["minimo"] == pytest.approx(40.0)
     b = o["bat"]
     assert b["ativoTx"] == pytest.approx(0.4 * 60 / 3600) and 90 < b["dias"] < 120 and b["energiaPacoteMj"] == pytest.approx(45.0 * 3.3 * 0.4)
+
+
+@precisa_node
+def test_decodificador_de_pacotes_igual_ao_wire_py_nos_vetores():
+    from simsuite.protocol import wire
+    vet = [dict(ctr=ctr, raw=raw.hex(), extra=extra.hex(), esperado=dict(type=wire.unpack(raw, wire.rsp_ctr32(raw) if raw[0] & 31 == 8 else ctr, extra=extra)["type"],
+           src=int.from_bytes(raw[2:4], "big"), dst=int.from_bytes(raw[4:6], "big"), flags=raw[1])) for ctr, raw, extra in wire._vetores()]
+    o = _node(r"""
+    const P = require(process.argv[1] + '/pacote.js'), V = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+    console.log(JSON.stringify(V.map(v => { const r = P.decodificar(v.raw, { ctr32: v.ctr, extraHex: v.extra }); return r.erro ? { erro: r.erro } :
+      { tipo: r.tipo, src: r.cabecalho[3].valor, dst: r.cabecalho[4].valor, flags: parseInt(r.cabecalho[2].valor, 16), ok: r.mic.confere_com_mic_de_teste, n: r.corpo.length }; })));
+    """, entrada=json.dumps(vet))
+    assert len(o) == len(vet) == 48
+    for v, r in zip(vet, o):
+        e = v["esperado"]
+        assert "erro" not in r, (v, r)
+        assert (r["tipo"], r["src"], r["dst"], r["flags"]) == (e["type"], e["src"], e["dst"], e["flags"]) and r["ok"] is True and r["n"] >= 1, v
+
+
+@precisa_node
+def test_gerador_de_pacotes_igual_ao_wire_py_e_erros_claros():
+    from simsuite.protocol import wire
+    o = _node(r"""
+    const P = require(process.argv[1] + '/pacote.js');
+    const g = P.montar({ tipo: 2, src: 1, dst: 2, ctr32: 70000, flags: 1, corpo: [5, 0x24, 4, 1, 2, 3, 4, 5, 6, 7, 8, 9] });
+    const rsp = P.montar({ tipo: 8, src: 3, dst: 4, ctr32: 0x1FFFE, corpo: [0, 1, 0xFF, 0xFE], extraHex: '01020304' });
+    const d = P.decodificar(g.hex, { ctr32: 70000 });
+    console.log(JSON.stringify({ g: g.hex, rsp: rsp.hex, mic_ok: d.mic.confere_com_mic_de_teste, corpo: d.corpo.map(c => c.campo + '=' + c.valor),
+      erros: [P.decodificar('', {}).erro, P.decodificar('abc', {}).erro, P.decodificar('0102', {}).erro, P.decodificar('ff' + '00'.repeat(15), {}).erro, P.decodificar('02' + '00'.repeat(15), {}).erro,
+        P.montar({ tipo: 2, corpo: [1] }).erro, P.montar({ tipo: 9 }).erro], adv: P.decodificar('02' + 'f0' + '00'.repeat(22), {}).avisos }));
+    """)
+    py = wire.pack(wire.T_DATA, 1, 2, 70000, bytes([5, 0x24, 4, 1, 2, 3, 4, 5, 6, 7, 8, 9]), flags=1)
+    assert o["g"] == py.hex() and o["mic_ok"] is True
+    assert o["rsp"] == wire.pack(wire.T_RESYNC_RSP, 3, 4, 0x1FFFE, bytes([0, 1, 0xFF, 0xFE]), extra=bytes([1, 2, 3, 4])).hex()
+    assert o["corpo"][0] == "seq=5" and "payload (9 B)=010203040506070809" in o["corpo"]
+    assert "hexadecimal" in o["erros"][0] and "ímpar" in o["erros"][1] and "curto" in o["erros"][2] and "versão" in o["erros"][3] and "bytes" in o["erros"][4]
+    assert "leva 12 bytes" in o["erros"][5] and "inválido" in o["erros"][6] and any("reservados" in a for a in o["adv"])

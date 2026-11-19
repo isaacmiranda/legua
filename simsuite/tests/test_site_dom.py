@@ -534,3 +534,45 @@ def test_aba_calculadoras_atualiza_na_hora_limita_entradas_e_lembra_o_estado(tmp
     assert not o["erros"], o["erros"]
     assert o["secao"] == "Ferramentas" and o["antes"][0].endswith("ms") and o["antes"] != o["depois"]
     assert o["carga_limitada"] == 255 and o["sf_lembrado"] == "7"
+
+
+JS_PACOTE = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const dir = process.argv[2], out = { erros: [] };
+const vc = new VirtualConsole(); vc.on("jsdomError", e => out.erros.push(String(e.message || e)));
+const html = fs.readFileSync(path.join(dir, "index.html"), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+  (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+const w = new JSDOM(html, { url: "http://localhost/index.html#pacote", runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true }).window, d = w.document;
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  await espera(900);
+  out.vazio = /Cole um quadro/.test(d.getElementById("panel").textContent);
+  [...d.querySelectorAll("button")].find(b => b.textContent === "Exemplo: DATA").click(); await espera(100);
+  out.txt = d.getElementById("panel").textContent;
+  out.linhas = d.querySelectorAll("#panel table tbody tr").length;
+  const ta = d.querySelector('textarea[aria-label="Quadro em hexadecimal"]'); out.hex = ta.value;
+  ta.value = "02 00 zz"; ta.dispatchEvent(new w.Event("input")); await espera(50);
+  out.erro = d.getElementById("panel").textContent.includes("não decodificou");
+  ta.value = out.hex.slice(0, -2) + "00"; ta.dispatchEvent(new w.Event("input")); await espera(50);   // MIC adulterado
+  out.mic_ruim = d.getElementById("panel").textContent.includes("MIC de teste não confere");
+  out.links = [...d.querySelectorAll('#panel a[href^="vetores/"]')].map(a => a.getAttribute("href"));
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_aba_pacotes_decodifica_mostra_erros_e_oferece_os_vetores(tmp_path):
+    f = tmp_path / "pacote_dom.js"
+    f.write_text(JS_PACOTE)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["vazio"] and o["linhas"] >= 10 and "MIC de teste confere" in o["txt"] and "DATA" in o["txt"] and len(o["hex"]) == 48
+    assert o["erro"] and o["mic_ruim"] and o["links"] == ["vetores/frames.txt", "vetores/mic.txt"]
+    assert os.path.exists(os.path.join(RAIZ, "site", "vetores", "frames.txt"))
