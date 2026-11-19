@@ -210,6 +210,15 @@ def rank_modes(env_id, d_km, p_dbm, target=0.95, sigmas=0.0, **kw):
     return good, rows
 
 
+def _regulatorio_br():
+    """Perfil BR-2026 (nao_verificado: fonte secundária) para as calculadoras do site."""
+    from ..core import regulatory as R
+    b = R.BR2026
+    return {"perfil": b.name, "situacao": "nao_verificado", "faixas_hz": [list(x) for x in b.bands], "p_max_dbm": b.p_max_dbm,
+            "p_reduzida_dbm": b.p_reduced_dbm, "antena_max_dbi": b.antenna_max_dbi, "bw_digital_min_khz": b.digital_min_bw_khz,
+            "salto": [{"bw_min_khz": h.min_bw_khz, "bw_max_khz": h.max_bw_khz, "canais_min": h.min_channels, "janela_s": h.window_s, "dwell_s": h.dwell_s} for h in b.hop_classes]}
+
+
 def constantes():
     """Constantes do modelo para o site (fonte única: o JS não duplica parâmetros)."""
     from ..core.radio import _I_TX_TABLE
@@ -218,7 +227,7 @@ def constantes():
         "ant_gain_dbi": ANT_GAIN_DBI, "cable_loss_db": CABLE_LOSS_DB, "ext_toa_s": EXT_TOA_S, "capture_p": CAPTURE_P,
         "snr_thr": {str(k): v for k, v in SNR_THR.items()}, "cr_gain_db": {str(k): v for k, v in CR_GAIN_DB.items()},
         "per_offset_db": PER_OFFSET_DB, "per_slope_db": PER_SLOPE_DB, "nf_db": NF_DB, "vcc": VCC,
-        "i_tx_table": [list(p) for p in _I_TX_TABLE], "dwell_max_s": DWELL_MAX_S,
+        "i_tx_table": [list(p) for p in _I_TX_TABLE], "dwell_max_s": DWELL_MAX_S, "i_rx_ma": 4.6, "regulatorio": _regulatorio_br(),
         "data_bytes": DATA_BYTES, "ack_bytes": ACK_BYTES, "backoff_medio_s": BACKOFF_MEDIO_S,
         "gh8_x": list(GH8_X), "gh8_w": list(GH8_W),
     }

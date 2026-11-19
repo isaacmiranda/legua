@@ -46,7 +46,7 @@ _TOA_CACHE = {}
 
 def toa_s(sf, bw_khz, payload_b, cr=1, preamble=8, crc=True, explicit=True):
     """Tempo no ar (AN1200.13 da Semtech; SF5/SF6 conforme o datasheet do SX126x)."""
-    key = (sf, bw_khz, payload_b, cr, preamble)
+    key = (sf, bw_khz, payload_b, cr, preamble, crc, explicit)
     if key in _TOA_CACHE:
         return _TOA_CACHE[key]
     tsym = (2 ** sf) / (bw_khz * 1e3)

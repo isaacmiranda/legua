@@ -494,3 +494,43 @@ def test_barra_de_dados_e_faixa_de_evidencia(tmp_path):
     assert o["area_escondida"] is True and o["area_visivel"] is True and "Campo fixo" in o["citacao"] and "sem medição em hardware" in o["citacao"]
     assert "Evidência: nível 1 de 3" in o["evid"] and "Evidência: nível 2 de 3" in o["evid_enlace"]
     assert o["sem_barra_no_guia"]
+
+
+JS_CALC = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const dir = process.argv[2], out = { erros: [] };
+const vc = new VirtualConsole(); vc.on("jsdomError", e => out.erros.push(String(e.message || e)));
+const html = fs.readFileSync(path.join(dir, "index.html"), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+  (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+const w = new JSDOM(html, { url: "http://localhost/index.html#calc", runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true }).window, d = w.document;
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  await espera(900);
+  const v = () => [...d.querySelectorAll("#panel .stat .v")].map(x => x.textContent);
+  out.secao = (d.querySelector(".gnav-sec[aria-current]") || {}).textContent; out.antes = v();
+  const sf = d.querySelector('select[aria-label="Fator de espalhamento"]'); sf.value = "7"; sf.dispatchEvent(new w.Event("change")); await espera(100);
+  out.depois = v();
+  const pl = d.querySelector('input[aria-label^="Carga útil"]'); pl.value = "9999"; pl.dispatchEvent(new w.Event("input")); await espera(50);
+  out.carga_limitada = w.LeguaCalcUI.estado.pl;                       // fora da faixa: limitada a 255
+  d.querySelector('a.tab[href="index.html#estimativas"], button.tab[data-id="estimativas"]').click(); await espera(300);
+  d.querySelector('button.tab[data-id="calc"]').click(); await espera(300);
+  out.sf_lembrado = d.querySelector('select[aria-label="Fator de espalhamento"]').value;   // o estado sobrevive à troca de aba
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_aba_calculadoras_atualiza_na_hora_limita_entradas_e_lembra_o_estado(tmp_path):
+    f = tmp_path / "calc_dom.js"
+    f.write_text(JS_CALC)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["secao"] == "Ferramentas" and o["antes"][0].endswith("ms") and o["antes"] != o["depois"]
+    assert o["carga_limitada"] == 255 and o["sf_lembrado"] == "7"

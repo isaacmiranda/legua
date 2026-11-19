@@ -1474,7 +1474,8 @@
     { id: "validacao", t: "Validação cruzada", f: panelValidacao, need: ["xsim", "equiv"] }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca, need: ["B7", "B11"] },
     { id: "modos", t: "Modos", f: panelModos, need: ["modos"] }, { id: "malha", t: "Grupos e malha", f: panelMalha, need: ["T23", "T456"] },
     { id: "escalas", t: "Escalas e orçamento", f: panelEscalas, need: [], anyScale: true },
-    { id: "estimativas", t: "Estimativas", f: panelEstimativas, need: [], anyScale: true }
+    { id: "estimativas", t: "Estimativas", f: panelEstimativas, need: [], anyScale: true },
+    { id: "calc", t: "Calculadoras", f: function (panel) { live = []; if (window.LeguaCalcUI && window.LeguaCalc) window.LeguaCalcUI.painel(panel, DATA); else mount(panel, [el("p", { class: "note", text: "As calculadoras não carregaram." })]); }, need: [], anyScale: true }
   ];
   var gnav = document.getElementById("gnav"), panel = document.getElementById("panel"), scaleEl = document.getElementById("scale"), bar = document.getElementById("scalebar");
   var curTab = null;
