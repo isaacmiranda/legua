@@ -447,6 +447,8 @@ pagina = f"""<!doctype html>
   {corpo}
   <footer>Só números de simulação, sem chaves, GNSS ou dados pessoais. Os gráficos e os dados completos estão em <a href="index.html">index.html</a>.</footer>
 </div>
+<script src="i18n_en.js"></script>
+<script src="i18n.js"></script>
 <script src="nav.js"></script>
 <script>LeguaNav.montar(document.getElementById("gnav"), {{ ativo: "consolidado" }});</script>
 </body>

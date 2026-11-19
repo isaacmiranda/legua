@@ -733,3 +733,58 @@ def test_cobertura_em_area_so_baixa_ao_clicar_e_mostra_resumo(tmp_path):
     assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") for u in o["urls"])
     assert "área com margem ≥ 0 dB" in o["texto"] and "alcance mediano" in o["texto"]
     assert "22.9" not in o["hash"] and "43.2" not in o["hash"]
+
+
+JS_IDIOMA = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const dir = process.argv[2], out = { erros: [] };
+function abre(arq, frag) {
+  const vc = new VirtualConsole(); vc.on("jsdomError", e => { if (!/getContext/.test(String(e.message || e))) out.erros.push(arq + ": " + String(e.message || e)); });
+  const html = fs.readFileSync(path.join(dir, arq), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+    (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+  return new JSDOM(html, { url: "http://localhost/" + arq + frag, runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true }).window;
+}
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const w = abre("enlace.html", ""); await espera(700); const d = w.document;
+  const campos = () => [...d.querySelectorAll("input,select")].map(i => i.type === "checkbox" ? i.checked : i.value);
+  const dig = (i, v) => { i.value = v; i.dispatchEvent(new w.Event("input")); };
+  const ent = (r) => [...d.querySelectorAll("input[type=text]")].filter(i => (i.getAttribute("aria-label") || "").startsWith(r));
+  for (let k = 0; k < 2; k++) { d.getElementById("add-ponto").click(); await espera(30); }
+  dig(ent("Latitude")[0], "-22.9"); dig(ent("Longitude")[0], "-43.2"); dig(ent("Latitude")[1], "-22.9"); dig(ent("Longitude")[1], "-43.12"); await espera(300);
+  const antes = { campos: campos(), app: d.getElementById("app").textContent, h2: [...d.querySelectorAll(".card h2")].map(h => h.textContent) };
+  out.pt_h2 = antes.h2; out.btn_pt = d.getElementById("idioma").textContent; out.lang_pt = d.documentElement.lang;
+  d.getElementById("idioma").click(); await espera(150);
+  out.en_h2 = [...d.querySelectorAll(".card h2")].map(h => h.textContent); out.btn_en = d.getElementById("idioma").textContent; out.lang_en = d.documentElement.lang;
+  out.campos_iguais = JSON.stringify(campos()) === JSON.stringify(antes.campos);               // nada digitado se perde
+  out.aviso_en = !!d.getElementById("i18n-aviso"); out.nav_en = [...d.querySelectorAll(".gnav-sec")].map(a => a.textContent);
+  out.resp_en = (d.querySelector(".c-resposta") || {}).textContent || "";
+  out.aria_en = d.querySelector('input[aria-label^="Latitude of point A"]') ? true : false;
+  out.title_en = d.title;
+  const sf = [...d.querySelectorAll("select")].find(s => [...s.options].some(o => /^SF\d+$/.test(o.textContent)) && s.value === "10"); sf.value = "9"; sf.dispatchEvent(new w.Event("change")); await espera(300);
+  out.depois_mudar_en = (d.querySelector(".c-resposta") || {}).textContent.includes("margin");   // conteúdo novo também sai em inglês
+  d.getElementById("idioma").click(); await espera(150);
+  out.pt_h2_volta = [...d.querySelectorAll(".card h2")].map(h => h.textContent); out.lang_volta = d.documentElement.lang; out.title_volta = d.title;
+  out.campos_ainda = campos()[2] !== undefined && ent("Latitude")[0].value === "-22.9";
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_troca_de_idioma_sem_recarregar_e_sem_perder_o_que_foi_digitado(tmp_path):
+    f = tmp_path / "idioma_dom.js"
+    f.write_text(JS_IDIOMA)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert "1. Terreno e pontos" in o["pt_h2"] and o["lang_pt"] == "pt-BR" and o["btn_pt"] == "Idioma: PT-BR"
+    assert "1. Terrain and points" in o["en_h2"] and "2. Radio, antennas and mode" in o["en_h2"] and o["lang_en"] == "en" and o["btn_en"] == "Language: EN"
+    assert o["campos_iguais"] and o["aviso_en"] and o["nav_en"][:3] == ["Start", "Performance", "Protocol"] and o["aria_en"] and o["title_en"] == "Légua · Link tester"
+    assert "Answer for this link" in o["resp_en"] and o["depois_mudar_en"]
+    assert o["pt_h2_volta"] == o["pt_h2"] and o["lang_volta"] == "pt-BR" and o["title_volta"] == "Légua · Testador de enlaces" and o["campos_ainda"]    # volta ao original, com o estado intacto

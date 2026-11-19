@@ -1,0 +1,1299 @@
+## PT-BR (números = #)\tEN. Gerado por tools/gerar_i18n.py; edite aqui e rode o script.
+# # negociações no total, # # rollbacks e	# # negotiations in total, # # rollbacks and
+# % do enlace	# % of the link
+# (sem refração)	# (no refraction)
+# -> # cenários	# -> # scenarios
+# -> # dias; # -> # sementes	# -> # days; # -> # seeds
+# -> # dias; # sementes	# -> # days; # seeds
+# -> # tamanhos de rede; # -> # h por semente	# -> # network sizes; # -> # h per seed
+# ACK	# ACK
+# COMMIT	# COMMIT
+# DATA	# DATA
+# HELLO	# HELLO
+# Hz	# Hz
+# Hz/s	# Hz/s
+# PROPOSE	# PROPOSE
+# RESYNC	# RESYNC
+# RESYNC_RSP	# RESYNC_RSP
+# VOTE	# VOTE
+# a # km	# to # km
+# bit/s	# bit/s
+# bytes.	# bytes.
+# dB	# dB
+# dBi	# dBi
+# dBm	# dBm
+# de #	# of #
+# desacordos permanentes	# permanent disagreements
+# dias	# days
+# divergência(s)	# divergence(s)
+# evento(s).	# event(s).
+# eventos	# events
+# fixo (#× menos), com # ponto percentual de diferença no PDR.	# fixed (#× less), with # percentage point of difference in PDR.
+# fixo; com fade_k # gasta #.# mJ.	# fixed; with fade_k # it spends #.# mJ.
+# h # min	# h # min
+# h # min a # h # min	# h # min to # h # min
+# kHz	# kHz
+# kHz (digital)	# kHz (digital)
+# kHz (salto)	# kHz (hopping)
+# km	# km
+# km/h	# km/h
+# km²	# km²
+# m/s	# m/s
+# m/s a # m	# m/s at # m
+# mA	# mA
+# mJ	# mJ
+# medições de # a # km	# measurements from # to # km
+# min # s	# min # s
+# ms	# ms
+# nó(s), # s.	# node(s), # s.
+# s (# s a # s)	# s (# s to # s)
+# salto(s) em cadeia: A → B → C.	# hop(s) in a chain: A → B → C.
+# salto(s) sem elevação real (terreno plano na altitude base): baixe a elevação com o consentimento acima para valer o terreno.	# hop(s) without real elevation (flat terrain at the base altitude): download the elevation with the consent above for the terrain to count.
+# x # km/h	# x # km/h
+# · # mJ	# · # mJ
+# · # quedas	# · # drops
+# · # rb/h	# · # rb/h
+# · # trocas/h · # rb/h	# · # switches/h · # rb/h
+# · #.# mJ	# · #.# mJ
+# é a referência.	# is the reference.
+#% · # # mJ	#% · # # mJ
+#% · # mJ	#% · # mJ
+#. Ajuste	#. Fit
+#. Carregar um rastro	#. Load a trace
+#. Gerar o calibracao.json	#. Generate calibracao.json
+#. Linha do tempo e resumo	#. Timeline and summary
+#. Rádio, antenas e modo	#. Radio, antennas and mode
+#. Suas medições de campo	#. Your field measurements
+#. Terreno e pontos	#. Terrain and points
+#.# km	#.# km
+#.# mJ	#.# mJ
+#.# ms	#.# ms
+#/# (padrão)	#/# (default)
+#/# (pior caso)	#/# (worst case)
+#/# com salto	#/# with hopping
+#/# salto (base)	#/# hop (base)
+#/# salto (base) em F# urbano denso, escala longa.	#/# hopping (base) in F# dense urban, full scale.
+#/# sem LDRO.	#/# without LDRO.
+#/#/FH	#/#/FH
+#; a # km os dois empatam em energia (#.# mJ contra #.# mJ).	#; at # km the two tie in energy (#.# mJ versus #.# mJ).
+(canal, corrente do PA, deriva, interferência) e serve para	(channel, PA current, drift, interference) and serves to
+(canal, corrente do PA, deriva, interferência). O perfil regulatório BR-# vem de fonte secundária e está	(channel, PA current, drift, interference). The BR-# regulatory profile comes from a secondary source and is
+(nonce do RESYNC_RSP, hex)	(RESYNC_RSP nonce, hex)
+(referência Python em	(Python reference in
+(regra do perfil BR-#, nao_verificado)	(BR-# profile rule, not verified)
+(roxo = SF# a laranja = SF#); mais claro = em validação. Linha vermelha: rollback; preta: reboot; azul: ressincronização. Passe o mouse para ver o motivo.	(purple = SF# to orange = SF#); lighter = under validation. Red line: rollback; black: reboot; blue: resynchronization. Hover to see the reason.
+). Elevação: Terrain Tiles da AWS Open Data, derivados de SRTM, Copernicus DEM e outros. Mapa-base do OpenStreetMap (só com consentimento) para escolher um ou vários pontos, em	). Elevation: AWS Open Data Terrain Tiles, derived from SRTM, Copernicus DEM and others. OpenStreetMap base map (only with consent) to choose one or several points, in
+, com teste de paridade). Perfil de terreno por CSV, sintético, arquivo .hgt local ou tiles Terrarium da AWS (só com consentimento;	, with a parity test). Terrain profile by CSV, synthetic, local .hgt file or AWS Terrarium tiles (only with consent;
+, não há ganho gratuito.	, there is no free gain.
+, não para prever o campo. Ainda	, not to predict the field. There are still
+-# dB	-# dB
+-# dBm	-# dBm
+. Nos gráficos, passe o mouse ou use as setas para ler os valores; o botão “Tabela” mostra os mesmos dados em texto.	. In the charts, hover or use the arrows to read the values; the "Table" button shows the same data as text.
+. Para atualizar:	. To update:
+: snr_db, pdr e sf. Colunas de localização (lat, lon, gnss) são recusadas, e nada sai do seu navegador.	: snr_db, pdr and sf. Location columns (lat, lon, gnss) are refused, and nothing leaves your browser.
+: toda divergência se resolve.	: every divergence is resolved.
+; nada aqui afirma conformidade ou homologação.	; nothing here claims compliance or certification.
+; nada aqui afirma conformidade ou homologação. Os experimentos com as placas Heltec serão feitos em repositório próprio e, quando existirem, calibram estes modelos.	; nothing here claims compliance or certification. The experiments with the Heltec boards will be done in a separate repository and, when they exist, calibrate these models.
+= #) estabiliza o enlace, mas a energia vai a #% do fixo:	= #) stabilizes the link, but the energy goes up to #% of fixed:
+@aria-label:ACKREQ	@aria-label:ACKREQ
+@aria-label:Afastar	@aria-label:Zoom out
+@aria-label:Alternar tema claro e escuro	@aria-label:Toggle light and dark theme
+@aria-label:Ambiente	@aria-label:Environment
+@aria-label:Ambiente a calibrar	@aria-label:Environment to calibrate
+@aria-label:Anatomia de uma célula de tabela: PDR, ponto e energia por pacote	@aria-label:Anatomy of a table cell: PDR, point and energy per packet
+@aria-label:Anterior e próxima seção	@aria-label:Previous and next section
+@aria-label:Aproximar	@aria-label:Zoom in
+@aria-label:BibTeX	@aria-label:BibTeX
+@aria-label:Buscar nos eventos	@aria-label:Search the events
+@aria-label:CRC no pacote	@aria-label:CRC in the packet
+@aria-label:CSV de medições	@aria-label:Measurements CSV
+@aria-label:Cabeçalho explícito	@aria-label:Explicit header
+@aria-label:Canais usados no salto	@aria-label:Channels used for hopping
+@aria-label:Capacidade da bateria	@aria-label:Battery capacity
+@aria-label:Carga útil	@aria-label:Payload
+@aria-label:Carregar arquivo CSV	@aria-label:Load CSV file
+@aria-label:Carregar arquivo JSONL	@aria-label:Load JSONL file
+@aria-label:Citação (texto)	@aria-label:Citation (text)
+@aria-label:Começar	@aria-label:Start
+@aria-label:Comparação das escalas	@aria-label:Scale comparison
+@aria-label:Consumo em repouso	@aria-label:Idle consumption
+@aria-label:Corpo em hexadecimal	@aria-label:Body in hexadecimal
+@aria-label:Dado extra do MIC (RESYNC_RSP)	@aria-label:Extra MIC data (RESYNC_RSP)
+@aria-label:Dado extra do MIC (nonce do RESYNC_RSP, hex)	@aria-label:Extra MIC data (RESYNC_RSP nonce, hex)
+@aria-label:Data	@aria-label:Date
+@aria-label:Desacordo entre os nós (s por hora)	@aria-label:Disagreement between the nodes (s per hour)
+@aria-label:Desempenho	@aria-label:Performance
+@aria-label:Desligar o mapa-base (para de baixar tiles)	@aria-label:Turn off the base map (stops downloading tiles)
+@aria-label:Distância (km)	@aria-label:Distance (km)
+@aria-label:Energia por pacote entregue	@aria-label:Energy per delivered packet
+@aria-label:Entrega alvo	@aria-label:Target delivery
+@aria-label:Entrega estimada × distância	@aria-label:Estimated delivery × distance
+@aria-label:Escala dos resultados	@aria-label:Results scale
+@aria-label:Escuta de RX por pacote	@aria-label:RX listening per packet
+@aria-label:Evento	@aria-label:Event
+@aria-label:Expoente de perda n	@aria-label:Path loss exponent n
+@aria-label:F# indoor-outdoor · #.# km	@aria-label:F# indoor-outdoor · #.# km
+@aria-label:F# rural aberto (mastro # m) · # km	@aria-label:F# open rural (# m mast) · # km
+@aria-label:F# rural com relevo/mata · # km	@aria-label:F# rural with relief/forest · # km
+@aria-label:F# urbano denso · #.# km	@aria-label:F# dense urban · #.# km
+@aria-label:F# urbano residencial · #.# km	@aria-label:F# residential urban · #.# km
+@aria-label:Fator de espalhamento	@aria-label:Spreading factor
+@aria-label:Ferramentas	@aria-label:Tools
+@aria-label:Figura de ruído (dB)	@aria-label:Noise figure (dB)
+@aria-label:Figura de ruído do RX	@aria-label:RX noise figure
+@aria-label:Filtrar termos do glossário	@aria-label:Filter glossary terms
+@aria-label:Firmware (tag do núcleo)	@aria-label:Firmware (core tag)
+@aria-label:Fixo SF#/# salto (base)	@aria-label:Fixed SF#/# hopping (base)
+@aria-label:Ganho da antena de RX	@aria-label:RX antenna gain
+@aria-label:Ganho da antena de TX	@aria-label:TX antenna gain
+@aria-label:Garantias	@aria-label:Guarantees
+@aria-label:Grandeza	@aria-label:Quantity
+@aria-label:Hardware	@aria-label:Hardware
+@aria-label:Identificador	@aria-label:Identifier
+@aria-label:Largura de banda	@aria-label:Bandwidth
+@aria-label:Latitude do ponto A	@aria-label:Latitude of point A
+@aria-label:Latitude do ponto B	@aria-label:Latitude of point B
+@aria-label:Latitude do ponto C	@aria-label:Latitude of point C
+@aria-label:Ler valores: setas esquerda e direita	@aria-label:Read values: left and right arrows
+@aria-label:Limiar de SNR (dB)	@aria-label:SNR threshold (dB)
+@aria-label:Limite de ciclo de trabalho	@aria-label:Duty-cycle limit
+@aria-label:Linha do tempo dos modos de cada nó, em # s, com # marcas (rollback, reboot, ressincronização).	@aria-label:Timeline of each node's modes, over # s, with # marks (rollback, reboot, resynchronization).
+@aria-label:Longitude do ponto A	@aria-label:Longitude of point A
+@aria-label:Longitude do ponto B	@aria-label:Longitude of point B
+@aria-label:Longitude do ponto C	@aria-label:Longitude of point C
+@aria-label:Légua atual (margem # dB)	@aria-label:Current Légua (margin # dB)
+@aria-label:Légua fade_k #	@aria-label:Légua fade_k #
+@aria-label:Légua margem # dB	@aria-label:Légua margin # dB
+@aria-label:M# bicicleta urbana	@aria-label:M# urban bicycle
+@aria-label:M# carro rodovia	@aria-label:M# highway car
+@aria-label:M# carro urbano NLoS	@aria-label:M# urban NLoS car
+@aria-label:M# drone rural #m	@aria-label:M# rural drone #m
+@aria-label:M# drone urbano #m	@aria-label:M# urban drone #m
+@aria-label:M# gado	@aria-label:M# cattle
+@aria-label:M# passagem cruzada	@aria-label:M# crossing pass
+@aria-label:M# pedestre rural	@aria-label:M# rural pedestrian
+@aria-label:M# pedestre urbano	@aria-label:M# urban pedestrian
+@aria-label:Mapa de margem de enlace em volta do ponto A: verde com # dB ou mais, amarelo de # a #, laranja de # a #, vermelho sem enlace.	@aria-label:Link margin map around point A: green with # dB or more, yellow from # to #, orange from # to #, red no link.
+@aria-label:Mapa para escolher os pontos do enlace. Setas movem, mais e menos mudam o zoom, Enter põe um ponto no centro, depois de ativar o mapa-base.	@aria-label:Map to choose the link points. Arrows move, plus and minus change the zoom, Enter places a point at the center, after enabling the base map.
+@aria-label:Nó	@aria-label:Node
+@aria-label:Offset de terreno (dB)	@aria-label:Terrain offset (dB)
+@aria-label:PDR × atenuação, SF#/#	@aria-label:PDR × attenuation, SF#/#
+@aria-label:PDR × atenuação, SF#/#/CR#/FH	@aria-label:PDR × attenuation, SF#/#/CR#/FH
+@aria-label:PDR × atenuação, SF#/#/FH	@aria-label:PDR × attenuation, SF#/#/FH
+@aria-label:PDR × número de nós, três modelos	@aria-label:PDR × number of nodes, three models
+@aria-label:Pacotes por hora	@aria-label:Packets per hour
+@aria-label:Para reproduzir estes números	@aria-label:To reproduce these numbers
+@aria-label:Passo # de #: Os dois nós operam no modo atual	@aria-label:Step # of #: Both nodes operate in the current mode
+@aria-label:Perda a # km (dB)	@aria-label:Loss at # km (dB)
+@aria-label:Perda de cabo	@aria-label:Cable loss
+@aria-label:Perda de percurso medida contra a distância, com a reta ajustada (pl#km # dB, n #) e a do modelo atual	@aria-label:Measured path loss against distance, with the fitted line (pl#km # dB, n #) and the current model's
+@aria-label:Perfil de terreno de # km: altitude de # a # m, folga da primeira zona de Fresnel #%.	@aria-label:Terrain profile of # km: altitude from # to # m, first Fresnel zone clearance #%.
+@aria-label:Perfil de terreno de # km: altitude de # a # m, folga da primeira zona de Fresnel -#%.	@aria-label:Terrain profile of # km: altitude from # to # m, first Fresnel zone clearance -#%.
+@aria-label:Potência de TX	@aria-label:TX power
+@aria-label:Potência de TX (dBm)	@aria-label:TX power (dBm)
+@aria-label:Potência de TX padrão (dBm)	@aria-label:Default TX power (dBm)
+@aria-label:Potência real de TX (dB)	@aria-label:Actual TX power (dB)
+@aria-label:Preâmbulo	@aria-label:Preamble
+@aria-label:Probabilidades da rodada de aceleração × perda	@aria-label:Probabilities of the acceleration round × loss
+@aria-label:Protocolo	@aria-label:Protocol
+@aria-label:Quadro em hexadecimal	@aria-label:Frame in hexadecimal
+@aria-label:Quadro gerado em hexadecimal	@aria-label:Generated frame in hexadecimal
+@aria-label:Quedas ao modo base	@aria-label:Drops to base mode
+@aria-label:Raio	@aria-label:Radius
+@aria-label:Rastro JSONL	@aria-label:JSONL trace
+@aria-label:Referência	@aria-label:Reference
+@aria-label:Relevo em volta dos dois pontos, de # a # m, com a linha do enlace entre A e B	@aria-label:Relief around the two points, from # to # m, with the link line between A and B
+@aria-label:Remover o ponto A	@aria-label:Remove point A
+@aria-label:Remover o ponto B	@aria-label:Remove point B
+@aria-label:Remover o ponto C	@aria-label:Remove point C
+@aria-label:Resolução	@aria-label:Resolution
+@aria-label:Rollbacks por # trocas	@aria-label:Rollbacks per # switches
+@aria-label:Seções	@aria-label:Sections
+@aria-label:Seções do site	@aria-label:Site sections
+@aria-label:Soma dos ganhos e perdas (dBi − dB)	@aria-label:Sum of gains and losses (dBi − dB)
+@aria-label:Taxa de código	@aria-label:Coding rate
+@aria-label:Taxa de entrega por cenário de mobilidade	@aria-label:Delivery rate by mobility scenario
+@aria-label:Taxa de entrega × distância, F# urbano denso	@aria-label:Delivery rate × distance, F# dense urban
+@aria-label:Tempo até validar	@aria-label:Time to validate
+@aria-label:Terreno e obstrução (dB)	@aria-label:Terrain and obstruction (dB)
+@aria-label:Tipo do quadro	@aria-label:Frame type
+@aria-label:Tornado: variação da margem ao variar cada parâmetro. O maior efeito é Terreno e obstrução (offset).	@aria-label:Tornado: change in margin when varying each parameter. The largest effect is Terrain and obstruction (offset).
+@aria-label:Trecho C gerado	@aria-label:Generated C snippet
+@aria-label:Troca entre velocidade e alcance: espalhamento alto alcança mais longe e é mais lento	@aria-label:Trade-off between speed and range: high spreading reaches farther and is slower
+@aria-label:calibracao.json gerado	@aria-label:Generated calibracao.json
+@aria-label:ctr# (opcional)	@aria-label:ctr# (optional)
+@aria-label:dst (# = broadcast)	@aria-label:dst (# = broadcast)
+@aria-label:key_id (# a #)	@aria-label:key_id (# to #)
+@aria-label:src (número ou #x…)	@aria-label:src (number or #x…)
+@placeholder:Filtrar termos…	@placeholder:Filter terms…
+@placeholder:buscar…	@placeholder:search…
+@title:Afastar	@title:Zoom out
+@title:Aproximar	@title:Zoom in
+@title:Combinação de SF, BW, CR e salto de frequência usada para transmitir.	@title:Combination of SF, BW, CR and frequency hopping used to transmit.
+@title:Código de autenticação que prova que o quadro veio de um nó com a chave.	@title:Authentication code that proves the frame came from a node with the key.
+@title:Desligar o mapa-base (para de baixar tiles)	@title:Turn off the base map (stops downloading tiles)
+@title:Energia de transmissão gasta por pacote entregue, em milijoules.	@title:Transmission energy spent per delivered packet, in millijoules.
+@title:Fator de espalhamento do LoRa (# a #). Mais alto alcança mais longe e é mais lento.	@title:LoRa spreading factor (# to #). Higher reaches farther and is slower.
+@title:Largura de banda do canal em kHz (#, # ou #). Mais larga é mais rápida e menos sensível.	@title:Channel bandwidth in kHz (#, # or #). Wider is faster and less sensitive.
+@title:Mostrar ou ocultar as explicações e os diagramas	@title:Show or hide the explanations and diagrams
+@title:Nada para desfazer	@title:Nothing to undo
+@title:Ponto A (arraste para mover)	@title:Point A (drag to move)
+@title:Ponto B (arraste para mover)	@title:Point B (drag to move)
+@title:Ponto C (arraste para mover)	@title:Point C (drag to move)
+@title:Potência isotrópica equivalente irradiada: potência do transmissor mais o ganho da antena menos a perda no cabo. É o que a regulação limita, não só a potência do rádio.	@title:Effective isotropic radiated power: transmitter power plus antenna gain minus cable loss. It is what regulation limits, not just the radio power.
+@title:Taxa de código de correção de erros (#/# a #/#): mais redundância, menos velocidade.	@title:Error-correction coding rate (#/# to #/#): more redundancy, less speed.
+@title:Taxa de entrega de pacotes: fração dos pacotes enviados que chegaram ao destino. # = todos.	@title:Packet delivery rate: fraction of the packets sent that reached the destination. # = all.
+@title:Tempo no ar de um pacote (time on air): quanto ele ocupa o canal.	@title:Packet airtime (time on air): how long it occupies the channel.
+@title:Trocar para o tema escuro	@title:Switch to the dark theme
+@title:Volta o último ajuste dos pontos	@title:Reverts the last adjustment of the points
+@title:Volta todos os campos ao estado inicial (o mapa e a elevação baixada são descartados)	@title:Returns all fields to the initial state (the map and downloaded elevation are discarded)
+@title:Volta todos os parâmetros do setup ao estado inicial	@title:Returns all setup parameters to the initial state
+A # km o efeito some sob o ruído do enlace marginal.	At # km the effect disappears under the noise of the marginal link.
+A Terra é curva e a atmosfera curva o sinal um pouco. Com k = #/# o abaulamento no meio de # km é de cerca de # m; k menor (pior caso) sobe o “chão” e reduz a folga.	The Earth is curved and the atmosphere bends the signal a little. With k = #/# the bulge in the middle of # km is about # m; a smaller k (worst case) raises the "ground" and reduces the clearance.
+A curva de entrega × atenuação é um degrau estreito: no	The delivery × attenuation curve is a narrow step: in the
+A deriva térmica do cristal comum é estimada, não medida.	The thermal drift of an ordinary crystal is estimated, not measured.
+A e B trocam dados e confirmações (ACK) no modo que já funciona. O protocolo mede a margem de sinal o tempo todo.	A and B exchange data and acknowledgements (ACK) in the mode that already works. The protocol measures the signal margin all the time.
+A escala rápida é para desenvolvimento; use a longa para conclusões.	The quick scale is for development; use the full one for conclusions.
+A fração de pacotes cujo ACK volta ao emissor, com as retransmissões escolhidas. É o que a aplicação sente.	The fraction of packets whose ACK returns to the sender, with the chosen retransmissions. It is what the application feels.
+A latitude vai de −# a #; parece que latitude e longitude estão trocadas.	Latitude goes from −# to #; it looks like latitude and longitude are swapped.
+A longa tem # cenários, todos os que o site exibe.	The full scale has # scenarios, all the ones the site displays.
+A margem proporcional ao desvio do SNR (	The margin proportional to the SNR deviation (
+A negociação é confiável?	Is the negotiation reliable?
+A pé, de carro, em rebanho: o que acontece com a entrega e a energia.	On foot, by car, in a herd: what happens to delivery and energy.
+A rápida roda em minutos; a longa tem mais sementes e mais dias simulados.	The quick scale runs in minutes; the full one has more seeds and more simulated days.
+A separação entre perfis é simples de explicar e de testar.	The separation between profiles is simple to explain and to test.
+A varredura do teto de TX e o efeito de potências diferentes entre os nós.	The TX ceiling sweep and the effect of different powers between the nodes.
+A varredura repetida em cada cenário, com resumo e detalhe.	The sweep repeated in each scenario, with summary and detail.
+A → B (em detalhe)	A → B (in detail)
+ACK da Légua (# B)	Légua ACK (# B)
+ALOHA	ALOHA
+ALOHA analítico	Analytical ALOHA
+ALOHA puro (analítico)	Pure ALOHA (analytical)
+Abrir o testador de enlaces	Open the link tester
+Achados, discussões e trabalhos futuros · gerado em #-#-# por	Findings, discussions and future work · generated on #-#-# by
+Acordo e falhas	Agreement and failures
+Acordo e falhas (B#, B#)	Agreement and failures (B#, B#)
+Acordo e falhas →	Agreement and failures →
+Adicionar ponto digitando	Add point by typing
+Airtime/pacote	Airtime/packet
+Ajuste igual ao do numpy em dados sintéticos e arquivo aceito pelo importador do simulador	Fit identical to numpy's on synthetic data, and the file is accepted by the simulator's importer
+Alarmes	Alarms
+Alarmes MIC	MIC alarms
+Alcance (B#)	Range (B#)
+Alcance e deriva	Range and drift
+Alcance e deriva →	Range and drift →
+Altitude da base:	Base altitude:
+Altitude de # (verde) a # m (branco), com sombreado; cada ponto da imagem tem cerca de # m. Feito só com os tiles já baixados: nenhuma outra requisição, sem mapa-base de terceiros. Dados: Terrain Tiles da AWS Open Data.	Altitude from # (green) to # m (white), with shading; each point of the image is about # m. Made only with the tiles already downloaded: no other request, no third-party base map. Data: AWS Open Data Terrain Tiles.
+Altura da antena A:	Antenna A height:
+Altura da antena B:	Antenna B height:
+Altura do morro:	Hill height:
+Alvo #%	Target #%
+Ambiente	Environment
+Ambiente a calibrar	Environment to calibrate
+Ambiente:	Environment:
+Amostras:	Samples:
+Analítico	Analytical
+Ao ativar, o navegador baixa tiles do OpenStreetMap: ficam visíveis ao servidor deles só os números dos tiles da área que você está vendo e o seu IP (o endereço do site vai como referência). Os pontos que você marca não são enviados. Para aproximar sem expor nada, use o zoom antes de ativar; você pode desligar a qualquer momento.	When enabled, the browser downloads OpenStreetMap tiles: only the tile numbers of the area you are viewing and your IP are visible to their server (the site address goes as the referrer). The points you mark are not sent. To zoom in without exposing anything, use the zoom before enabling; you can turn it off at any time.
+Ao clicar, o navegador baixa da AWS (s#.amazonaws.com) os tiles de elevação que cobrem o caminho. O servidor vê os números desses tiles (uma região de uns # km) e o seu IP; as coordenadas exatas dos pontos não são enviadas nem ficam em URL, resumo ou JSON. Dados: Terrain Tiles da AWS Open Data (SRTM, Copernicus e outros), com precisão de cerca de # m; copas e telhados contam como terreno.	When you click, the browser downloads from AWS (s#.amazonaws.com) the elevation tiles that cover the path. The server sees those tile numbers (a region of about # km) and your IP; the exact coordinates of the points are not sent and do not appear in the URL, summary or JSON. Data: AWS Open Data Terrain Tiles (SRTM, Copernicus and others), with accuracy of about # m; tree canopy and rooftops count as terrain.
+Ao clicar, o navegador baixa da AWS os tiles de elevação do quadrado em volta do ponto (até uns # km de lado). O servidor vê os números dos tiles, que mostram a região, e o seu IP; as coordenadas exatas não são enviadas.	When you click, the browser downloads from AWS the elevation tiles of the square around the point (up to about # km on a side). The server sees the tile numbers, which show the region, and your IP; the exact coordinates are not sent.
+Aplicações práticas	Practical applications
+Aqui	Here
+Aqui (dBm, modelo SX#)	Here (dBm, SX# model)
+Arquivo de elevação local (.hgt) + coordenadas	Local elevation file (.hgt) + coordinates
+Arraste para mover, use + e − (ou a roda) para o zoom e clique para pôr um ponto. Os pontos ficam só nesta página.	Drag to move, use + and − (or the wheel) to zoom and click to place a point. The points stay only on this page.
+As faixas de variação são suas; a incerteza real vem da bancada	The variation ranges are yours; the real uncertainty comes from the bench
+As mesmas variantes do F# com todos os números lado a lado.	The same F# variants with all the numbers side by side.
+As seções de estimativas e escalas independem da escala escolhida.	The estimates and scales sections do not depend on the chosen scale.
+Ataque que reenvia um quadro antigo. O contador do quadro impede.	Attack that resends an old frame. The frame counter prevents it.
+Atenuação do canal estimada	Estimated channel attenuation
+Atenção: # linha(s) ignorada(s) (JSON inválido ou sem t e ev)	Warning: # line(s) ignored (invalid JSON or without t and ev)
+Ativar mapa-base	Enable base map
+Atualizar cobertura	Update coverage
+Atualizar elevação	Update elevation
+B → C	B → C
+B# (# células, # comparáveis em energia)	B# (# cells, # comparable in energy)
+B# · deriva térmica acima da tolerância (LDRO automático)	B# · thermal drift above tolerance (automatic LDRO)
+B# · injeção de falhas	B# · fault injection
+B# · registros de TX contra o perfil BR-# (nao_verificado)	B# · TX records against the BR-# profile (not verified)
+B# · rendezvous de nó novo	B# · rendezvous of a new node
+B# · rollbacks por # trocas × perda de quadros	B# · rollbacks per # switches × frame loss
+B# · segurança	B# · security
+B# · tempo até validar um modo novo × perda	B# · time to validate a new mode × loss
+B# · tempo de CAD (varredura SF#–#)	B# · CAD time (SF#–# sweep)
+B# · traço de campo reproduzido na bancada	B# · field trace replayed on the bench
+B#: rápida (rápida → longa: T # h -> # h) · rodou em # s	B#: quick (quick → full: T # h -> # h) · ran in # s
+B#: rápida (rápida → longa: n # -> #) · rodou em # s	B#: quick (quick → full: n # -> #) · ran in # s
+B#: rápida (rápida → longa: n_pkt # -> #) · rodou em # s	B#: quick (quick → full: n_pkt # -> #) · ran in # s
+BW	BW
+BW (kHz)	BW (kHz)
+Baixar .c	Download .c
+Baixar CSV (curva)	Download CSV (curve)
+Baixar CSV (modos)	Download CSV (modes)
+Baixar JSON	Download JSON
+Baixar JSONL sem localização	Download JSONL without location
+Baixar calibracao.json	Download calibracao.json
+Baixar frames.txt (# quadros)	Download frames.txt (# frames)
+Baixar mic.txt (AES-CMAC)	Download mic.txt (AES-CMAC)
+Bancada e firmware (repositório separado)	Bench and firmware (separate repository)
+Base: -# dB de margem. Maior efeito: Terreno e obstrução (offset) (# dB de amplitude). Os parâmetros do alto da lista são os que mais valem a pena medir na bancada.	Base: -# dB of margin. Largest effect: Terrain and obstruction (offset) (# dB of amplitude). The parameters at the top of the list are the ones most worth measuring on the bench.
+Baselines:	Baselines:
+BibTeX	BibTeX
+Buscar	Search
+Buscar elevação	Fetch elevation
+CR	CR
+CRC no pacote	CRC in the packet
+CSV com cabeçalho. Colunas aceitas: distancia_km, rssi_dbm, potencia_dbm, snr_db, pdr (# a # ou %), sf. Para a perda de percurso: distância e RSSI. Para o limiar de cada	CSV with header. Accepted columns: distancia_km, rssi_dbm, potencia_dbm, snr_db, pdr (# to # or %), sf. For path loss: distance and RSSI. For the threshold of each
+Cabeçalho explícito	Explicit header
+Cada célula:	Each cell:
+Cada par seguido de pontos é um enlace, com o mesmo rádio, antenas e modo. A rota só fecha se todos os saltos fecharem; o salto mais fraco manda.	Each consecutive pair of points is a link, with the same radio, antennas and mode. The route only closes if all hops close; the weakest hop rules.
+Calculadoras	Calculators
+Calculadoras →	Calculators →
+Calcular cobertura	Compute coverage
+Campo	Field
+Campo fixo	Fixed field
+Campo fixo (F#–F#)	Fixed field (F#–F#)
+Campo fixo →	Fixed field →
+Canais	Channels
+Canais e regra de salto (BR-#, nao_verificado)	Channels and hopping rule (BR-#, not verified)
+Canais usados no salto	Channels used for hopping
+Canal e consumo estimados	Estimated channel and consumption
+Capacidade da bateria (mAh)	Battery capacity (mAh)
+Captura	Capture
+Captura (metade dos nós # dB mais forte)	Capture (half of the nodes # dB stronger)
+Características principais	Main characteristics
+Carga G	Load G
+Carga útil (bytes)	Payload (bytes)
+Carregando os documentos…	Loading the documents…
+Carregar exemplo sintético	Load synthetic example
+Carregue um rastro para ver a linha do tempo.	Load a trace to see the timeline.
+Caso	Case
+Cenário	Scenario
+Cenário:	Scenario:
+Cenários aleatórios (sementes # a #)	Random scenarios (seeds # to #)
+Ciclo de trabalho	Duty cycle
+Citar e reproduzir	Cite and reproduce
+Citar, reproduzir e baixar os dados desta aba	Cite, reproduce and download this tab's data
+Citação (texto)	Citation (text)
+Clique no mapa (ou digite) para pôr os pontos: com dois, um enlace; com três ou mais, uma cadeia de saltos com relés. Até # pontos.	Click on the map (or type) to place the points: with two, one link; with three or more, a chain of hops with relays. Up to # points.
+Cobertura calculada sobre # pedaços de elevação.	Coverage computed over # elevation chunks.
+Cobertura em área a partir do ponto A	Area coverage from point A
+Cobertura em área: mesmo modelo, otimista frente ao ITM	Area coverage: same model, optimistic compared with ITM
+Colar o CSV	Paste the CSV
+Colar o JSONL	Paste the JSONL
+Cole os bytes do quadro (o que o rádio recebeu). O cabeçalho e o corpo são explicados campo a campo, conforme o docs/#. O contador completo (ctr#) é opcional: sem ele vale o de # bits do cabeçalho.	Paste the frame bytes (what the radio received). The header and body are explained field by field, per docs/#. The full counter (ctr#) is optional: without it the header's # bits apply.
+Cole um CSV ou carregue um arquivo; o ajuste aparece aqui.	Paste a CSV or load a file; the fit appears here.
+Cole um quadro em hexadecimal (com ou sem espaços) ou use um exemplo.	Paste a frame in hexadecimal (with or without spaces) or use an example.
+Colisão em estrela com # nós:	Star collision with # nodes:
+Colisão em estrela: PDR × número de nós	Star collision: PDR × number of nodes
+Com outra curva de corrente do amplificador o resultado pode mudar.	With another amplifier current curve the result may change.
+Combinação de SF, BW, CR e salto de frequência usada para transmitir.	Combination of SF, BW, CR and frequency hopping used to transmit.
+Comece aqui	Start here
+Comece aqui: o que é a Légua e como ler este site	Start here: what Légua is and how to read this site
+Começar	Start
+Como dois rádios trocam de modo, passo a passo	How two radios switch mode, step by step
+Como ler.	How to read.
+Como ler:	How to read:
+Como usar em # passos	How to use in # steps
+Compara janelas de validação de #, # e # segundos com k = # e f = #.	Compares validation windows of #, # and # seconds with k = # and f = #.
+Comparação com LoRaSim e Meshtasticator (originais executados)	Comparison with LoRaSim and Meshtasticator (originals executed)
+Comparação com o LoRaSim, o Meshtasticator e o código C.	Comparison with LoRaSim, Meshtasticator and the C code.
+Compare entrega, energia e atraso em cada topologia.	Compare delivery, energy and delay in each topology.
+Conferido contra outro simulador ou modelo independente.	Checked against another simulator or an independent model.
+Conferido por testes ou verificação do próprio projeto.	Checked by the project's own tests or verification.
+Configuração	Configuration
+Confirmada	Confirmed
+Consolidado e trabalhos futuros	Consolidated and future work
+Consolidado e trabalhos futuros ↗	Consolidated and future work ↗
+Consumo em repouso (µA)	Idle consumption (µA)
+Consumo, sensibilidade e perfil BR-# estimados ou de fonte secundária	Consumption, sensitivity and BR-# profile are estimated or from a secondary source
+Contabilidade de dB: a perda média vem do espaço livre mais a difração do perfil e a perda extra que você informa; o ambiente escolhido contribui só com a variabilidade (sombreamento, desvanecimento, ruído e tráfego), e o estimador recebe a diferença de ganho de antena, sem contar duas vezes. Ficam fora do modelo: reflexão no solo, vegetação e prédios no caminho (use a perda extra), difração em mais de um obstáculo além do equivalente de Bullington e a atmosfera real.	dB accounting: the average loss comes from free space plus the profile diffraction and the extra loss you provide; the chosen environment contributes only variability (shadowing, fading, noise and traffic), and the estimator receives the antenna gain difference, without counting twice. Left out of the model: ground reflection, vegetation and buildings in the path (use the extra loss), diffraction at more than one obstacle beyond the Bullington equivalent, and the real atmosphere.
+Contra as regras do LoRaSim	Against LoRaSim's rules
+Controle de potência (teto de # dBm nos dois nós)	Power control (# dBm ceiling on both nodes)
+Controle de potência ligado × desligado (# dBm)	Power control on × off (# dBm)
+Copiar	Copy
+Copiar resumo e link	Copy summary and link
+Copiar trecho	Copy snippet
+Cores por	Colors by
+Corpo de # B: seq, dflags, speed, payload de # B (# B). Em branco = zeros.	Body of # B: seq, dflags, speed, # B payload (# B). Blank = zeros.
+Corpo em hexadecimal	Body in hexadecimal
+Corrente de TX da tabela do simulador (estimada; meça na sua placa), RX do SX# e um consumo em repouso que você informa. Não inclui o resto da placa nem o desvio de temperatura.	TX current from the simulator table (estimated; measure it on your board), SX# RX and an idle consumption that you provide. Does not include the rest of the board or temperature drift.
+Cristal	Crystal
+Cristal / erro de relógio	Crystal / clock error
+Críticas e limitações	Criticisms and limitations
+Críticas e limitações gerais	General criticisms and limitations
+Cuidado:	Careful:
+Curva do melhor modo em cada distância (mais lento)	Best-mode curve at each distance (slower)
+Célula	Cell
+Código de autenticação que prova que o quadro veio de um nó com a chave.	Authentication code that proves the frame came from a node with the key.
+DATA da Légua (# B)	Légua DATA (# B)
+Dado extra do	Extra data of the
+Dado extra do MIC (RESYNC_RSP)	Extra MIC data (RESYNC_RSP)
+Dados brutos (JSON)	Raw data (JSON)
+Data	Date
+Decodificador e gerador iguais ao codec de referência nos # vetores (teste de paridade)	Decoder and generator identical to the reference codec on the # vectors (parity test)
+Decodificar este quadro	Decode this frame
+Decodificar um quadro	Decode a frame
+Degrada	Degrades
+Degradações pela escada	Degradations by the ladder
+Deriva (Hz)	Drift (Hz)
+Desacordo	Disagreement
+Desacordo (s por hora)	Disagreement (s per hour)
+Desacordo (s/h)	Disagreement (s/h)
+Desacordo > # ticks	Disagreement > # ticks
+Desacordo entre os nós (s por hora)	Disagreement between the nodes (s per hour)
+Desacordo permanente	Permanent disagreement
+Desacordo transitório	Transient disagreement
+Descidas por silêncio	Drops by silence
+Desempenho	Performance
+Desfavorável (+#σ)	Unfavorable (+#σ)
+Desfazer	Undo
+Desligado	Off
+Desligado (PDR · mJ/pacote)	Off (PDR · mJ/packet)
+Desvantagens	Disadvantages
+Desvio por sentido	Offset per direction
+Detalhe por célula	Detail per cell
+Diferença (dB)	Difference (dB)
+Diferença entre duas potências, em escala logarítmica. # dB é dez vezes.	Difference between two powers, on a logarithmic scale. # dB is ten times.
+Difração	Diffraction
+Difração (Bullington, ITU-R P.#-#)	Diffraction (Bullington, ITU-R P.#-#)
+Difração pela ITU-R P.#-#, comparada com o ITM da NTIA em # perfis (testador ~# dB otimista em média)	Diffraction per ITU-R P.#-#, compared with NTIA's ITM on # profiles (tester ~# dB optimistic on average)
+Digite a distância e o ambiente e veja os modos que fecham.	Enter the distance and the environment and see the modes that close.
+Dimensionar margem de enlace por ambiente com a aba Estimativas.	Size the link margin per environment with the Estimates tab.
+Discussão	Discussion
+Discussão dos resultados	Discussion of the results
+Distância	Distance
+Distância (km)	Distance (km)
+Distância:	Distance:
+Divergências entre os pares	Divergences between the pairs
+Do resultado ao produto: configuração do núcleo C	From result to product: C core configuration
+Dois enlaces e um ambiente.	Two links and one environment.
+Dois pontos, perfil de terreno, zona de Fresnel e margem por modo, calculados no seu navegador.	Two points, terrain profile, Fresnel zone and margin per mode, computed in your browser.
+Dois rádios LoRa conversam sem rede por trás (ponto a ponto). O mesmo par pode usar vários modos: alguns são rápidos e curtos, outros lentos e longos. A Légua faz os dois rádios combinarem entre si, no meio do caminho, qual modo usar, e volta ao modo seguro se a troca der errado.	Two LoRa radios talk with no network behind them (point to point). The same pair can use several modes: some are fast and short, others slow and long. Légua makes the two radios agree between themselves, along the way, which mode to use, and returns to the safe mode if the switch goes wrong.
+Doppler máximo (M#)	Maximum Doppler (M#)
+Dá para provar que não trava?	Can it be proven not to hang?
+E se alguém atacar?	What if someone attacks?
+E se o rádio tiver menos potência?	What if the radio has less power?
+E se um dos nós se mover?	What if one of the nodes moves?
+EIRP	EIRP
+EIRP de # dBm: confira o limite do seu perfil regulatório (BR-# está nao_verificado)	EIRP of # dBm: check the limit of your regulatory profile (BR-# is not verified)
+Eixo logarítmico: uma década separa o modo rápido do robusto.	Logarithmic axis: one decade separates the fast mode from the robust one.
+Elevação pela internet (tiles Terrarium) + coordenadas	Elevation from the internet (Terrarium tiles) + coordinates
+Elevação pronta (# tiles). Se mover os pontos para fora da área, busque de novo.	Elevation ready (# tiles). If you move the points outside the area, fetch again.
+Em # km com # dBm, o sinal chega a -# dBm. No modo SF#/#/FH a margem é de # dB e a entrega confirmada típica, #%. O modo de menor energia que atinge #% é SF#/# (# mJ por pacote entregue).	At # km with # dBm, the signal arrives at -# dBm. In mode SF#/#/FH the margin is # dB and the typical confirmed delivery, #%. The lowest-energy mode that reaches #% is SF#/# (# mJ per delivered packet).
+Em # km com # dBm, o sinal chega a -# dBm. No modo SF#/#/FH a margem é de # dB e a entrega confirmada típica, #%. O modo de menor energia que atinge #% é SF#/#/FH (# mJ por pacote entregue).	At # km with # dBm, the signal arrives at -# dBm. In mode SF#/#/FH the margin is # dB and the typical confirmed delivery, #%. The lowest-energy mode that reaches #% is SF#/#/FH (# mJ per delivered packet).
+Em colisão, o pacote muito mais forte pode ser recebido mesmo assim.	In a collision, a much stronger packet can be received anyway.
+Energia (mJ/pacote)	Energy (mJ/packet)
+Energia de transmissão gasta por pacote entregue, em milijoules.	Transmission energy spent per delivered packet, in millijoules.
+Energia e latência não foram validadas ponto a ponto, só a entrega.	Energy and latency were not validated point by point, only delivery.
+Energia por entregue	Energy per delivered
+Energia por pacote entregue	Energy per delivered packet
+Energia/pacote	Energy/packet
+Energia:	Energy:
+Enlace	Link
+Enlace desfavorável (+#σ)	Unfavorable link (+#σ)
+Enlace favorável (−#σ de perda)	Favorable link (−#σ of loss)
+Enlace muito desfavorável (+#σ)	Very unfavorable link (+#σ)
+Enlace para o ranking:	Link for the ranking:
+Enlace típico (mediana)	Typical link (median)
+Enquadramento	Framing
+Enquadrar no mapa	Fit to map
+Entenda este gráfico	Understand this chart
+Entenda este tabela	Understand this table
+Entenda os números	Understand the numbers
+Entrega alvo	Target delivery
+Entrega confirmada	Confirmed delivery
+Entrega confirmada alvo:	Target confirmed delivery:
+Entrega confirmada típica	Typical confirmed delivery
+Entrega do receptor × distância	Receiver delivery × distance
+Entregue	Delivered
+Episódios de desacordo	Disagreement episodes
+Equivalência Py×C em # pares	Py×C equivalence in # pairs
+Escala longa (full)	Full scale
+Escala rápida (quick)	Quick scale (quick)
+Escala rápida/longa	Quick/full scale
+Escalas e orçamento	Scales and budget
+Escalas e orçamento →	Scales and budget →
+Escolha como informar o terreno. Com “Mapa”, marque os pontos no mapa (dois = um enlace; três ou mais = cadeia de saltos); a resposta aparece logo abaixo, e os parâmetros do rádio vêm depois.	Choose how to provide the terrain. With "Map", mark the points on the map (two = one link; three or more = chain of hops); the answer appears right below, and the radio parameters come after.
+Escolha o enlace e a grandeza. O tornado mostra quanto cada parâmetro move o resultado quando varia na faixa indicada, um de cada vez; os parâmetros do canal e do rádio são estimativas, e as faixas são as que você acha plausíveis.	Choose the link and the quantity. The tornado shows how much each parameter moves the result when it varies within the indicated range, one at a time; the channel and radio parameters are estimates, and the ranges are the ones you find plausible.
+Escolha o terreno:	Choose the terrain:
+Escolha os pontos no mapa (um enlace ou uma cadeia de saltos com relés), veja o perfil do terreno, a zona de Fresnel e a margem por modo (abre outra página).	Choose the points on the map (one link or a chain of hops with relays), see the terrain profile, the Fresnel zone and the margin per mode (opens another page).
+Escolher os pontos da bancada B# e do campo T#.	Choose the bench points B# and field points T#.
+Escuta de RX por pacote (s)	RX listening per packet (s)
+Especificação	Specification
+Especificação e documentos do projeto	Specification and project documents
+Especificação →	Specification →
+Espera de agenda (s)	Schedule wait (s)
+Estados	States
+Este repositório contém	This repository contains
+Estimador analítico do site	Site analytical estimator
+Estimador conferido contra o simulador (tools/validar_estimador.py)	Estimator checked against the simulator (tools/validar_estimador.py)
+Estimativa para o setup	Estimate for the setup
+Estimativa × simulação (escala longa)	Estimate × simulation (full scale)
+Estimativa, +#σ de perda	Estimate, +#σ of loss
+Estimativa, enlace típico	Estimate, typical link
+Estimativa, −#σ de perda (enlace favorável)	Estimate, −#σ of loss (favorable link)
+Estimativas	Estimates
+Estimativas →	Estimates →
+Estrela com um membro # dB mais fraco: o	Star with a member # dB weaker: the
+Estresse: desvanecimento lento independente por sentido	Stress: slow fading independent per direction
+Estresse: erro de relógio e cristal	Stress: clock error and crystal
+Estresse: perda assimétrica entre os sentidos	Stress: asymmetric loss between directions
+Estresse: teto de TX × fade_k	Stress: TX ceiling × fade_k
+Evento	Event
+Eventos	Events
+Eventos comparados	Events compared
+Evidência: nível # de #.	Evidence: level # of #.
+Execução	Run
+Exemplo: COMMIT	Example: COMMIT
+Exemplo: DATA	Example: DATA
+Exemplo: HELLO	Example: HELLO
+Explicações: ligadas	Explanations: on
+Expoente de perda n	Path loss exponent n
+F · Légua (# células, # comparáveis em energia)	F · Légua (# cells, # comparable in energy)
+F · modos fixos (# células, # comparáveis em energia)	F · fixed modes (# cells, # comparable in energy)
+F# indoor-outdoor	F# indoor-outdoor
+F# rural aberto (mastro # m)	F# open rural (# m mast)
+F# rural com relevo/mata	F# rural with relief/forest
+F# urbano denso	F# dense urban
+F# urbano residencial	F# residential urban
+F# · Légua (# células, # comparáveis em energia)	F# · Légua (# cells, # comparable in energy)
+F# · longa duração	F# · long duration
+F# · modos fixos (# células, # comparáveis em energia)	F# · fixed modes (# cells, # comparable in energy)
+Falhas simuladas, não medidas	Simulated failures, not measured
+Fator	Factor
+Fator de espalhamento	Spreading factor
+Fator de espalhamento do LoRa (# a #). Mais alto alcança mais longe e é mais lento.	LoRa spreading factor (# to #). Higher reaches farther and is slower.
+Fator de espalhamento:	Spreading factor:
+Fator k do raio da Terra:	Earth radius k factor:
+Fator k e abaulamento	k factor and bulge
+Favorável (−#σ)	Favorable (−#σ)
+Ferramentas	Tools
+Fica na configuração nova (F)	Stays in the new configuration (F)
+Figura de ruído (dB)	Noise figure (dB)
+Figura de ruído do RX (dB)	RX noise figure (dB)
+Firmware (tag do núcleo)	Firmware (core tag)
+Fixo	Fixed
+Fixo SF#/# com salto	Fixed SF#/# with hopping
+Fixo SF#/# digital	Fixed SF#/# digital
+Fixo SF#/# salto (base)	Fixed SF#/# hopping (base)
+Fonte	Source
+Formal:	Formal:
+Fração do tempo no ar. O limite é um número seu: o perfil BR-# (fonte secundária, nao_verificado) regula o tempo de ocupação por canal, não um ciclo único; confirme a regra do seu caso.	Fraction of time on air. The limit is your own number: the BR-# profile (secondary source, not verified) regulates occupancy time per channel, not a single duty cycle; confirm the rule for your case.
+Fresnel livre	Fresnel clear
+Ganho da antena A:	Antenna A gain:
+Ganho da antena B:	Antenna B gain:
+Ganho da antena de RX (dBi)	RX antenna gain (dBi)
+Ganho da antena de TX (dBi)	TX antenna gain (dBi)
+Ganho extra (mastro +, parede −):	Extra gain (mast +, wall −):
+Garantias	Guarantees
+Gerado em #-#-# · commit ae#e+local · rápida: # cenários · longa: # cenários	Generated on #-#-# · commit ae#e+local · quick: # scenarios · full: # scenarios
+Gerado por	Generated by
+Gerar um quadro de teste	Generate a test frame
+Glossário	Glossary
+Grandeza	Quantity
+Grupo	Group
+Grupos e malha	Groups and mesh
+Grupos e malha (T#–T#)	Groups and mesh (T#–T#)
+Grupos e malha →	Groups and mesh →
+Gume único (otimista; só para comparar)	Single knife-edge (optimistic; for comparison only)
+Hardware	Hardware
+ITU-R P.#-#, Bullington com correção (padrão)	ITU-R P.#-#, Bullington with correction (default)
+Identificador	Identifier
+Imprimir	Print
+Incerteza propagada (Monte Carlo)	Propagated uncertainty (Monte Carlo)
+Industrial / portuário	Industrial / port
+Informe o desvio-padrão de cada incerteza (os da sua calibração, se houver). O site sorteia # combinações com semente fixa e mostra a faixa de #% da margem e da entrega, e a chance de atingir o alvo.	Enter the standard deviation of each uncertainty (those of your calibration, if any). The site draws # combinations with a fixed seed and shows the #% range of margin and delivery, and the chance of reaching the target.
+Informe o rádio:	Enter the radio:
+Intervalo entre pacotes:	Interval between packets:
+Inverter a ordem	Reverse the order
+Janela de # s desfaz modos bons (mais rollbacks e	A window of # s undoes good modes (more rollbacks and
+Janela de # s gera mais rollbacks e	A window of # s generates more rollbacks and
+Janela de validação	Validation window
+Janela de validação: ACKs (k) × falhas (f), enlace de #.# km	Validation window: ACKs (k) × failures (f), #.# km link
+Janela de validação: duração da janela	Validation window: window duration
+Largura de banda	Bandwidth
+Largura de banda do canal em kHz (#, # ou #). Mais larga é mais rápida e menos sensível.	Channel bandwidth in kHz (#, # or #). Wider is faster and less sensitive.
+Largura de banda:	Bandwidth:
+Latitude	Latitude
+Latência média	Mean latency
+Latência p#	Latency p#
+Leia a resposta:	Read the answer:
+Leitura e resumo conferidos contra a contagem em Python; localização removida por teste	Reading and summary checked against the count in Python; location removed by test
+Ligado	On
+Ligado (PDR · mJ/pacote)	On (PDR · mJ/packet)
+Limiar de SNR (dB)	SNR threshold (dB)
+Limite de ciclo de trabalho (%)	Duty-cycle limit (%)
+Limite sup. #%	Upper limit #%
+Limites e privacidade	Limits and privacy
+Limpar pontos	Clear points
+LoRaSim (dBm, SX# medido)	LoRaSim (dBm, SX# measured)
+LoRaSim (original)	LoRaSim (original)
+LoRaSim (porte)	LoRaSim (port)
+LoRaSim original executado	Original LoRaSim executed
+LoRaSim original executado (experimento #, mesma geometria)	Original LoRaSim executed (experiment #, same geometry)
+LongFast fixo # dBm (estilo Meshtastic)	Fixed LongFast # dBm (Meshtastic style)
+LongFast tratado como salto com # canal	LongFast treated as hopping with # channel
+Longa	Full
+Longa (full)	Full
+Longa duração (F#)	Long duration (F#)
+Longa duração, variação diurna e eventos.	Long duration, daily variation and events.
+Longitude	Longitude
+Légua	Légua
+Légua (perfil BR-#)	Légua (BR-# profile)
+Légua (perfil fixo)	Légua (fixed profile)
+Légua (perfil móvel)	Légua (mobile profile)
+Légua atual (margem # dB)	Current Légua (margin # dB)
+Légua fade_k #	Légua fade_k #
+Légua margem # dB	Légua margin # dB
+Légua perfil fixo	Légua fixed profile
+Légua perfil móvel	Légua mobile profile
+Légua · consolidado dos resultados	Légua · consolidated results
+Légua · resultados da simulação	Légua · simulation results
+Légua · testador de enlaces	Légua · link tester
+M · Légua (# células, # comparáveis em energia)	M · Légua (# cells, # comparable in energy)
+M · modos fixos (# células, # comparáveis em energia)	M · fixed modes (# cells, # comparable in energy)
+M# bicicleta urbana	M# urban bicycle
+M# carro rodovia	M# highway car
+M# carro urbano NLoS	M# urban NLoS car
+M# drone rural #m	M# rural drone #m
+M# drone urbano #m	M# urban drone #m
+M# gado	M# cattle
+M# passagem cruzada	M# crossing pass
+M# pedestre rural	M# rural pedestrian
+M# pedestre urbano	M# urban pedestrian
+MIC	MIC
+MIC conferido é o de teste, não o AES-CMAC real	The MIC checked is the test one, not the real AES-CMAC
+MIC de teste confere	Test MIC matches
+MIC lido #x#d#d#; calculado com a chave de teste #x#d#d#. MIC de teste (FNV-#a, chave #..#f), usado nos vetores e na simulação. Não é segurança; com AES-CMAC real este valor não vai bater.	MIC read #x#d#d#; computed with the test key #x#d#d#. Test MIC (FNV-#a, key #..#f), used in the vectors and in the simulation. It is not security; with real AES-CMAC this value will not match.
+Maior episódio (s)	Longest episode (s)
+Mapa de relevo	Relief map
+Mapa-base desligado.	Base map off.
+Mapa: escolher pontos (um enlace ou vários saltos)	Map: choose points (one link or several hops)
+Margem	Margin
+Margem (dB)	Margin (dB)
+Margem de enlace	Link margin
+Margem de enlace em cada ponto de uma grade em volta de A, com o modo, a potência e as antenas escolhidos, sobre o terreno real (difração pela P.#-#). É uma estimativa otimista (modelo de superfície, sem vegetação nem prédios): use para comparar posições e achar sombras, não para prometer cobertura.	Link margin at each point of a grid around A, with the chosen mode, power and antennas, over the real terrain (diffraction per P.#-#). It is an optimistic estimate (surface model, no vegetation or buildings): use it to compare positions and find shadows, not to promise coverage.
+Margem e entrega por modo	Margin and delivery per mode
+Marque dois pontos no mapa (um clique em cada ponta) ou digite as coordenadas, e a resposta aparece aqui. Com três ou mais pontos você analisa uma cadeia de saltos.	Mark two points on the map (one click at each end) or type the coordinates, and the answer appears here. With three or more points you analyze a chain of hops.
+Mecanismos (V, S)	Mechanisms (V, S)
+Mecanismos (V, S) →	Mechanisms (V, S) →
+Mediana e p#, em segundos.	Median and p#, in seconds.
+Medida	Measure
+Medido em hardware (ainda não existe nenhuma medição).	Measured on hardware (no measurement exists yet).
+Medido/previsto perto de # significa que a previsão foi boa.	Measured/predicted near # means the prediction was good.
+Medições	Measurements
+Medições →	Measurements →
+Meia-largura do morro:	Hill half-width:
+Menos é melhor.	Less is better.
+Menos é melhor. O modo fixo	Less is better. The fixed mode
+Menos é melhor. Soma das sementes simuladas; # para o modo fixo.	Less is better. Sum of the simulated seeds; # for the fixed mode.
+Meshtastic (original)	Meshtastic (original)
+Meshtasticator (código original executado)	Meshtasticator (original code executed)
+Meshtasticator (código original executado): camada física	Meshtasticator (original code executed): physical layer
+Meu enlace fecha?	Does my link close?
+Meu enlace fecha? (testador de terreno)	Does my link close? (terrain tester)
+Mobilidade	Mobility
+Mobilidade (M#–M#)	Mobility (M#–M#)
+Mobilidade e Doppler estimados	Estimated mobility and Doppler
+Mobilidade →	Mobility →
+Modelo	Model
+Modelo de difração:	Diffraction model:
+Modelo de nível #, mais simples que o par.	Level-# model, simpler than the pair.
+Modelo:	Model:
+Modelo: espaço livre, curvatura da Terra e difração pelo método de Bullington da ITU-R P.#-# (§#.#.#), ligado ao estimador analítico da Légua. Vegetação, prédios, reflexão no solo e o canal real não estão no modelo, e os parâmetros do rádio vêm de simulação, sem medição em hardware. O perfil regulatório BR-# vem de fonte secundária e está	Model: free space, Earth curvature and diffraction by the Bullington method of ITU-R P.#-# (§#.#.#), tied to Légua's analytical estimator. Vegetation, buildings, ground reflection and the real channel are not in the model, and the radio parameters come from simulation, without hardware measurement. The BR-# regulatory profile comes from a secondary source and is
+Modo	Mode
+Modo base	Base mode
+Modo escolhido	Chosen mode
+Modos	Modes
+Modos com espalhamento maior (	Modes with higher spreading (
+Modos fixos da tabela BR-# (nao_verificado), enlace típico, ordenados pela margem. A Légua negocia entre eles em campo; a energia é de TX, com corrente do PA estimada. A sensibilidade é o centro da curva de erro de pacote usada na simulação, não o limiar do datasheet.	Fixed modes from the BR-# table (not verified), typical link, ordered by margin. Légua negotiates among them in the field; the energy is TX, with estimated PA current. The sensitivity is the center of the packet error curve used in the simulation, not the datasheet threshold.
+Modos que atingem #% de entrega confirmada neste setup	Modes that reach #% confirmed delivery in this setup
+Modos →	Modes →
+Monta um quadro v# com o	Builds a v# frame with the
+Morro entre as antenas	Hill between the antennas
+Mostra o que o rastro registrou, não o que o hardware fez fora do registro	Shows what the trace recorded, not what the hardware did outside the record
+Mostra onde medir: passos de # dB em torno do limiar bastam.	Shows where to measure: steps of # dB around the threshold are enough.
+Mostra quando uma conclusão da rápida se sustenta: Légua atual ×	Shows when a conclusion from the quick scale holds: current Légua ×
+Mude um parâmetro por vez e veja como as tabelas abaixo respondem.	Change one parameter at a time and see how the tables below respond.
+Muito desfavorável (+#σ)	Very unfavorable (+#σ)
+Máx. (s)	Max (s)
+Média (s)	Mean (s)
+Média entre enlaces	Mean across links
+Métrica	Metric
+Nada foi medido em hardware.	Nothing was measured on hardware.
+Negociações	Negotiations
+Negociações ok	Negotiations ok
+Neste setup (	In this setup (
+No F# a # km a Légua gasta # mJ por pacote contra #.# mJ do	In F# at # km Légua spends # mJ per packet versus #.# mJ for the
+No M# urbano o	In the urban M# the
+No rural aberto (F#) a # km a economia é de #% com	In open rural (F#) at # km the saving is #% with
+Novidade:	New:
+Nunca digite a chave real de um enlace em uma página da web. Para conferir um MIC de produção use `core/src/mic_cmac.c` ou `simsuite/protocol/mic.py` na sua máquina.	Never type a link's real key into a web page. To check a production MIC use `core/src/mic_cmac.c` or `simsuite/protocol/mic.py` on your machine.
+Não mostra falhas que o simulador não modela.	Does not show failures that the simulator does not model.
+Nó	Node
+Nós	Nodes
+Núcleo C × simulador Python	C core × Python simulator
+Núcleo C × simulador Python (equivalência)	C core × Python simulator (equivalence)
+Número que fixa o sorteio de ruído e sombreamento de uma simulação. Várias sementes dão uma média.	Number that fixes the noise and shadowing draw of a simulation. Several seeds give an average.
+O MIC de # B dá #^-# de chance de forja por tentativa.	The # B MIC gives a #^-# chance of forgery per attempt.
+O MIC de teste do repositório (FNV)	The repository's test MIC (FNV)
+O ajuste vale só para os seus dados: poucas medições ou pouca variação de distância dão incerteza grande	The fit only holds for your data: few measurements or little distance variation give large uncertainty
+O alcance muda com a distância?	Does the range change with distance?
+O arquivo traz só o que foi ajustado, com a incerteza de cada constante. O importador do simulador o valida e aplica; não substitui a revisão de quem mediu.	The file contains only what was fitted, with the uncertainty of each constant. The simulator's importer validates and applies it; it does not replace the review by whoever measured.
+O estimador não captura trocas de modo nem rollbacks.	The estimator does not capture mode switches or rollbacks.
+O limiar de # m/s do perfil móvel é heurístico, sem otimização.	The # m/s threshold of the mobile profile is heuristic, without optimization.
+O meu enlace fecha com este terreno?	Does my link close with this terrain?
+O modo mais robusto, onde os dois nós sempre conseguem se achar. É o ponto de segurança.	The most robust mode, where the two nodes can always find each other. It is the safety point.
+O núcleo C e o simulador geram e conferem os mesmos vetores byte a byte. Quem implementa a Légua em outra linguagem deve reproduzi-los. Formato: uma linha por quadro, `<ctr#> <hex> [<dado extra do	The C core and the simulator generate and check the same vectors byte for byte. Anyone implementing Légua in another language should reproduce them. Format: one line per frame, `<ctr#> <hex> [<extra MIC data
+O perfil BR-# vem de fonte secundária e está não verificado.	The BR-# profile comes from a secondary source and is not verified.
+O perfil móvel recupera o PDR mas	The mobile profile recovers PDR but
+O quanto o sinal enfraquece só por se espalhar no espaço: cresce # dB a cada dez vezes a distância. A # MHz, cerca de # dB a # km.	How much the signal weakens just by spreading in space: it grows # dB for each tenfold increase in distance. At # MHz, about # dB at # km.
+O que isso significa	What this means
+O que mais move o resultado	What moves the result the most
+O que muda (rápida → longa)	What changes (quick → full)
+O que é a Légua e o que este trabalho mostra	What Légua is and what this work shows
+O que é a Légua, o que os números significam e por onde começar.	What Légua is, what the numbers mean and where to start.
+O que é enviado?	What is sent?
+O que é:	What it is:
+O simulador é confiável?	Is the simulator reliable?
+O sinal contorna a ponta de um obstáculo (um morro, um prédio) e chega atenuado do outro lado. É o que permite algum sinal sem linha de visada, com perda que cresce rápido com a altura do obstáculo.	The signal bends around the tip of an obstacle (a hill, a building) and arrives attenuated on the other side. It is what allows some signal without line of sight, with a loss that grows quickly with the obstacle height.
+O tempo depende da máquina em que a suíte roda.	The time depends on the machine the suite runs on.
+O teto de potência afeta todos os cenários?	Does the power ceiling affect all scenarios?
+O verificador testa todas as combinações de perdas e reinícios.	The verifier tests all combinations of losses and restarts.
+O último modo confirmado, gravado em memória não volátil para sobreviver a reinícios.	The last confirmed mode, stored in non-volatile memory to survive restarts.
+O “tubo” em volta da linha reta entre as antenas por onde passa a maior parte do sinal. Com menos de #% da primeira zona livre, o terreno já tira potência mesmo sem cortar a linha de visada. Antenas mais altas ou menos distância abrem a zona.	The "tube" around the straight line between the antennas where most of the signal passes. With less than #% of the first zone clear, the terrain already takes power even without cutting the line of sight. Taller antennas or less distance open the zone.
+Ocupação	Occupancy
+Ocupação (%)	Occupancy (%)
+Ocupação do beacon	Beacon occupancy
+Offset de terreno (dB)	Terrain offset (dB)
+Onde você lança o que o modelo não vê: folhagem, paredes, caixa metálica. Comece com # e teste cenários piores.	Where you put what the model does not see: foliage, walls, metal enclosure. Start with # and test worse scenarios.
+Orçamento (dB)	Budget (dB)
+Orçamento de tempo da escala longa (full)	Time budget of the full scale
+Os baselines são	The baselines are
+Os baselines são modelos comportamentais nossos	The baselines are our own behavioral models
+Os campos abaixo atualizam a resposta na hora.	The fields below update the answer immediately.
+Os cenários de bancada já têm tetos fixos baixos e variam pouco.	The bench scenarios already have low fixed ceilings and vary little.
+Os tempos e contagens do protocolo estão bem escolhidos?	Are the protocol's times and counts well chosen?
+Os três passos do acordo para trocar de modo: proposta, voto e confirmação.	The three steps of the agreement to switch mode: proposal, vote and confirmation.
+P# (ticks)	P# (ticks)
+P# / P# / P#	P# / P# / P#
+P# e P# continuam valendo sem a validação e com a âncora no COMMIT.	P# and P# still hold without validation and with the anchor at the COMMIT.
+P# maior desacordo (ticks)	P# largest disagreement (ticks)
+P# recuperação possível	P# recovery possible
+P# sem desacordo permanente	P# no permanent disagreement
+P# âncora confirmada pelo par	P# anchor confirmed by the peer
+PDR	PDR
+PDR Légua	Légua PDR
+PDR base	Base PDR
+PDR base fixo	Fixed base PDR
+PDR do grupo	Group PDR
+PDR do membro fraco	Weak member PDR
+PDR dos fortes	Strong nodes' PDR
+PDR dos fracos	Weak nodes' PDR
+PDR estimado (média)	Estimated PDR (mean)
+PDR estimado (típico)	Estimated PDR (typical)
+PDR simulado	Simulated PDR
+PROPOSE/VOTE/COMMIT	PROPOSE/VOTE/COMMIT
+Pacotes	Packets
+Pacotes por hora	Packets per hour
+Pacotes →	Packets →
+Par na bancada (	Pair on the bench (
+Para reproduzir estes números	To reproduce these numbers
+Para validar e aplicar no simulador: ~/.venvs/legua/bin/python -m simsuite.analysis.calibracao calibracao.json e PYTHONPATH=. ~/.venvs/legua/bin/python -m simsuite.run_suite --escala quick --calibracao calibracao.json	To validate and apply in the simulator: ~/.venvs/legua/bin/python -m simsuite.analysis.calibracao calibracao.json and PYTHONPATH=. ~/.venvs/legua/bin/python -m simsuite.run_suite --escala quick --calibracao calibracao.json
+Parâmetros do canal estimados	Estimated channel parameters
+Parâmetros do rádio	Radio parameters
+Parâmetros do setup	Setup parameters
+Passo # de # · Os dois nós operam no modo atual	Step # of # · Both nodes operate in the current mode
+Perda a # km (dB)	Loss at # km (dB)
+Perda de cabo (dB)	Cable loss (dB)
+Perda de cabo A:	Cable A loss:
+Perda de cabo B:	Cable B loss:
+Perda de percurso máxima para #% e #% de entrega (modelo de PER).	Maximum path loss for #% and #% delivery (PER model).
+Perda extra	Extra loss
+Perda extra (vegetação, paredes):	Extra loss (vegetation, walls):
+Perda extra B→A	Extra loss B→A
+Perda máx. a #% (dB)	Max. loss at #% (dB)
+Perda máxima: o quanto o caminho pode atenuar antes de o sinal cair abaixo da sensibilidade. É o ponto de partida do orçamento de enlace; terreno e margem de desvanecimento ficam por sua conta (testador de enlaces).	Maximum loss: how much the path can attenuate before the signal falls below the sensitivity. It is the starting point of the link budget; terrain and fading margin are up to you (link tester).
+Perda no espaço livre	Free-space loss
+Perda total	Total loss
+Perfil	Profile
+Perfil BR-#: fonte secundária, nao_verificado. A conformidade é do produto; esta calculadora não afirma conformidade nem homologação.	BR-# profile: secondary source, not verified. Compliance belongs to the product; this calculator does not claim compliance or certification.
+Perfil BR-#: nao_verificado	BR-# profile: not verified
+Perfil colado (CSV)	Pasted profile (CSV)
+Perfil do enlace	Link profile
+Perfil inválido	Invalid profile
+Perguntas que o site responde	Questions the site answers
+Personalizado	Custom
+Período depois da troca em que o par precisa confirmar que o modo novo funciona.	Period after the switch in which the peer must confirm that the new mode works.
+Pilha	Stack
+Pior ocupação (s)	Worst occupancy (s)
+Pior ocupação por canal	Worst occupancy per channel
+Plano	Flat
+Plano de canais calculado no mesmo critério do simulador (guarda de # × a largura de banda) sobre as faixas do perfil; as regras vêm de fonte secundária.	Channel plan computed with the same criterion as the simulator (guard of # × the bandwidth) over the profile bands; the rules come from a secondary source.
+Política	Policy
+Ponto	Point
+Pontos: medições. Linha azul: ajuste. Linha tracejada: modelo atual do simulador para “Urbano denso”.	Points: measurements. Blue line: fit. Dashed line: the simulator's current model for "Dense urban".
+Por isso existem três perfis nomeados (	That is why there are three named profiles (
+Posição do morro:	Hill position:
+Potência	Power
+Potência de TX	TX power
+Potência de TX (dBm)	TX power (dBm)
+Potência de TX padrão (dBm)	Default TX power (dBm)
+Potência de TX →	TX power →
+Potência de TX:	TX power:
+Potência isotrópica equivalente irradiada: potência do transmissor mais o ganho da antena menos a perda no cabo. É o que a regulação limita, não só a potência do rádio.	Effective isotropic radiated power: transmitter power plus antenna gain minus cable loss. It is what regulation limits, not just the radio power.
+Potência máxima que o integrador permite. O protocolo nunca passa dele.	Maximum power the integrator allows. The protocol never exceeds it.
+Potência real de TX (dB)	Actual TX power (dB)
+Poucas sementes: sem intervalo de confiança útil por célula.	Few seeds: no useful confidence interval per cell.
+Preâmbulo (símbolos)	Preamble (symbols)
+Privacidade:	Privacy:
+Propriedades P#, P# e P# verificadas por busca exaustiva de estados	Properties P#, P# and P# verified by exhaustive state search
+Propriedades verificadas: sem desacordo permanente, recuperação sempre possível, âncora só de modo confirmado pelo par.	Verified properties: no permanent disagreement, recovery always possible, anchor only of a mode confirmed by the peer.
+Protocolo	Protocol
+Protocolo e especificação	Protocol and specification
+Protocolo e regime	Protocol and regime
+Protocolo igual no núcleo C e no simulador	Same protocol in the C core and in the simulator
+Protocolo igual no núcleo C e no simulador (equivalência byte a byte)	Same protocol in the C core and in the simulator (byte-for-byte equivalence)
+Prova que o C copia o Python, não que o Python descreve a realidade.	Proves that C copies Python, not that Python describes reality.
+Próximo passo →	Next step →
+Quadro de # bytes, com o MIC de teste (não é segurança).	Frame of # bytes, with the test MIC (not security).
+Quadro em hexadecimal	Frame in hexadecimal
+Quadros rejeitados (replay,	Rejected frames (replay,
+Quando um morro entra no caminho, o sinal contorna o topo e chega mais fraco. O método troca os obstáculos por um só, equivalente, e soma a correção empírica da Recomendação; mesmo com visada, uma zona de Fresnel raspando o chão já custa alguns dB. Em comparação com o ITM da NTIA (# perfis sintéticos, # MHz) o testador ainda é otimista, em média cerca de # dB, com até # dB em morros altos e isolados; trate o resultado em terreno obstruído como limite superior do que chega e use a perda extra para ser conservador.	When a hill gets in the way, the signal bends over the top and arrives weaker. The method replaces the obstacles with a single equivalent one and adds the Recommendation's empirical correction; even with line of sight, a Fresnel zone grazing the ground already costs a few dB. Compared with NTIA's ITM (# synthetic profiles, # MHz) the tester is still optimistic, on average about # dB, up to # dB on tall isolated hills; treat the result in obstructed terrain as an upper limit of what arrives and use the extra loss to be conservative.
+Quantos dB o sinal fica acima do mínimo que o modo decodifica. Perto de zero perde pacote; # a # dB aguentam o desvanecimento. Modos mais lentos (SF maior) têm margem maior.	How many dB the signal is above the minimum the mode decodes. Near zero it loses packets; # to # dB withstand fading. Slower modes (larger SF) have more margin.
+Quantos dB o sinal recebido fica acima da sensibilidade do modo. Margem positiva e folgada (# a # dB) aguenta desvanecimento e sombreamento; margem perto de zero perde pacotes.	How many dB the received signal is above the mode's sensitivity. A positive, comfortable margin (# to # dB) withstands fading and shadowing; a margin near zero loses packets.
+Quedas ao base	Drops to base
+Quedas ao modo base	Drops to base mode
+Quero estimar o meu caso	I want to estimate my case
+RX	RX
+Raio:	Radius:
+Rastros	Traces
+Rastros →	Traces →
+Reboots	Reboots
+Recebido	Received
+Referência	Reference
+Região em forma de elipsoide em volta da linha reta entre as antenas por onde passa a maior parte da energia do sinal. Obstáculo dentro dela já tira potência, mesmo sem cortar a linha de visada; costuma-se pedir pelo menos #% da primeira zona livre.	Ellipsoid-shaped region around the straight line between the antennas through which most of the signal energy passes. An obstacle inside it already takes power, even without cutting the line of sight; at least #% of the first zone clear is usually required.
+Regras do LoRaSim (porte)	LoRaSim rules (port)
+Regulação (modelo BR-#, nao_verificado)	Regulation (BR-# model, not verified)
+Regulação BR-#: fonte secundária, nao_verificado	BR-# regulation: secondary source, not verified
+Regulação:	Regulation:
+Reiniciar	Restart
+Reinícios	Restarts
+Rejeitados	Rejected
+Remover	Remove
+Replay	Replay
+Replay e quadros forjados: # quadros rejeitados,	Replay and forged frames: # frames rejected,
+Replay, quadro forjado, jammer e o perfil regulatório.	Replay, forged frame, jammer and the regulatory profile.
+Resolução:	Resolution:
+Resposta para este enlace	Answer for this link
+Resposta para este setup	Answer for this setup
+Restaurar padrões	Restore defaults
+Resultado	Result
+Resultado no modelo	Result in the model
+Resumo: PDR médio · energia mediana por pacote, por teto de TX	Summary: mean PDR · median energy per packet, by TX ceiling
+Resync	Resync
+Retransmissões:	Retransmissions:
+Rodada de aceleração com perda independente por quadro	Acceleration round with independent loss per frame
+Rollback	Rollback
+Rollbacks	Rollbacks
+Rollbacks por hora	Rollbacks per hour
+Rollbacks, perdas de quadro, reinícios e achar o parceiro.	Rollbacks, frame losses, restarts and finding the partner.
+Rollbacks/h	Rollbacks/h
+Rota com # saltos	Route with # hops
+Roteamento por inundação não comparado (decisão de escopo)	Flood routing not compared (scope decision)
+Rural aberto	Open rural
+Rural com vegetação	Vegetated rural
+Rural serrano	Hilly rural
+R² (quanto da variação a reta explica)	R² (how much of the variation the line explains)
+Rápida	Quick
+Rápida (quick)	Quick
+Rápida × longa · Campo fixo (F#–F#) · Taxa de entrega (PDR)	Quick × full · Fixed field (F#–F#) · Delivery rate (PDR)
+SF	SF
+SF do modo escolhido:	SF of the chosen mode:
+SF#	SF#
+SF#/#	SF#/#
+SF#/# digital	SF#/# digital
+SF#/# salto (base)	SF#/# hopping (base)
+SF#/# salto (rápido)	SF#/# hopping (fast)
+SF#/#/CR#/FH	SF#/#/CR#/FH
+SF#/#/FH	SF#/#/FH
+Salto	Hop
+Salto #: A → B	Hop #: A → B
+Salto #: B → C	Hop #: B → C
+Salto em detalhe (perfil e modos):	Hop in detail (profile and modes):
+Salto mais fraco: B → C, margem de # dB no modo escolhido. Modos que atingem #% de entrega em todos os saltos: SF#/#/FH, SF#/#/CR#/FH, SF#/#/FH, SF#/#/CR#/FH, SF#/#/FH, SF#/#/CR#/FH, SF#/#/FH, SF#/#/FH, SF#/#/FH, SF#/#/FH, SF#/#/FH, SF#/#/FH, SF#/#, SF#/#, SF#/#, SF#/#, SF#/#, SF#/#.	Weakest hop: B → C, margin of # dB in the chosen mode. Modes that reach #% delivery on all hops: SF#/#/FH, SF#/#/CR#/FH, SF#/#/FH, SF#/#/CR#/FH, SF#/#/FH, SF#/#/CR#/FH, SF#/#/FH, SF#/#/FH, SF#/#/FH, SF#/#/FH, SF#/#/FH, SF#/#/FH, SF#/#, SF#/#, SF#/#, SF#/#, SF#/#, SF#/#.
+Saltos	Hops
+Segurança e regulação	Security and regulation
+Segurança e regulação (B#, B#)	Security and regulation (B#, B#)
+Segurança e regulação →	Security and regulation →
+Segurança:	Security:
+Sem medição de campo	No field measurement
+Sem violações no modelo	No violations in the model
+Semente	Seed
+Sensibilidade	Sensitivity
+Sensibilidade e perda máxima de percurso	Sensitivity and maximum path loss
+Sensibilidade →	Sensitivity →
+Significado	Meaning
+Silêncio (s)	Silence (s)
+Simulador desta suíte	This suite's simulator
+Simulação (longa)	Simulation (full)
+Simulação com parâmetros estimados (canal, corrente do PA, deriva).	Simulation with estimated parameters (channel, PA current, drift).
+Simulação e verificação	Simulation and verification
+Sintonia (F#)	Tuning (F#)
+Sintonia (F#) →	Tuning (F#) →
+Sintonia da aceleração (F#)	Acceleration tuning (F#)
+Sintonia por simulação; os perfis valem até a bancada medir	Tuning by simulation; the profiles hold until the bench measures
+Situação do enlace	Link condition
+Soma dos ganhos e perdas (dBi − dB)	Sum of gains and losses (dBi − dB)
+São estimativas de simulação: servem para	These are simulation estimates: they serve to
+São modelos do comportamento desses sistemas, não os produtos reais.	They are models of these systems' behavior, not the actual products.
+Só P#	P# only
+Só considera o enlace do rádio, não colisões nem trânsito.	It only considers the radio link, not collisions or traffic.
+Só se testa a regra de # dB entre pacotes no mesmo modo.	Only the # dB rule between packets in the same mode is tested.
+T # h -> # h	T # h -> # h
+T # h -> # h (gado # h -> # h); # -> # sementes	T # h -> # h (cattle # h -> # h); # -> # seeds
+T # h -> # h; # -> # sementes	T # h -> # h; # -> # seeds
+T# (# células, # comparáveis em energia)	T# (# cells, # comparable in energy)
+T# homogênea	T# homogeneous
+T# linha # nós	T# line # nodes
+T# malha # nós	T# mesh # nodes
+T# malha com # móveis	T# mesh with # mobile
+T# membro fraco -# dB	T# weak member -# dB
+T#/T# · estrela com membro fraco	T#/T# · star with a weak member
+T#: rápida (rápida → longa: T # h -> # h) · rodou em # s	T#: quick (quick → full: T # h -> # h) · ran in # s
+T#–T# · malha e baselines (modelos comportamentais)	T#–T# · mesh and baselines (behavioral models)
+TX	TX
+Tabela	Table
+Tabela completa (# linhas)	Full table (# rows)
+Tabela de modos BR-# (nao_verificado)	BR-# mode table (not verified)
+Tabela de modos conferida pelos testes de tempo no ar	Mode table checked by the airtime tests
+Tabela de modos, escalas e orçamento de tempo, e o consolidado com discussões e trabalhos futuros.	Mode table, scales and time budget, and the consolidated report with discussions and future work.
+Tabelas visíveis (CSV)	Visible tables (CSV)
+Taxa de código	Coding rate
+Taxa de código de correção de erros (#/# a #/#): mais redundância, menos velocidade.	Error-correction coding rate (#/# to #/#): more redundancy, less speed.
+Taxa de código:	Coding rate:
+Taxa de entrega (PDR)	Delivery rate (PDR)
+Taxa de entrega de pacotes: fração dos pacotes enviados que chegaram ao destino. # = todos.	Packet delivery rate: fraction of the packets sent that reached the destination. # = all.
+Taxa de entrega por cenário de mobilidade	Delivery rate by mobility scenario
+Taxa de entrega × distância · F# urbano denso	Delivery rate × distance · F# dense urban
+Tema: claro	Theme: light
+Tempo em que os dois nós estão em modos diferentes e, portanto, não conseguem conversar.	Time during which the two nodes are in different modes and therefore cannot talk.
+Tempo na escala longa	Time on the full scale
+Tempo no ar	Airtime
+Tempo no ar curto nos modos rápidos reduz energia e ocupação.	Short airtime in the fast modes reduces energy and occupancy.
+Tempo no ar de um pacote (time on air): quanto ele ocupa o canal.	Packet airtime (time on air): how long it occupies the channel.
+Tempo no ar e sensibilidade	Airtime and sensitivity
+Tempo no ar e taxa de bits	Airtime and bit rate
+Tempo no ar idêntico ao do simulador (teste de paridade com # combinações)	Airtime identical to the simulator's (parity test with # combinations)
+Tempo no ar igual ao do LoRaSim em todas as combinações, exceto	Airtime equal to LoRaSim's in all combinations, except
+Tempo no ar: #.# combinações de	Airtime: #.# combinations of
+Tentativas por pacote	Attempts per packet
+Terreno	Terrain
+Terreno desenhado com o abaulamento da Terra (k = #). Laranja: linha de visada. Faixa azul: primeira zona de Fresnel (escura: #%). Vermelho: obstáculo equivalente de Bullington.	Terrain drawn with the Earth's bulge (k = #). Orange: line of sight. Blue band: first Fresnel zone (dark: #%). Red: Bullington equivalent obstacle.
+Terreno e obstrução (dB)	Terrain and obstruction (dB)
+Terreno:	Terrain:
+Testador de enlaces	Link tester
+Testador de enlaces ↗	Link tester ↗
+Teto	Ceiling
+Teto (dBm)	Ceiling (dBm)
+Teto assimétrico (A em # dBm, B com o teto da coluna)	Asymmetric ceiling (A at # dBm, B with the column ceiling)
+Teto assimétrico: A com # dBm, B com o teto da coluna	Asymmetric ceiling: A at # dBm, B with the column ceiling
+Teto de TX	TX ceiling
+Teto de TX simétrico (os dois nós com o mesmo teto)	Symmetric TX ceiling (both nodes with the same ceiling)
+Teto simétrico	Symmetric ceiling
+Teto × cenários	Ceiling × scenarios
+Teto × cenários →	Ceiling × scenarios →
+Tipo	Type
+ToA	ToA
+ToA # B (ms)	ToA # B (ms)
+ToA de # B (ms)	ToA of # B (ms)
+Todas	All
+Todas as métricas	All metrics
+Todo número vem de modelos com parâmetros	Every number comes from models with
+Todos os números saem de modelos com parâmetros	Every number comes from models with
+Tolerância (Hz)	Tolerance (Hz)
+Topologia	Topology
+Tornado e Monte Carlo sobre o estimador analítico, conferido contra o simulador	Tornado and Monte Carlo over the analytical estimator, checked against the simulator
+Trabalhos futuros	Future work
+Trajetórias com LoS/NLoS, Doppler e deriva.	Trajectories with LoS/NLoS, Doppler and drift.
+Transmitir sem combinar horário. Simples, mas colide quando há muitos nós.	Transmit without agreeing on a schedule. Simple, but it collides when there are many nodes.
+Trocas	Switches
+Trocas de modo	Mode switches
+Trocas de modo negociadas	Negotiated mode switches
+Trocas demais cansam a rede mesmo que o PDR esteja bom.	Too many switches tire the network even if the PDR is good.
+Trocas por hora	Switches per hour
+Trocas/h	Switches/h
+Tráfego de terceiros (× do ambiente):	Third-party traffic (× of the environment):
+Tudo aqui vem de simulação com parâmetros estimados. Serve para comparar opções e dimensionar, não para prever o campo. Ainda não há medição com as placas.	Everything here comes from simulation with estimated parameters. It serves to compare options and size things, not to predict the field. There are no measurements with the boards yet.
+Típico	Typical
+Um evento JSON por linha (v, t em segundos, node, ev e os campos do evento), como em simsuite/analysis/telemetry.py. Campos de localização (lat, lon, alt, GNSS) são removidos na leitura e nunca aparecem nem são exportados. Nada sai do navegador.	One JSON event per line (v, t in seconds, node, ev and the event fields), as in simsuite/analysis/telemetry.py. Location fields (lat, lon, alt, GNSS) are removed on reading and never appear or get exported. Nothing leaves the browser.
+Um processo por vez cabe em # GB de RAM e disco mecânico.	One process at a time fits in # GB of RAM and a mechanical disk.
+Um rollback não é erro: é o mecanismo de segurança funcionando.	A rollback is not an error: it is the safety mechanism working.
+Um rádio escutando o tempo todo seria mais rápido e muito mais caro.	A radio listening all the time would be faster and much more expensive.
+Unidade de potência de rádio. # dBm é cerca de # W; a cada # dB a potência dobra.	Radio power unit. # dBm is about # W; every # dB the power doubles.
+Urbano denso	Dense urban
+Urbano denso # km	Dense urban # km
+Urbano denso # km: a Légua atual gasta #.# mJ contra #.# mJ do	Dense urban # km: the current Légua spends #.# mJ versus #.# mJ for the
+Urbano residencial	Residential urban
+Urbano residencial # km	Residential urban # km
+Usar o orçamento para agendar a rodada fora do expediente.	Use the budget to schedule the run outside working hours.
+Use os botões para avançar. Marque as opções para ver o que acontece quando um quadro se perde ou o enlace piora.	Use the buttons to advance. Check the options to see what happens when a frame is lost or the link gets worse.
+VAL=#, HB=#, potência # dBm (código #)	VAL=#, HB=#, power # dBm (code #)
+Valem para todas as calculadoras abaixo. Os resultados se atualizam na hora; nada sai do seu navegador.	They apply to all calculators below. Results update immediately; nothing leaves your browser.
+Validação cruzada	Cross validation
+Validação cruzada →	Cross validation →
+Validação, mediana	Validation, median
+Validação, p#	Validation, p#
+Validações que terminaram em rollback	Validations that ended in rollback
+Valor	Value
+Valores de sensibilidade vêm de um modelo; a bancada confirma.	Sensitivity values come from a model; the bench confirms.
+Vantagens	Advantages
+Variabilidade do canal (ambiente):	Channel variability (environment):
+Variante	Variant
+Variantes do protocolo	Protocol variants
+Varredura completa	Full sweep
+Varredura da potência de TX (P)	TX power sweep (P)
+Varredura de teto de TX em todos os cenários	TX ceiling sweep across all scenarios
+Varredura do simulador; corrente do PA estimada	Simulator sweep; estimated PA current
+Varredura do simulador; sem comparação externa	Simulator sweep; no external comparison
+Varreduras da janela de validação (k, f, duração) e do tempo de silêncio.	Sweeps of the validation window (k, f, duration) and of the silence time.
+Varreduras do simulador; ajuste com parâmetros estimados	Simulator sweeps; adjustment with estimated parameters
+Veja a entrega de cada modo contra a distância e onde a Légua ganha.	See the delivery of each mode against distance and where Légua wins.
+Veja como cada política equilibra entrega do grupo e do membro fraco.	See how each policy balances group and weak-member delivery.
+Velocidade	Speed
+Ver, por cenário, onde o protocolo mais depende da folga de potência.	See, per scenario, where the protocol depends most on power headroom.
+Verde: margem de # dB ou mais; amarelo: # a #; laranja: # a #; vermelho: sem enlace; transparente: sem dado. O alcance por rumo vai até a última célula com margem ≥ # dB (limitado ao raio escolhido).	Green: margin of # dB or more; yellow: # to #; orange: # to #; red: no link; transparent: no data. Range per bearing goes to the last cell with margin ≥ # dB (limited to the chosen radius).
+Verificação de estados (modelo abstrato, perdas adversárias)	State verification (abstract model, adversarial losses)
+Verificação de estados do modelo do protocolo (não do código C)	State verification of the protocol model (not of the C code)
+Verificação formal	Formal verification
+Verificação formal →	Formal verification →
+Vetores de teste do AES-CMAC e testes de replay e forjamento	AES-CMAC test vectors and replay and forgery tests
+Vetores de teste para quem porta o protocolo	Test vectors for those porting the protocol
+Vida de bateria (estimativa)	Battery life (estimate)
+Violações	Violations
+Voltar ao modo anterior quando o modo novo falha na validação.	Go back to the previous mode when the new mode fails validation.
+Votos recusados / negociações falhas	Refused votes / failed negotiations
+Zona de Fresnel	Fresnel zone
+a distância entre os pontos precisa ficar entre # e # km (agora #.# km)	the distance between the points must be between # and # km (now #.# km)
+a partir de	from
+a primeira frase diz se o enlace fecha; a tabela mostra a margem de cada modo. Para ser conservador, aumente a “perda extra”.	the first sentence says whether the link closes; the table shows the margin of each mode. To be conservative, increase the "extra loss".
+alcance com #% confirmado (enlace típico)	range with #% confirmed (typical link)
+alcance mediano entre # rumos	median range across # bearings
+alcance mínimo e máximo por rumo	minimum and maximum range per bearing
+alcance no espaço livre (limite superior; sem terreno nem margem)	free-space range (upper limit; no terrain or margin)
+alta (#×#)	high (#×#)
+amostras	samples
+ancora gravada no commit	anchor saved at the commit
+aplicação a cada # s	application every # s
+atende	meets
+atinge	reaches
+autonomia estimada (#.# h)	estimated runtime (#.# h)
+baixa (#×#)	low (#×#)
+bancada (traço reproduzido)	bench (replayed trace)
+beacon #.#s perda #%	beacon #.#s loss #%
+cabe na ocupação de # s por canal	fits within the # s occupancy per channel
+campo (simulado)	field (simulated)
+canais de # kHz nas faixas do perfil	channels of # kHz in the profile bands
+cenários com resultado na escala longa	scenarios with a result on the full scale
+chance de atingir # % de entrega	chance of reaching # % delivery
+ciclo de trabalho com # pacotes/h	duty cycle with # packets/h
+colaboradores do OpenStreetMap	OpenStreetMap contributors
+comparar e dimensionar	compare and size
+corrente de TX a # dBm (tabela estimada)	TX current at # dBm (estimated table)
+corrente média	average current
+dB	dB
+dBm	dBm
+de teste, igual ao que os vetores e a simulação usam. Serve para testar um decodificador ou uma porta do protocolo; não use em produto.	test MIC, the same the vectors and the simulation use. It serves to test a decoder or a port of the protocol; do not use it in a product.
+dentro	within
+desvio (σ) (variação em torno da reta)	deviation (σ) (variation around the line)
+detalhes	details
+digital	digital
+disponível	available
+distância	distance
+divisao	split
+do DATA # ms · perda máx. #%: # dB · #%: # dB	of the DATA # ms · max. loss #%: # dB · #%: # dB
+do limite de # %	of the # % limit
+do modo fixo.	of the fixed mode.
+do tempo de ocupação por canal de # s (perfil BR-#, nao_verificado)	of the per-channel occupancy time of # s (BR-# profile, not verified)
+dois reboots	two reboots
+dos fortes deve ser maior que o dos fracos nos dois simuladores.	of the strong nodes must be higher than that of the weak ones in both simulators.
+dst (# = broadcast)	dst (# = broadcast)
+dwell pacote = #; ocupacao janela = #; canais insuficientes = #	packet dwell = #; window occupancy = #; insufficient channels = #
+e pela tabela de modos.	and by the mode table.
+elevação real	real elevation
+em # # eventos.	in # # events.
+energia de TX por dia (só transmissão)	TX energy per day (transmission only)
+energia de TX por pacote	TX energy per packet
+enlace piora na validação	link gets worse during validation
+entrega mediana (#%: # a #)	median delivery (#%: # to #)
+equiv	equiv
+escala longa	full scale
+estabilidade e energia são um compromisso	stability and energy are a trade-off
+estimados	estimated
+estimativa	estimate
+evento	event
+expoente n (± # · modelo atual #)	exponent n (± # · current model #)
+f = #	f = #
+fade_k #	fade_k #
+faixa estimada	estimated range
+fase#	phase#
+fixo	fixed
+folga mínima da #ª zona de Fresnel	minimum clearance of the #st Fresnel zone
+forjado desde o inicio	forged from the start
+formal	formal
+formal: rápida · rodou em # min # s	formal: quick · ran in # min # s
+idem, enlace com +#σ de perda	same, link with +#σ of loss
+independe da escala	independent of the scale
+intervalo mínimo entre pacotes para respeitar o limite	minimum interval between packets to respect the limit
+jammer reativo validacao	reactive jammer validation
+jammer sem alarme	jammer without alarm
+k (ACKs para confirmar)	k (ACKs to confirm)
+k = #	k = #
+key_id (# a #)	key_id (# to #)
+legua (BR-#)	legua (BR-#)
+legua (sem regra (# dBm))	legua (no rule (# dBm))
+legua+ff (BR-#)	legua+ff (BR-#)
+legua+ff (sem regra (# dBm))	legua+ff (no rule (# dBm))
+linha de visada obstruída (perda de difração de # dB)	line of sight obstructed (diffraction loss of # dB)
+loramesher (BR-#)	loramesher (BR-#)
+loramesher (sem regra (# dBm))	loramesher (no rule (# dBm))
+mJ Légua	Légua mJ
+mJ base	Base mJ
+mJ base fixo	Fixed base mJ
+mJ estimado (típico)	estimated mJ (typical)
+mJ simulado	simulated mJ
+mJ/pacote	mJ/packet
+mais alto) têm o degrau mais à direita, mas gastam mais tempo no ar.	higher) have the step further to the right, but spend more airtime.
+margem do enlace típico (RX -# dBm, sens. -# dBm)	margin of the typical link (RX -# dBm, sens. -# dBm)
+margem mediana (#%: -# a -#)	median margin (#%: -# to -#)
+margem no modo SF#/#/FH	margin in mode SF#/#/FH
+medido # min # s	measured # min # s
+medido # s	measured # s
+menor); com f = # um único fracasso já desfaz o modo.	smaller); with f = # a single failure already undoes the mode.
+menor; # s e # s dão o mesmo resultado.	smaller; # s and # s give the same result.
+meshcore (BR-#)	meshcore (BR-#)
+meshcore (sem regra (# dBm))	meshcore (no rule (# dBm))
+meshtastic (BR-#)	meshtastic (BR-#)
+meshtastic (sem regra (# dBm))	meshtastic (no rule (# dBm))
+modelos nossos	our own models
+modo	mode
+modos	modes
+modos: rápida · rodou em # s	modes: quick · ran in # s
+mora (a licença é livre: Apache-#.#, arquivo	lives (the license is free: Apache-#.#, file
+máx #	max #
+máximo do perfil)	maximum of the profile)
+média (#×#)	medium (#×#)
+média |Δ| #	mean |Δ| #
+mínimo de # canais para esta largura de banda	minimum of # channels for this bandwidth
+n # -> #	n # -> #
+n_pkt # -> #	n_pkt # -> #
+nenhum dado do formulário vai a servidor. As únicas exceções são a elevação pela internet e o mapa-base, que só agem quando você clica ou ativa, e enviam números de tiles (a região que você vê), nunca as coordenadas exatas. O perfil colado e as coordenadas ficam só nesta página e não vão para o endereço compartilhável.	no form data goes to a server. The only exceptions are elevation from the internet and the base map, which act only when you click or enable, and send tile numbers (the region you see), never the exact coordinates. The pasted profile and the coordinates stay only on this page and do not go into the shareable address.
+no SX# não têm dado publicado e são o alvo de B# na bancada.	on the SX# have no published data and are the target of B# on the bench.
+não	no
+não atinge	does not reach
+não atinge o alvo no enlace típico	does not reach the target on the typical link
+não economiza energia	does not save energy
+não gerado	not generated
+não há medições em hardware	there are no hardware measurements
+não é segurança	is not security
+nó	node
+o perfil BR-# vem de fonte secundária (	the BR-# profile comes from a secondary source (
+ocupação de tempo no ar (# s/h)	airtime occupancy (# s/h)
+orçamento sequencial da escala longa (--procs #)	sequential budget of the full scale (--procs #)
+ou carregar arquivo	or load a file
+p# (s)	p# (s)
+pacotes por hora no máximo	packets per hour at most
+pastejo	grazing
+perda de percurso	path loss
+perda máxima de percurso	maximum path loss
+perda por difração (P.#)	diffraction loss (P.#)
+perda total (com # dB extras)	total loss (with # dB extra)
+perdas + reboots	losses + reboots
+perdas + reboots + relogio	losses + reboots + clock
+perdas controle #%	control loss #%
+perder o COMMIT	losing the COMMIT
+piso de ruído	noise floor
+pl#km (± # · modelo atual #)	pl#km (± # · current model #)
+plano (sem elevação)	flat (no elevation)
+plano ou morro para um teste rápido; ou “Mapa” para marcar os pontos do enlace (dois pontos = um enlace; três ou mais = uma cadeia de saltos com relés).	flat or hill for a quick test; or "Map" to mark the link points (two points = one link; three or more = a chain of hops with relays).
+potencia = #	power = #
+potência recebida	received power
+potência, antenas, altura dos mastros e o modo (SF e largura de banda). O resultado se atualiza na hora.	power, antennas, mast height and the mode (SF and bandwidth). The result updates immediately.
+primeira zona de Fresnel com apenas #% livre (o recomendado é #% ou mais)	first Fresnel zone with only #% clear (the recommendation is #% or more)
+referência	reference
+relay	relay
+replay e forjado	replay and forged
+reticulum (BR-#)	reticulum (BR-#)
+reticulum (sem regra (# dBm))	reticulum (no rule (# dBm))
+rural aberto	open rural
+rural aberto # km	open rural # km
+salto	hopping
+sem ataque	no attack
+sem descida por silêncio	no drop by silence
+sem enlace	no link
+sem validação	no validation
+sem violações	no violations
+sensibilidade estimada (centro da curva de erro: +# dB)	estimated sensitivity (center of the error curve: +# dB)
+sim	yes
+sobre o perfil que você informa, não uma previsão do campo.	over the profile you provide, not a field prediction.
+src (número ou #x…)	src (number or #x…)
+só simulação, protocolo e especificação	only simulation, protocol and specification
+t (s)	t (s)
+tabela	table
+taxa de bits do modo	mode bit rate
+tcxo/# ppm	tcxo/# ppm
+tempo no ar da carga de # B	airtime of the # B payload
+tempo no ar do DATA (# B)	DATA airtime (# B)
+teto assimétrico (B nunca aceita)	asymmetric ceiling (B never accepts)
+teto de potência com # canais e antena de # dBi (	power ceiling with # channels and an antenna of # dBi (
+tipo	type
+todas as #	all #
+todos	all
+tolerância dinâmica SF#/#	dynamic tolerance SF#/#
+tolerância estática (# kHz)	static tolerance (# kHz)
+unanimidade	unanimity
+urbano denso # km	dense urban # km
+urbano residencial	residential urban
+urbano residencial # km	residential urban # km
+usado é de teste; não é segurança de produto.	used is a test one; it is not product security.
+vai de #% a #% em # dB.	goes from #% to #% in # dB.
+vale	holds
+variação máxima na passagem	maximum variation during the pass
+versão	version
+viola	violates
+xsim	xsim
+xtal # dBm/# ppm	xtal # dBm/# ppm
+xtal/# ppm	xtal/# ppm
+± #.# Hz	± #.# Hz
+· mJ por pacote entregue; 'sem enlace' = PDR abaixo de #%.	· mJ per delivered packet; 'no link' = PDR below #%.
+· trocas por hora · rollbacks por hora.	· switches per hour · rollbacks per hour.
+Âncora	Anchor
+É uma	It is an
+É uma conta analítica, mais simples e rápida que a simulação.	It is an analytical calculation, simpler and faster than the simulation.
+área com margem ≥ # dB	area with margin ≥ # dB
+âncora no COMMIT	anchor at the COMMIT
+é # (SF# fixo), # (Légua móvel) e # (Légua fixa).	is # (fixed SF#), # (mobile Légua) and # (fixed Légua).
+é conformidade nem homologação.	is neither compliance nor certification.
+– ms	– ms
+← Acordo e falhas	← Agreement and failures
+← Alcance e deriva	← Range and drift
+← Calculadoras	← Calculators
+← Campo fixo	← Fixed field
+← Comece aqui	← Start here
+← Especificação	← Specification
+← Estimativas	← Estimates
+← Grupos e malha	← Groups and mesh
+← Mecanismos (V, S)	← Mechanisms (V, S)
+← Medições	← Measurements
+← Mobilidade	← Mobility
+← Modos	← Modes
+← Pacotes	← Packets
+← Potência de TX	← TX power
+← Rastros	← Traces
+← Segurança e regulação	← Security and regulation
+← Sensibilidade	← Sensitivity
+← Sintonia (F#)	← Tuning (F#)
+← Teto × cenários	← Ceiling × scenarios
+← Validação cruzada	← Cross validation
+← Verificação formal	← Formal verification
+← Voltar	← Back

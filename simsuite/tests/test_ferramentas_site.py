@@ -293,3 +293,30 @@ def test_cobertura_em_area_fisica_basica_morro_e_tiles():
     assert o["area0m"] < o["area0"] and o["rumos"] == 16 and o["alc_morro_leste"] <= o["alc_plano"]
     assert o["semTile"] and o["tudoNaN"] and o["cores"] == [200, 140, 210, 170, 0] and o["d"] == pytest.approx(1.0, abs=2e-3)
     assert 4 <= o["t5"] <= 9 and "máximo 64" in o["t60"]
+
+
+def test_dicionario_i18n_em_dia_e_com_marcadores_consistentes():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("gerar_i18n", os.path.join(RAIZ, "tools", "gerar_i18n.py"))
+    g = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(g)
+    d = g.ler_tsv()
+    assert g.conferir(d) == [] and len(d) >= 1200
+    js = open(os.path.join(SITE, "i18n_en.js"), encoding="utf-8").read()
+    assert json.loads(js[js.index("=") + 1:js.rindex(";")]) == d, "site/i18n_en.js desatualizado: rode tools/gerar_i18n.py"
+    assert all(v.strip() for v in d.values())
+
+
+@precisa_node
+def test_traducao_formata_numeros_restaura_e_nao_toca_em_campos():
+    o = _node(r"""
+    const D = { 'Em # km a margem é de # dB': 'At # km the margin is # dB', 'Olá': 'Hello', '@title:Ajuda': '@title:Help', 'Só # aqui': 'Only here' };
+    global.window = { LEGUA_EN: D, localStorage: { getItem: () => null, setItem: () => {} }, navigator: { language: 'pt-BR' } };
+    const I = require(process.argv[1] + '/i18n.js');
+    const set = (k, v) => D[k] = v;
+    console.log(JSON.stringify({ a: I.traduzTexto('Em 1.234,5 km a margem é de 3,25 dB'), b: I.traduzTexto('  Em 5 km a margem é de 0,5 dB '), c: I.traduzTexto('Olá'), d: I.traduzTexto('Texto sem tradução'),
+      e: I.traduzTexto('Só 1 aqui'), f: I.traduzTexto('Em 5 km a margem é de dB'), conv: ['1.234,5', '3,5', '42', '12.345.678,9'].map(I.converte), loc: I.locale() }));
+    """)
+    assert o["a"] == "At 1,234.5 km the margin is 3.25 dB" and o["b"] == "  At 5 km the margin is 0.5 dB "      # números e espaços preservados
+    assert o["c"] == "Hello" and o["d"] is None and o["f"] is None                                                # sem tradução ou com marcadores que não casam: não toca
+    assert o["conv"] == ["1,234.5", "3.5", "42", "12,345,678.9"] and o["loc"] == "pt-BR"

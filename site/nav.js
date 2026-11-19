@@ -71,6 +71,14 @@
     barra.appendChild(lista);
     var tb = el("button", { "class": "btn", id: "theme", type: "button", "aria-label": "Alternar tema claro e escuro", text: "Tema" });
     tema(tb); barra.appendChild(tb);
+    var I = root.LeguaI18n;
+    if (I) {
+      var idi = el("button", { "class": "btn", id: "idioma", type: "button", "data-i18n": "skip", "aria-label": "Português / English", text: I.atual() === "en" ? "Language: EN" : "Idioma: PT-BR" });
+      idi.title = I.atual() === "en" ? "Mudar para português do Brasil (Switch to Brazilian Portuguese)" : "Switch to English (Mudar para inglês)";
+      idi.addEventListener("click", function () { I.definir(I.atual() === "en" ? "pt" : "en"); });
+      barra.appendChild(idi);
+      if (!I.__ligado) { I.__ligado = true; I.aoMudar(function (l) { var b = doc.getElementById("idioma"); if (b) { b.textContent = l === "en" ? "Language: EN" : "Idioma: PT-BR"; b.title = l === "en" ? "Mudar para português do Brasil (Switch to Brazilian Portuguese)" : "Switch to English (Mudar para inglês)"; } }); }
+    }
     host.appendChild(barra);
 
     var sub = el("nav", { "class": "tabs", id: "tabs", role: "tablist", "aria-label": g.t });
@@ -92,6 +100,7 @@
     });
     host.appendChild(sub);
     host.appendChild(el("p", { "class": "gnav-desc", text: g.d }));
+    if (I && I.atual() === "en") { I.aviso(); I.aplica(host); }
     if (op.ativo) lembrar(g.id, op.ativo);
   }
 
@@ -111,6 +120,11 @@
     n.appendChild(v.ant ? lk(v.ant, "← " + v.ant.t, "ant") : el("span"));
     n.appendChild(v.prox ? lk(v.prox, v.prox.t + " →", "prox") : el("span"));
     return n;
+  }
+
+  /* idioma: o dicionário já foi carregado; aplica a escolha salva depois que a página montar */
+  if (root.LeguaI18n && doc && typeof module === "undefined") {
+    if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", function () { root.LeguaI18n.iniciar(); }); else setTimeout(function () { root.LeguaI18n.iniciar(); }, 0);
   }
 
   /* uso offline: registra o service worker (só em https ou localhost; o sw.js guarda apenas arquivos do próprio site) */

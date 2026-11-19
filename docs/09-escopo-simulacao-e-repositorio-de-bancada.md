@@ -232,6 +232,26 @@ terceiros são modelos nossos e que o BR-2026 está nao_verificado).
   Fonte de elevação e mapa (fases 3 e 4 do relatório de pesquisa) só entram com consentimento explícito e depois de
   testar o CORS num navegador real. É ferramenta de análise: não toca em rádio nem em bancada.
 
+### 7.2 Ferramentas para pesquisadores e desenvolvedores (19/11/2026)
+
+Tudo no navegador, sem servidor; nada com coordenadas, chaves ou rastros brutos sai da máquina. Cada ferramenta tem teste (`simsuite/tests/test_ferramentas_site.py` para a lógica, `test_site_dom.py` para a tela) e, onde há referência em Python, teste de paridade.
+
+| Ferramenta | Onde | O que faz | Limite |
+|---|---|---|---|
+| Citar e reproduzir | barra no fim de cada aba de resultados; `site/citar.js`, `CITATION.cff` | texto de citação, BibTeX, comando que reproduz os números, dados brutos da aba em JSON e tabelas em CSV, com versão do núcleo, escala, commit e data | sementes: as da suíte (determinísticas); o commit pode estar atrás do HEAD se os dados não foram regenerados |
+| Nível de evidência | faixa no topo de cada aba; `site/evidencia.js` | níveis 0 (simulação estimada) a 3 (medido em hardware), com o que sustenta cada seção | nenhum resultado chega ao nível 3; os níveis são julgamento do projeto, listados no código |
+| Calculadoras | aba "Calculadoras"; `calculadoras.js` | tempo no ar (960 combinações iguais ao Python), sensibilidade, perda máxima de percurso, ciclo de trabalho, bateria, plano de canais e regra de salto BR-2026 | consumo e sensibilidade estimados; BR-2026 `nao_verificado` |
+| Pacotes | aba "Pacotes"; `pacote.js` | decodifica e gera quadros v0 (48 vetores iguais ao `wire.py`), explica campo a campo, confere o MIC **de teste**; baixa `frames.txt` e `mic.txt` | não confere AES-CMAC real: a chave nunca deve ser digitada numa página |
+| Medições | aba "Medições"; `medicoes.js` | CSV de campo -> perda de percurso (pl1km, n, σ, erro-padrão; igual ao numpy) e limiar de SNR por SF (curva logística com bootstrap), com gráfico contra o modelo atual e `calibracao.json` aceito pelo importador | recusa colunas de localização; poucas medições ou pouca variação de distância dão incerteza grande (avisado) |
+| Sensibilidade | aba "Sensibilidade"; `sensibilidade.js` | tornado (11 parâmetros) e Monte Carlo com semente fixa sobre o estimador | as faixas de variação são do usuário |
+| Rastros | aba "Rastros"; `rastros.js` | JSONL de telemetria: linha do tempo de modos por nó, rollbacks, reboots, resync, filtro e busca | remove lat, lon, alt e GNSS na leitura e na exportação |
+| Especificação | aba "Especificação"; `tools/build_docs.py` -> `site/especificacao.js` | `docs/05`, `06`, `07`, `08`, `09` e `11` com índice e busca em todos | regenerar com `tools/build_docs.py` ao mudar esses docs (um teste confere) |
+| Cobertura em área | cartão no testador (modo "Mapa"); `cobertura.js` | margem em grade em volta de um ponto sobre o terreno real (P.526-16), área por limiar e alcance por rumo | mesmo modelo otimista do testador; só baixa a elevação ao clicar |
+| Uso offline | `manifest.webmanifest`, `sw.js` | PWA: funciona sem rede depois da primeira visita | só guarda arquivos do próprio site; tiles do OSM e da AWS nunca passam pelo cache; um teste confere que todo arquivo do site está na lista |
+| Idioma PT-BR / EN | botão na barra; `i18n.js`, `i18n_en.js` | troca sem recarregar e sem refazer a tela: só reescreve os textos já no DOM (e os novos), então campos digitados, pontos do mapa, abas e resultados ficam como estão; números reformatados (1.234,5 vira 1,234.5); voltar ao português restaura os originais | **tradução parcial**: 1298 textos (dicionário `tools/i18n/en.tsv`, gerado por `tools/gerar_i18n.py`). Na extração de 19/11/2026 (`tools/extrair_textos.js`): 89% das ocorrências de texto e 69% dos caracteres. Testador, ferramentas e guia estão 95 a 100% em inglês; as explicações longas das abas de resultados (20 a 60% dos caracteres) e o consolidado (26%) seguem em português, e o modo inglês avisa isso |
+
+Para ampliar a tradução: rodar `NODE_PATH=<node_modules do jsdom> node tools/extrair_textos.js saida.json`, acrescentar as chaves novas ao `tools/i18n/en.tsv` (português com números trocados por `#`, tab, inglês com os `#` na mesma ordem) e rodar `tools/gerar_i18n.py`, que recusa marcadores que não casam.
+
 ## 8. Núcleo C: Fase 2 e equivalência com o simulador
 
 **O que o núcleo C faz agora** (`core/src/endpoint.c`, 15/11/2026): descoberta (HELLO), negociação
