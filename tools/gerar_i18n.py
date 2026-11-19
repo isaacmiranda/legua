@@ -44,8 +44,8 @@ def conferir(d):
     return erros
 
 
-def importar(arquivos):
-    chaves = json.load(open(CHAVES, encoding="utf-8"))
+def importar(arquivos, chaves_json=CHAVES):
+    chaves = json.load(open(chaves_json, encoding="utf-8"))
     d = ler_tsv() if os.path.exists(TSV) else {}
     for a in arquivos:
         for l in open(a, encoding="utf-8").read().split("\n"):
@@ -72,6 +72,8 @@ def gerar(d):
 def main(argv):
     if argv[:1] == ["--importar"]:
         d = importar(argv[1:])
+    elif argv[:1] == ["--importar2"]:                      # segunda lista de chaves (tools/i18n/chaves2.json)
+        d = importar(argv[1:], os.path.join(RAIZ, "tools", "i18n", "chaves2.json"))
     else:
         d = ler_tsv()
     erros = conferir(d)

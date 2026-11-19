@@ -79,7 +79,7 @@
     var a = doc.getElementById("i18n-aviso");
     if (lang === "en" && !a && doc.body) {
       a = doc.createElement("p"); a.id = "i18n-aviso"; a.className = "gnav-desc sem-impressao"; a.setAttribute("role", "note"); a.setAttribute("lang", "en");
-      a.textContent = "English view: the interface, tools and forms are translated. Some long technical explanations and the consolidated report are still only in Portuguese. Your inputs and results are unchanged when you switch language.";
+      a.textContent = "English view: the interface, explanations, tools and the consolidated report are translated. Identifiers, trace examples and some text built from variable names stay as they are. Your inputs and results are unchanged when you switch language.";
       var g = doc.getElementById("gnav"); if (g) g.appendChild(a); else doc.body.insertBefore(a, doc.body.firstChild);
     } else if (lang !== "en" && a) a.parentNode.removeChild(a);
   }
