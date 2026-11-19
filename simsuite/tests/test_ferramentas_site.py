@@ -266,3 +266,30 @@ def test_pwa_service_worker_lista_todos_os_arquivos_e_nao_toca_em_outras_origens
     for pagina in ("index.html", "enlace.html", "consolidado.html"):
         h = open(os.path.join(SITE, pagina), encoding="utf-8").read()
         assert 'rel="manifest"' in h and 'name="theme-color"' in h, pagina
+
+
+@precisa_node
+def test_cobertura_em_area_fisica_basica_morro_e_tiles():
+    o = _node(r"""
+    global.LeguaPropagacao = require(process.argv[1] + '/propagacao.js');
+    const C = require(process.argv[1] + '/cobertura.js'), TR = require(process.argv[1] + '/terrarium.js');
+    const centro = { lat: -22.9, lon: -43.2 };
+    const plano = (la, lo) => ({ ok: true, v: 100 });
+    const p = { centro, raioKm: 5, n: 21, hTx: 10, hRx: 3, k: 4 / 3, pDbm: 14, ganhos: 3.3, extraDb: 0, sensDbm: -131 };
+    const g = C.grade(plano, p), g2 = C.grade(plano, p);
+    const lin = (j, i) => g.margem[j * 21 + i], meio = 10;
+    // morro de 150 m a ~2 km a leste do centro
+    const morro = (la, lo) => ({ ok: true, v: 100 + 150 * Math.exp(-Math.pow(C.haversineKm(centro, { lat: -22.9, lon: -43.18 }) * 0 + C.haversineKm({ lat: la, lon: lo }, { lat: -22.9, lon: -43.18 }), 2) / (2 * 0.35 * 0.35)) });
+    const gm = C.grade(morro, p), r = C.resumo(g, p), rm = C.resumo(gm, p);
+    const semTile = C.grade((la, lo) => ({ ok: false, falta: 'tile' }), p);
+    console.log(JSON.stringify({ perto: lin(meio, meio + 2), longe: lin(meio, 20), igual: JSON.stringify(Array.from(g.margem)) === JSON.stringify(Array.from(g2.margem)), centroNaN: Number.isNaN(lin(meio, meio)),
+      leste_plano: lin(meio, 16), leste_morro: gm.margem[meio * 21 + 16], oeste_morro: gm.margem[meio * 21 + 4], oeste_plano: lin(meio, 4),
+      area0: r.area[0], area0m: rm.area[0], rumos: r.rumos.length, alc_plano: r.rumos[4].alcanceKm, alc_morro_leste: rm.rumos[4].alcanceKm, semTile: semTile.semTile, tudoNaN: Array.from(semTile.margem).every(Number.isNaN),
+      cores: [C.cor(-3)[0], C.cor(5)[1], C.cor(15)[1], C.cor(30)[1], C.cor(NaN)[3]], d: C.destino(0, 0, 90, 111.195).lon,
+      t5: TR.tilesDaArea(centro, 5, 12).tiles.length, t60: TR.tilesDaArea(centro, 60, 12).erro }));
+    """)
+    assert o["igual"] and o["centroNaN"] and o["perto"] > o["longe"] > -60                  # a margem cai com a distância
+    assert o["leste_morro"] < o["leste_plano"] - 8 and o["oeste_morro"] == pytest.approx(o["oeste_plano"], abs=0.5)   # o morro sombreia só o lado dele
+    assert o["area0m"] < o["area0"] and o["rumos"] == 16 and o["alc_morro_leste"] <= o["alc_plano"]
+    assert o["semTile"] and o["tudoNaN"] and o["cores"] == [200, 140, 210, 170, 0] and o["d"] == pytest.approx(1.0, abs=2e-3)
+    assert 4 <= o["t5"] <= 9 and "máximo 64" in o["t60"]

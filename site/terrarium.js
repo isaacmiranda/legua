@@ -99,6 +99,29 @@
     });
   }
   function carregar(a, b, z, buscar) { return carregarSaltos([[a, b]], z, buscar); }
+  /* Tiles que cobrem um quadrado de lado 2 x raioKm em volta do centro (para a cobertura em área); { tiles } ou { erro }. */
+  function tilesDaArea(centro, raioKm, z) {
+    z = z || Z_PADRAO;
+    if (!isFinite(centro.lat) || !isFinite(centro.lon) || Math.abs(centro.lat) > 84) return { erro: "ponto inválido para a cobertura" };
+    var dlat = raioKm / 111.195, dlon = raioKm / (111.195 * Math.cos(centro.lat * Math.PI / 180)), n = Math.pow(2, z), a = tileXY(centro.lat + dlat, centro.lon - dlon, z), b = tileXY(centro.lat - dlat, centro.lon + dlon, z);
+    var x0 = Math.floor(a.x - 1 / TAM), x1 = Math.floor(b.x + 1 / TAM), y0 = Math.max(0, Math.floor(a.y - 1 / TAM)), y1 = Math.min(n - 1, Math.floor(b.y + 1 / TAM)), tiles = [], x, y;
+    for (y = y0; y <= y1; y++) for (x = x0; x <= x1; x++) tiles.push({ z: z, x: ((x % n) + n) % n, y: y });
+    if (tiles.length > MAX_TILES_TOTAL) return { erro: "A área pede " + tiles.length + " pedaços de elevação (máximo " + MAX_TILES_TOTAL + "). Reduza o raio." };
+    return { tiles: tiles };
+  }
+  function carregarArea(centro, raioKm, z, buscar) {
+    var r = tilesDaArea(centro, raioKm, z);
+    if (r.erro) return Promise.resolve({ erro: r.erro });
+    var mapa = {}, fila = r.tiles.slice(), falhas = [], total = fila.length, zz = r.tiles[0].z;
+    function um() {
+      var t = fila.shift(); if (!t) return Promise.resolve();
+      return Promise.resolve().then(function () { return buscar(urlTile(t.z, t.x, t.y)); }).then(function (d) { if (d) mapa[t.z + "/" + t.x + "/" + t.y] = d; else falhas.push(t.x + "/" + t.y); }, function (e) { falhas.push(t.x + "/" + t.y + " (" + (e && e.message ? e.message : "falha") + ")"); }).then(um);
+    }
+    return Promise.all([um(), um()]).then(function () {
+      if (falhas.length) return { erro: "Não consegui baixar a elevação da área (" + falhas.length + " de " + total + " pedaços). Tente de novo, reduza o raio ou use um arquivo .hgt. Detalhe técnico: " + falhas.slice(0, 2).join(", ") };
+      return { fonte: fonte(mapa, zz), n_tiles: total, z: zz };
+    });
+  }
 
   /* Mapa de relevo sem rede extra: pinta, com os mesmos tiles já baixados, a altitude em rampa de cor com sombreado
    * (luz de noroeste) na caixa em volta dos pontos A e B. Devolve { w, h, rgba, lat0, lat1, lon0, lon1, min, max } ou
@@ -144,7 +167,7 @@
     });
   }
 
-  var api = { urlTile: urlTile, tileXY: tileXY, tilesDoCaminho: tilesDoCaminho, decodificar: decodificar, fonte: fonte, relevo: relevo, carregar: carregar, carregarSaltos: carregarSaltos,
+  var api = { urlTile: urlTile, tileXY: tileXY, tilesDoCaminho: tilesDoCaminho, decodificar: decodificar, fonte: fonte, relevo: relevo, carregar: carregar, carregarSaltos: carregarSaltos, tilesDaArea: tilesDaArea, carregarArea: carregarArea,
     buscarNoNavegador: buscarNoNavegador, Z_PADRAO: Z_PADRAO, MAX_TILES: MAX_TILES, BASE: BASE };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.LeguaTerrarium = api;
 })(typeof window !== "undefined" ? window : this);

@@ -698,3 +698,38 @@ def test_aba_especificacao_indice_busca_e_troca_de_documento(tmp_path):
     assert not o["erros"], o["erros"]
     assert o["titulos"] >= 5 and o["toc"] >= 5 and o["tabela"] and o["achou"] and "docs/07" in o["achou"][0] + " ".join(o["achou"])
     assert o["doc8"] and o["nada"]
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_cobertura_em_area_so_baixa_ao_clicar_e_mostra_resumo(tmp_path):
+    js = JS_ROTA.split("(async () => {")[0].replace("#terreno=mapa", "#terreno=mapa") + r"""(async () => {
+  await espera(500);
+  const preenche = (r, v) => { const i = inputs(r)[0]; i.value = v; i.dispatchEvent(new w.Event("input")); };
+  for (let k = 0; k < 2; k++) { d.getElementById("add-ponto").click(); await espera(30); }
+  const la = inputs("Latitude do ponto"), lo = inputs("Longitude do ponto");
+  digita(la[0], "-22.9"); digita(lo[0], "-43.2"); digita(la[1], "-22.9"); digita(lo[1], "-43.12"); await espera(300);
+  w.LeguaTerrariumBuscar = (url) => { out.urls.push(url); const x = new Float32Array(65536); x.fill(120); return Promise.resolve(x); };
+  out.card_antes = [...d.querySelectorAll(".card h2")].map(h => h.textContent).find(t => /Cobertura em área/.test(t)) || null;
+  out.urls_antes = out.urls.length;
+  d.getElementById("cob-calcula").click(); await espera(1500);
+  out.status = d.getElementById("cob-status").textContent; out.urls_depois = out.urls.length;
+  out.canvas = !!d.querySelector("canvas.mapa-cobertura");
+  const card = [...d.querySelectorAll(".card")].find(c => /Cobertura em área/.test((c.querySelector("h2") || {}).textContent || ""));
+  out.texto = card ? card.textContent : "";
+  out.hash = w.location.hash;
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+    f = tmp_path / "cob_dom.js"
+    f.write_text(js)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert o["card_antes"] and o["urls_antes"] == 0                           # o cartão existe, mas nada é baixado antes do clique
+    assert "Cobertura calculada" in o["status"] and 1 <= o["urls_depois"] <= 12 and o["canvas"]
+    assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") for u in o["urls"])
+    assert "área com margem ≥ 0 dB" in o["texto"] and "alcance mediano" in o["texto"]
+    assert "22.9" not in o["hash"] and "43.2" not in o["hash"]

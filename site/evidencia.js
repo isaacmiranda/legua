@@ -30,7 +30,7 @@
     sensib: { nivel: 1, itens: ["Tornado e Monte Carlo sobre o estimador analítico, conferido contra o simulador", "As faixas de variação são suas; a incerteza real vem da bancada"], ref: "docs/09 §7" },
     rastros: { nivel: 1, itens: ["Leitura e resumo conferidos contra a contagem em Python; localização removida por teste", "Mostra o que o rastro registrou, não o que o hardware fez fora do registro"], ref: "docs/08" },
     modos: { nivel: 1, itens: ["Tabela de modos conferida pelos testes de tempo no ar", "Perfil BR-2026: nao_verificado"], ref: "docs/05" },
-    enlace: { nivel: 2, itens: ["Difração pela ITU-R P.526-16, comparada com o ITM da NTIA em 44 perfis (testador ~11 dB otimista em média)", "Sem medição de campo"], ref: "docs/09 §7.1" }
+    enlace: { nivel: 2, itens: ["Difração pela ITU-R P.526-16, comparada com o ITM da NTIA em 44 perfis (testador ~11 dB otimista em média)", "Cobertura em área: mesmo modelo, otimista frente ao ITM", "Sem medição de campo"], ref: "docs/09 §7.1" }
   };
   var COR = ["warn", "ok", "ok", "ok"];
 

@@ -7,7 +7,7 @@
   var app = document.getElementById("app");
 
   var st = { terreno: "mapa", d: 5.0, base: 100, morro_h: 60, morro_pos: 50, morro_w: 0.8, csv: "", hTx: 10, hRx: 10, k: "1.3333", p: 20, gTx: 2.15, gRx: 2.15, lTx: 0.5, lRx: 0.5,
-    extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], tiles: null, tilesMsg: "", consente: false, buscando: false, env: "rural_aberto", modelo: "p526", pontos: [], salto: 0, consenteMapa: false, sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
+    extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], tiles: null, tilesMsg: "", consente: false, buscando: false, env: "rural_aberto", modelo: "p526", cob: { raio: 5, n: 41, fonte: null, res: null, msg: "", sig: "", ocupado: false }, pontos: [], salto: 0, consenteMapa: false, sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
   var PADRAO = JSON.parse(JSON.stringify(st));                 // estado inicial, para “Restaurar padrões”
   var CHAVES = ["terreno", "d", "base", "morro_h", "morro_pos", "morro_w", "hTx", "hRx", "k", "p", "gTx", "gRx", "lTx", "lRx", "extra", "env", "modelo", "sf", "bw", "cr", "alvo", "retries", "interval", "load"];
   var NUM = { d: [0.05, 40], base: [-400, 8000], morro_h: [0, 1500], morro_pos: [0, 100], morro_w: [0.05, 20], hTx: [0.5, 100], hRx: [0.5, 100], p: [-9, 28], gTx: [-5, 15], gRx: [-5, 15],
@@ -325,6 +325,46 @@
     }
     return cartao("Mapa de relevo", [cv, el("p", { class: "note", text: "Altitude de " + nf(r.min, 0) + " (verde) a " + nf(r.max, 0) + " m (branco), com sombreado; cada ponto da imagem tem cerca de " + nf(r.km_por_px * 1000, 0) + " m. Feito só com os tiles já baixados: nenhuma outra requisição, sem mapa-base de terceiros. Dados: Terrain Tiles da AWS Open Data." })]);
   }
+  /* cobertura em área a partir do ponto de partida do salto em detalhe, no modo e na potência escolhidos */
+  function cartaoCobertura(A, inp) {
+    var c0 = st.pontos[st.salto]; if (!pontoOk(c0) || !window.LeguaCobertura) return null;
+    var C = window.LeguaCobertura, cob = st.cob, e = A.estimativa;
+    var par = { centro: { lat: c0.lat, lon: c0.lon }, raioKm: cob.raio, n: cob.n, hTx: inp.hTx, hRx: inp.hRx, k: inp.k, pDbm: inp.p_dbm, ganhos: inp.gTx - inp.lTx + inp.gRx - inp.lRx, extraDb: inp.extra_db, sensDbm: e.sens_dbm };
+    var assin = [par.hTx, par.hRx, par.k, par.pDbm, par.ganhos, par.extraDb, par.sensDbm.toFixed(2), cob.raio, cob.n, st.modelo, st.salto, c0.lat.toFixed(5), c0.lon.toFixed(5)].join("|");
+    var status = el("span", { class: "sub", role: "status", "aria-live": "polite", id: "cob-status", text: cob.msg });
+    var bt = el("button", { type: "button", class: "btn", id: "cob-calcula", text: cob.res ? "Atualizar cobertura" : "Calcular cobertura" });
+    bt.disabled = cob.ocupado;
+    function seletor(rot, chave, ops) { var sl = el("select", { "aria-label": rot }); ops.forEach(function (o) { var x = el("option", { value: o[0], text: o[1] }); if (+o[0] === +cob[chave]) x.selected = true; sl.appendChild(x); }); sl.addEventListener("change", function () { cob[chave] = +sl.value; cob.fonte = null; cob.res = null; cob.msg = ""; agenda(); }); return fld(rot, sl); }
+    function calcula() {
+      cob.res = { g: C.grade(cob.fonte.fonte, par), par: par }; cob.res.r = C.resumo(cob.res.g, par, [0, 10, 20]); cob.sig = assin; cob.ocupado = false;
+      cob.msg = cob.res.g.semTile ? "Parte da área ficou sem elevação (fora dos tiles baixados): clique em Atualizar." : "Cobertura calculada sobre " + cob.fonte.n_tiles + " pedaços de elevação."; agenda();
+    }
+    bt.addEventListener("click", function () {
+      if (cob.ocupado) return; cob.ocupado = true; cob.msg = "Baixando a elevação da área e calculando…"; status.textContent = cob.msg; bt.disabled = true;
+      var buscar = window.LeguaTerrariumBuscar || TR.buscarNoNavegador;
+      if (cob.fonte && cob.fonte.centro === par.centro.lat + "," + par.centro.lon && cob.fonte.raio === cob.raio) { setTimeout(calcula, 20); return; }
+      TR.carregarArea(par.centro, cob.raio, TR.Z_PADRAO, buscar).then(function (r) {
+        if (r.erro) { cob.ocupado = false; cob.msg = r.erro; cob.res = null; agenda(); return; }
+        cob.fonte = { fonte: r.fonte, n_tiles: r.n_tiles, centro: par.centro.lat + "," + par.centro.lon, raio: cob.raio }; setTimeout(calcula, 20);
+      });
+    });
+    var kids = [el("p", { class: "note", text: "Margem de enlace em cada ponto de uma grade em volta de " + window.LeguaMapa.rotulo(st.salto) + ", com o modo, a potência e as antenas escolhidos, sobre o terreno real (difração pela P.526-16). É uma estimativa otimista (modelo de superfície, sem vegetação nem prédios): use para comparar posições e achar sombras, não para prometer cobertura." }),
+      el("div", { class: "form" }, [seletor("Raio", "raio", [[2, "2 km"], [5, "5 km"], [10, "10 km"], [20, "20 km"]]), seletor("Resolução", "n", [[31, "baixa (31×31)"], [41, "média (41×41)"], [61, "alta (61×61)"]])]),
+      el("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, [bt, status]),
+      el("details", { class: "sub", style: "margin-top:4px" }, [el("summary", { style: "cursor:pointer", text: "O que é enviado?" }), el("p", { class: "note", text: "Ao clicar, o navegador baixa da AWS os tiles de elevação do quadrado em volta do ponto (até uns 40 km de lado). O servidor vê os números dos tiles, que mostram a região, e o seu IP; as coordenadas exatas não são enviadas." })])];
+    if (cob.res) {
+      var r = cob.res.r, g = cob.res.g, n = g.n, scale = Math.max(4, Math.floor(480 / n)), cv = el("canvas", { width: String(n * scale), height: String(n * scale), role: "img", class: "mapa-cobertura", style: "max-width:100%;height:auto;border:1px solid var(--border)",
+        "aria-label": "Mapa de margem de enlace em volta do ponto " + window.LeguaMapa.rotulo(st.salto) + ": verde com 20 dB ou mais, amarelo de 10 a 20, laranja de 0 a 10, vermelho sem enlace." });
+      var cx = cv.getContext && cv.getContext("2d");
+      if (cx) { var im = cx.createImageData(n * scale, n * scale), j, i, y, x; for (j = 0; j < n; j++) for (i = 0; i < n; i++) { var col = C.cor(g.margem[j * n + i]); for (y = 0; y < scale; y++) for (x = 0; x < scale; x++) { var o = (((j * scale + y) * n * scale) + i * scale + x) * 4; im.data[o] = col[0]; im.data[o + 1] = col[1]; im.data[o + 2] = col[2]; im.data[o + 3] = col[3]; } }
+        cx.putImageData(im, 0, 0); cx.fillStyle = "#111"; cx.beginPath(); cx.arc(n * scale / 2, n * scale / 2, 5, 0, 7); cx.fill(); cx.fillStyle = "#fff"; cx.font = "bold 11px sans-serif"; cx.fillText(window.LeguaMapa.rotulo(st.salto), n * scale / 2 + 8, n * scale / 2 - 6); }
+      var al = r.rumos.map(function (q) { return q.alcanceKm; }).sort(function (a, b) { return a - b; });
+      kids.push(cv);
+      kids.push(el("div", { class: "stats" }, [stat(nf(r.area[0], 1) + " km²", "área com margem ≥ 0 dB"), stat(nf(r.area[10], 1) + " km²", "área com margem ≥ 10 dB"), stat(nf(r.area[20], 1) + " km²", "área com margem ≥ 20 dB"), stat(nf(al[8], 1) + " km", "alcance mediano entre 16 rumos"), stat(nf(al[0], 1) + " a " + nf(al[15], 1) + " km", "alcance mínimo e máximo por rumo")]));
+      kids.push(el("p", { class: "note", text: "Verde: margem de 20 dB ou mais; amarelo: 10 a 20; laranja: 0 a 10; vermelho: sem enlace; transparente: sem dado. O alcance por rumo vai até a última célula com margem ≥ 0 dB (limitado ao raio escolhido)." + (cob.sig !== assin ? " Os parâmetros mudaram desde o cálculo: clique em Atualizar." : "") }));
+    }
+    return cartao("Cobertura em área a partir do ponto " + window.LeguaMapa.rotulo(st.salto), kids);
+  }
   /* cadeia de saltos: um enlace por par de pontos seguidos, com o mesmo rádio e o mesmo modo; mostra o salto mais fraco e
    * os modos que atendem o alvo em todos os saltos. Sem coordenadas na saída (só distâncias e dB). */
   function cartaoRota(inpBase) {
@@ -414,7 +454,8 @@
     var rota = st.terreno === "mapa" && st.pontos.length > 2 ? cartaoRota(inp) : null;
     [resposta, rota].forEach(function (n) { if (n) hostRes.appendChild(n); });
     if (grafico) hostPerfil.appendChild(grafico);
-    [mapa, tab, cont].forEach(function (n) { if (n) hostDet.appendChild(n); });
+    var cobertura = st.terreno === "mapa" ? cartaoCobertura(A, inp) : null;
+    [mapa, cobertura, tab, cont].forEach(function (n) { if (n) hostDet.appendChild(n); });
     sincroniza();
   }
 

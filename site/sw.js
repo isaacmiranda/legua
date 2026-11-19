@@ -9,7 +9,7 @@ var ARQUIVOS = [
   "data.js", "app.js", "nav.js", "citar.js", "evidencia.js", "explica.js", "estimator.js", "perfil_c.js",
   "calculadoras.js", "calc_ui.js", "pacote.js", "pacote_ui.js", "medicoes.js", "medicoes_ui.js", "sensibilidade.js", "sensibilidade_ui.js",
   "rastros.js", "rastros_ui.js", "spec_ui.js", "especificacao.js",
-  "propagacao.js", "terreno.js", "terrarium.js", "mapa.js", "enlace.js", "enlace_pagina.js",
+  "propagacao.js", "terreno.js", "terrarium.js", "mapa.js", "cobertura.js", "enlace.js", "enlace_pagina.js",
   "vetores/frames.txt", "vetores/mic.txt"
 ];
 
