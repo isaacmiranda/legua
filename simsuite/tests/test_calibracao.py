@@ -117,3 +117,50 @@ def test_arquivo_modelo_valida_e_nao_muda_nada():
     with C.aplicar(cal):
         assert _sens_base() == antes
     assert all(a == v for _n, a, v, _u in C.descrever(cal, cs))
+
+
+def test_variantes_deslocam_no_sentido_que_piora_e_respeitam_as_faixas():
+    cal = copy.deepcopy(CAL)
+    for ent in cal["constantes"].values():
+        ent["incerteza"] = 0.5
+    pes, oti = C.variantes(cal)
+    k = cal["constantes"]
+    assert pes["constantes"]["nf_db"]["valor"] == pytest.approx(k["nf_db"]["valor"] + 0.5) and oti["constantes"]["nf_db"]["valor"] == pytest.approx(k["nf_db"]["valor"] - 0.5)
+    for sf, v in k["snr_thr"]["valor"].items():                          # limiar de SNR maior = enlace pior
+        assert pes["constantes"]["snr_thr"]["valor"][sf] == pytest.approx(v + 0.5) and oti["constantes"]["snr_thr"]["valor"][sf] == pytest.approx(v - 0.5)
+    for amb, c in k["canal"]["valor"].items():                           # perda a 1 km e expoente maiores = pior; sigma não decide o enlace
+        assert pes["constantes"]["canal"]["valor"][amb]["pl1km"] == pytest.approx(c["pl1km"] + 0.5) and pes["constantes"]["canal"]["valor"][amb].get("sigma_static") == c.get("sigma_static")
+        assert oti["constantes"]["canal"]["valor"][amb]["n"] == pytest.approx(c["n"] - 0.5)
+    assert pes["constantes"]["per_slope_db"] == k["per_slope_db"] and pes["id"].endswith("-pessimista") and oti["id"].endswith("-otimista")
+    C.validar(pes), C.validar(oti)                                       # as variantes continuam válidas
+    grande = copy.deepcopy(cal)
+    for ent in grande["constantes"].values():
+        ent["incerteza"] = 50.0                                          # incerteza absurda: os valores são limitados às faixas válidas
+    p2, o2 = C.variantes(grande)
+    C.validar(p2), C.validar(o2)
+
+
+def test_propagar_incerteza_gera_faixas_e_resumo(tmp_path):
+    sys.path.insert(0, os.path.join(RAIZ, "tools"))
+    import propagar_incerteza as P
+    est, mud = P.faixas({"a": {"x": 1.0, "y": [2.0, 5.0]}, "z": "t"}, {"a": {"x": 1.5, "y": [2.0, 4.0]}, "z": "t"}, {"a": {"x": 0.5, "y": [2.0, 6.0]}, "z": "t"})
+    assert est["a"]["x"] == {"nom": 1.0, "min": 0.5, "max": 1.5} and est["a"]["y"][0] == 2.0 and est["a"]["y"][1] == {"nom": 5.0, "min": 4.0, "max": 6.0} and est["z"] == "t"
+    assert [m[0] for m in mud] == ["/a/x", "/a/y[1]"]
+    cal = copy.deepcopy(CAL)
+    for ent in cal["constantes"].values():
+        ent["incerteza"] = 0.5
+    arq = tmp_path / "cal.json"
+    arq.write_text(json.dumps(cal))
+    saida = tmp_path / "inc"
+    assert P.main([str(arq), "--escala", "quick", "--so", "modos", "--saida", str(saida)]) == 0
+    resumo = (saida / "resumo.md").read_text()
+    assert "Não é intervalo de confiança" in resumo and "/modos" in resumo
+    f = json.load(open(saida / "faixas" / "modos.json"))
+    assert "não é intervalo de confiança" in f["aviso"]
+    sem = tmp_path / "sem.json"
+    zero = copy.deepcopy(CAL)
+    for ent in zero["constantes"].values():
+        ent["incerteza"] = 0.0
+    sem.write_text(json.dumps(zero))                                       # incerteza zero: recusa, em vez de gerar faixas vazias
+    with pytest.raises(SystemExit):
+        P.main([str(sem), "--escala", "quick", "--so", "modos", "--saida", str(tmp_path / "x")])

@@ -910,6 +910,9 @@ Margem de enlace em cada ponto de uma grade em volta de A, com o modo, a potênc
 Margem e entrega por modo	Margin and delivery per mode
 Marque dois pontos no mapa (um clique em cada ponta) ou digite as coordenadas, e a resposta aparece aqui. Com três ou mais pontos você analisa uma cadeia de saltos.	Mark two points on the map (one click at each end) or type the coordinates, and the answer appears here. With three or more points you analyze a chain of hops.
 Mecanismos (V, S)	Mechanisms (V, S)
+Estresses (X) →	Stresses (X) →
+← Estresses (X)	← Stresses (X)
+Estresses (X)	Stresses (X)
 Mecanismos (V, S) →	Mechanisms (V, S) →
 Mediana e p#, em segundos.	Median and p#, in seconds.
 Medida	Measure
@@ -1777,3 +1780,6 @@ xtal/# ppm	xtal/# ppm
 ← Validação cruzada	← Cross validation
 ← Verificação formal	← Formal verification
 ← Voltar	← Back
+
+Recolher ou abrir esta seção	Collapse or open this section
+↑ Índice	↑ Index

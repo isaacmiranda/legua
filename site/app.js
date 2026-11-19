@@ -707,6 +707,12 @@
         tss.map(function (t) { return [t.replace("ts", "") + " s"].concat(apps.map(function (a) { var r = S.celulas[dk][t][a]; return fmtPdr(r.pdr) + " · " + r.quedas_base + " quedas"; })); }),
         [false].concat(apps.map(function () { return true; }))));
     });
+    mount(panel, cards);
+  }
+
+  /* estresses do cenário X (relógio, perda assimétrica, desvanecimento lento, teto × fade_k): aba própria, separada das varreduras V e S */
+  function panelEstresses(panel) {
+    var cards = [];
     var X = d.X;
     if (X) {
       function cx(r) { return r.pdr < 0.02 ? "sem enlace" : fmtPdr(r.pdr) + " · " + nf(r.trocas_por_hora, 2) + " trocas/h · " + nf(r.rollbacks_por_hora, 2) + " rb/h"; }
@@ -1469,6 +1475,7 @@
     { id: "sintonia", t: "Sintonia (F7)", f: panelSintonia, need: ["F7"] },
     { id: "potencia", t: "Potência de TX", f: panelPotencia, need: ["P"] },
     { id: "mecanismos", t: "Mecanismos (V, S)", f: panelMecanismos, need: ["V", "S"] },
+    { id: "estresses", t: "Estresses (X)", f: panelEstresses, need: ["X"] },
     { id: "tetos", t: "Teto × cenários", f: panelTetos, need: [], anyScale: true },
     { id: "formal", t: "Verificação formal", f: panelFormal, need: ["formal"] },
     { id: "validacao", t: "Validação cruzada", f: panelValidacao, need: ["xsim", "equiv"] }, { id: "seg", t: "Segurança e regulação", f: panelSeguranca, need: ["B7", "B11"] },

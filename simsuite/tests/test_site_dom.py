@@ -282,7 +282,7 @@ def test_navegacao_em_duas_camadas_comum_as_tres_paginas(tmp_path):
     assert not o["erros"], o["erros"]
     assert o["acordo"]["secoes"] == ["Começar", "Desempenho", "Protocolo", "Garantias", "Ferramentas", "Referência"]
     assert o["acordo"]["atual"] == "Protocolo" and o["acordo"]["sel"] == "Acordo e falhas"        # o fragmento antigo continua valendo
-    assert o["acordo"]["sub"] == ["Acordo e falhas", "Mecanismos (V, S)", "Sintonia (F7)"] and "afinar" in o["acordo"]["desc"]
+    assert o["acordo"]["sub"] == ["Acordo e falhas", "Mecanismos (V, S)", "Estresses (X)", "Sintonia (F7)"] and "afinar" in o["acordo"]["desc"]
     assert o["acordo"]["passo"] == ["← Grupos e malha", "Mecanismos (V, S) →"]                # vizinhos na ordem do mapa, atravessando as seções
     assert o["garantias"]["atual"] == "Garantias" and o["garantias"]["sel"] == "Verificação formal" and "#formal" in o["garantias"]["hash"]
     assert o["seg"]["sel"] == "Segurança e regulação" and "#seg" in o["seg"]["hash"]
@@ -788,3 +788,34 @@ def test_troca_de_idioma_sem_recarregar_e_sem_perder_o_que_foi_digitado(tmp_path
     assert o["campos_iguais"] and o["aviso_en"] and o["nav_en"][:3] == ["Start", "Performance", "Protocol"] and o["aria_en"] and o["title_en"] == "Légua · Link tester"
     assert "Answer for this link" in o["resp_en"] and o["depois_mudar_en"]
     assert o["pt_h2_volta"] == o["pt_h2"] and o["lang_volta"] == "pt-BR" and o["title_volta"] == "Légua · Testador de enlaces" and o["campos_ainda"]    # volta ao original, com o estado intacto
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_sigla_abre_a_definicao_ao_toque_e_teclado_e_estresses_tem_aba_propria(tmp_path):
+    js = JS_PACOTE.replace("#pacote", "#campo").split("(async () => {")[0] + r"""(async () => {
+  await espera(800);
+  const ab = d.querySelector("#panel abbr[title]"); out.tem = !!ab; out.foco = ab && ab.tabIndex === 0 && ab.getAttribute("role") === "button";
+  ab.click(); await espera(60); out.aberta = ab.getAttribute("aria-expanded") === "true" && !!d.querySelector(".sigla-dica");
+  out.texto = (d.querySelector(".sigla-dica") || {}).textContent || "";
+  out.sem_recursao = d.querySelectorAll(".sigla-dica abbr").length === 0;
+  ab.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await espera(60); out.fechada = ab.getAttribute("aria-expanded") === "false" && !d.querySelector(".sigla-dica");
+  [...d.querySelectorAll(".gnav-sec")].find(a => a.textContent === "Protocolo").click(); await espera(150);
+  out.sub = [...d.querySelectorAll("#tabs .tab")].map(a => a.textContent);
+  d.querySelector('button.tab[data-id="estresses"]').click(); await espera(300);
+  out.estresses = [...d.querySelectorAll("#panel .card h2")].map(h => h.textContent).filter(t => /^Estresse/.test(t)).length;
+  d.querySelector('button.tab[data-id="mecanismos"]').click(); await espera(300);
+  out.mec_sem_estresse = [...d.querySelectorAll("#panel .card h2")].every(h => !/^Estresse/.test(h.textContent));
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+    f = tmp_path / "sigla_dom.js"
+    f.write_text(js)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["tem"] and o["foco"] and o["aberta"] and o["fechada"] and o["sem_recursao"] and len(o["texto"]) > 20
+    assert o["sub"] == ["Acordo e falhas", "Mecanismos (V, S)", "Estresses (X)", "Sintonia (F7)"] and o["estresses"] == 4 and o["mec_sem_estresse"]

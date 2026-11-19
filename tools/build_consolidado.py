@@ -413,7 +413,7 @@ secao("futuro", "Trabalhos futuros", f"""
 # ------------------------------------------------------------------ montagem
 hoje = datetime.date.today().isoformat()
 indice = "".join(f'<li><a href="#{s}">{esc(t)}</a></li>' for s, t, _ in secoes)
-corpo = "".join(f'<section class="card" id="{s}"><h2>{esc(t)}</h2>{c}</section>' for s, t, c in secoes)
+corpo = "".join(f'<section class="card" id="{s}"><h2>{esc(t)}</h2><details open><summary class="sem-impressao" style="cursor:pointer">Recolher ou abrir esta seção</summary>{c}</details><p class="sub sem-impressao"><a href="#indice">↑ Índice</a></p></section>' for s, t, c in secoes)
 pagina = f"""<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -443,7 +443,7 @@ pagina = f"""<!doctype html>
       <p class="sub">Achados, discussões e trabalhos futuros · gerado em {hoje} por <code>tools/build_consolidado.py</code></p>
     </div>
   </header>
-  <nav aria-label="Seções"><ol class="toc">{indice}</ol></nav>
+  <nav aria-label="Seções" id="indice"><ol class="toc">{indice}</ol></nav>
   {corpo}
   <footer>Só números de simulação, sem chaves, GNSS ou dados pessoais. Os gráficos e os dados completos estão em <a href="index.html">index.html</a>.</footer>
 </div>

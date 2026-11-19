@@ -21,6 +21,7 @@ Uso:
   python3 -m simsuite.run_suite --calibracao calibracao.json ...   # roda a suíte com ela (saída própria)
 """
 import contextlib
+import copy
 import json
 import sys
 
@@ -129,6 +130,54 @@ def descrever(cal, cs=None):
             for env, campos in v.items():
                 linhas += [(f"canal.{env}.{c}", channel_static.ENVS[env][c], x, unc) for c, x in campos.items()]
     return linhas
+
+
+# Sentido em que cada constante PIORA o enlace (+1: valor maior é pior; -1: valor menor é pior; 0: não decide o enlace).
+SENTIDO_PIOR = {"snr_thr": +1, "per_offset_db": +1, "nf_db": +1, "cr_gain_db": -1, "per_slope_db": 0, "i_tx_ma": 0}
+CANAL_PIOR = {"pl1km": +1, "n": +1, "sigma_static": 0}
+
+
+def _desloca(v, delta):
+    if isinstance(v, dict):
+        return {k: _desloca(x, delta) for k, x in v.items()}
+    if isinstance(v, (int, float)):
+        return v + delta
+    return v
+
+
+def variantes(cal):
+    """Duas cópias da calibração que carregam a incerteza para o resultado: `pessimista` (cada constante deslocada de uma
+    incerteza no sentido que piora o enlace) e `otimista` (no sentido oposto). Constantes que não decidem o enlace
+    (inclinação da curva, corrente de TX) e a variação entre locais (sigma) ficam como estão. Os valores deslocados são
+    limitados às faixas aceitas por `validar`. Devolve (pessimista, otimista); levanta CalibracaoInvalida se `cal` for inválida."""
+    validar(cal)
+    out = []
+    for nome, sinal in (("pessimista", +1), ("otimista", -1)):
+        c = copy.deepcopy(cal)
+        c["id"] = f"{cal['id']}-{nome}"
+        c["notas"] = f"Variante {nome} da calibração {cal['id']}: cada constante deslocada de uma incerteza no sentido que " + \
+            ("piora" if sinal > 0 else "melhora") + " o enlace. " + str(cal.get("notas", ""))
+        for k, ent in c["constantes"].items():
+            inc = float(ent.get("incerteza", 0.0))
+            if k == "canal":
+                for amb, campos in ent["valor"].items():
+                    for campo, v in list(campos.items()):
+                        d = sinal * CANAL_PIOR.get(campo, 0) * inc
+                        lo, hi = CANAL_CAMPOS[campo]
+                        campos[campo] = min(hi, max(lo, v + d))
+            else:
+                d = sinal * SENTIDO_PIOR.get(k, 0) * inc
+                if k in ESCALARES:
+                    lo, hi = ESCALARES[k][1], ESCALARES[k][2]
+                    ent["valor"] = min(hi, max(lo, ent["valor"] + d))
+                elif d and k in ("snr_thr", "cr_gain_db"):
+                    lo, hi = (-40.0, 0.0) if k == "snr_thr" else (0.0, 3.0)
+                    ent["valor"] = {c: min(hi, max(lo, x + d)) for c, x in ent["valor"].items()}
+                elif d:
+                    ent["valor"] = _desloca(ent["valor"], d)
+        out.append(c)
+    validar(out[0]); validar(out[1])
+    return out[0], out[1]
 
 
 def _modulos_simsuite():

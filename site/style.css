@@ -208,3 +208,14 @@ a.tab[aria-current="page"] { color: var(--text); border-bottom-color: var(--acce
 }
 .layout-enlace .c-resposta, .layout-enlace .c-perfil { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .layout-enlace .c-resposta:empty, .layout-enlace .c-perfil:empty { display: none; }
+
+/* alvos de toque: em telas sensíveis ao toque os botões e abas têm pelo menos 44 px (recomendação de acessibilidade) */
+.mapa-btn { width: 34px; height: 34px; padding: 0; font: 600 16px/1 sans-serif; }
+@media (pointer: coarse) {
+  .mapa-btn { width: 44px; height: 44px; font-size: 18px; }
+  .btn, .gnav-sec, .tab { min-height: 44px; display: inline-flex; align-items: center; }
+  .seg button { min-height: 44px; }
+  .gnav-sec, .tab { padding-top: 10px; padding-bottom: 10px; }
+}
+abbr[title] { cursor: help; }
+.sigla-dica { display: block; margin: 4px 0; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: 12px; }

@@ -13,7 +13,7 @@
       itens: [{ id: "campo", t: "Campo fixo" }, { id: "mob", t: "Mobilidade" }, { id: "alcance", t: "Alcance e deriva" }, { id: "potencia", t: "Potência de TX" },
         { id: "tetos", t: "Teto × cenários" }, { id: "malha", t: "Grupos e malha" }] },
     { id: "protocolo", t: "Protocolo", d: "Como os dois lados combinam o modo, o que acontece nas falhas e como afinar os parâmetros.",
-      itens: [{ id: "acordo", t: "Acordo e falhas" }, { id: "mecanismos", t: "Mecanismos (V, S)" }, { id: "sintonia", t: "Sintonia (F7)" }] },
+      itens: [{ id: "acordo", t: "Acordo e falhas" }, { id: "mecanismos", t: "Mecanismos (V, S)" }, { id: "estresses", t: "Estresses (X)" }, { id: "sintonia", t: "Sintonia (F7)" }] },
     { id: "garantias", t: "Garantias", d: "O que foi provado e conferido: verificação formal, validação contra outros simuladores, segurança e regulação.",
       itens: [{ id: "formal", t: "Verificação formal" }, { id: "validacao", t: "Validação cruzada" }, { id: "seg", t: "Segurança e regulação" }] },
     { id: "ferramentas", t: "Ferramentas", d: "Para usar os resultados no seu caso: estimativas por modo e testador de enlaces com terreno.",

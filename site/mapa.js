@@ -80,7 +80,7 @@
     var rotuloAviso = doc.createElement("span"); rotuloAviso.textContent = "Mapa-base desligado. ";
     aviso.appendChild(rotuloAviso); aviso.appendChild(btAtivar); aviso.appendChild(det);
     ctl.style.cssText = "position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:4px";
-    function bt(txt, rot, fn) { var b = doc.createElement("button"); b.type = "button"; b.className = "btn"; b.textContent = txt; b.setAttribute("aria-label", rot); b.title = rot; b.style.cssText = "width:30px;height:30px;padding:0;font:600 16px/1 sans-serif"; b.addEventListener("pointerdown", function (e) { e.stopPropagation(); }); b.addEventListener("pointerup", function (e) { e.stopPropagation(); }); b.addEventListener("click", function (e) { e.stopPropagation(); fn(); }); ctl.appendChild(b); return b; }
+    function bt(txt, rot, fn) { var b = doc.createElement("button"); b.type = "button"; b.className = "btn mapa-btn"; b.textContent = txt; b.setAttribute("aria-label", rot); b.title = rot; b.addEventListener("pointerdown", function (e) { e.stopPropagation(); }); b.addEventListener("pointerup", function (e) { e.stopPropagation(); }); b.addEventListener("click", function (e) { e.stopPropagation(); fn(); }); ctl.appendChild(b); return b; }
     status.style.cssText = "margin-right:8px";
     atrib.style.cssText = "position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#222;font-size:11px;padding:1px 6px";
     atrib.appendChild(status);

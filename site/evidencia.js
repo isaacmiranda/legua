@@ -19,6 +19,7 @@
     malha: { nivel: 2, itens: ["Camada física conferida contra LoRaSim e Meshtasticator (originais executados)", "Roteamento por inundação não comparado (decisão de escopo)"], ref: "docs/09 §9.1" },
     acordo: { nivel: 1, itens: ["Propriedades P1, P3 e P4 verificadas por busca exaustiva de estados", "Falhas simuladas, não medidas"], ref: "docs/06" },
     mecanismos: { nivel: 0, itens: ["Varreduras do simulador; ajuste com parâmetros estimados"], ref: "docs/09" },
+    estresses: { nivel: 0, itens: ["Estresses do simulador (relógio, perda assimétrica, desvanecimento lento); parâmetros estimados"], ref: "docs/09 §10" },
     sintonia: { nivel: 0, itens: ["Sintonia por simulação; os perfis valem até a bancada medir"], ref: "docs/09" },
     formal: { nivel: 1, itens: ["Verificação de estados do modelo do protocolo (não do código C)"], ref: "docs/06" },
     validacao: { nivel: 2, itens: ["Comparação com LoRaSim e Meshtasticator (originais executados)", "Equivalência Py×C em 4 pares"], ref: "docs/09 §9" },

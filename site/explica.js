@@ -414,7 +414,7 @@
       var vistos = c.__siglas || (c.__siglas = {}), w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT, null), n, alvos = [];
       while ((n = w.nextNode())) {
         var pai = n.parentNode;
-        if (!pai || pai.closest("abbr,script,style,svg,summary,button,input,select,option,textarea,h2,h3,th,code,pre,.legend")) continue;
+        if (!pai || pai.closest("abbr,.sigla-dica,script,style,svg,summary,button,input,select,option,textarea,h2,h3,th,code,pre,.legend")) continue;
         if (SIGLAS.test(n.nodeValue)) alvos.push(n);
       }
       alvos.forEach(function (t) {
@@ -423,6 +423,17 @@
         vistos[sig] = 1;
         var ab = document.createElement("abbr"), i = m.index, v = t.nodeValue;
         ab.title = TERMS[sig]; ab.textContent = sig; ab.style.cssText = "text-decoration:underline dotted;cursor:help";
+        ab.tabIndex = 0; ab.setAttribute("role", "button"); ab.setAttribute("aria-expanded", "false");      // toque ou Enter abre a definição (o title não aparece sem mouse)
+        (function (a, def) {
+          function alterna() {
+            var aberto = a.getAttribute("aria-expanded") === "true", nx = a.nextSibling;
+            if (aberto) { if (a.__dica && a.__dica.parentNode) a.__dica.parentNode.removeChild(a.__dica); a.__dica = null; a.setAttribute("aria-expanded", "false"); return; }
+            var d = document.createElement("span"); d.className = "sigla-dica"; d.setAttribute("role", "note"); d.textContent = a.textContent + ": " + def;
+            var bloco = a.closest("p,li,td,th,dd,div") || a.parentNode; bloco.insertBefore(d, bloco.firstChild && bloco === a.parentNode ? a.nextSibling : null); a.__dica = d; a.setAttribute("aria-expanded", "true");
+          }
+          a.addEventListener("click", function (e) { e.preventDefault(); alterna(); });
+          a.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alterna(); } });
+        })(ab, TERMS[sig]);
         var depois = t.splitText(i + sig.length); t.nodeValue = v.slice(0, i);
         depois.parentNode.insertBefore(ab, depois);
       });
