@@ -616,3 +616,27 @@ def test_aba_medicoes_ajusta_gera_calibracao_e_recusa_localizacao(tmp_path):
     assert not o["erros"], o["erros"]
     assert o["vazio"] and o["pill"] and o["svg"] and o["botao"] and o["recusa"]
     assert o["cal"]["versao"] == 1 and o["cal"]["canal"] and 3.0 < o["cal"]["n"] < 4.2 and "sem coordenadas" in o["cal"]["notas"]
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_aba_sensibilidade_desenha_tornado_e_incerteza(tmp_path):
+    js = JS_PACOTE.replace("#pacote", "#sensib").split("(async () => {")[0] + r"""(async () => {
+  await espera(1200);
+  out.svg = !!d.querySelector("#panel svg.perfil rect"); out.barras = d.querySelectorAll("#panel svg.perfil rect").length;
+  out.txt = d.getElementById("panel").textContent;
+  const q = d.querySelector('select[aria-label="Grandeza"]'); q.value = "confirmado"; q.dispatchEvent(new w.Event("change")); await espera(400);
+  out.txt2 = d.getElementById("panel").textContent;
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+    f = tmp_path / "sens_dom.js"
+    f.write_text(js)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["svg"] and o["barras"] >= 11 and "Maior efeito" in o["txt"] and "chance de atingir" in o["txt"]
+    assert "de entrega confirmada" in o["txt2"] and "dB de margem" in o["txt"]

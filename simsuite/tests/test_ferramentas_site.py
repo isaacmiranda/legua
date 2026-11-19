@@ -171,3 +171,24 @@ def test_limiar_de_snr_recupera_o_centro_e_recusa_localizacao_e_dados_ruins():
     assert "localização" in o["gps"] and "localização" in o["gnss"] and "distância" in o["sem_d"] and "cole um CSV" in o["vazio"]
     assert "3 medições" in o["curto"] and "mesma distância" in o["igual"]
     assert o["pct"] == [0.85, 0.5] and o["virgula"]["d"] == 1.5 and o["virgula"]["rssi"] == -90.5
+
+
+@precisa_node
+def test_sensibilidade_tornado_monte_carlo_e_determinismo():
+    from simsuite.analysis import estimator as E
+    o = _node(r"""
+    global.LeguaEstimator = require(process.argv[1] + '/estimator.js');
+    const S = require(process.argv[1] + '/sensibilidade.js'), K = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+    const base = { env: 'rural_aberto', d_km: 3, sf: 10, bw: 125, cr: 1, p_dbm: 20, fhss: true, retries: 3, interval_s: 60, load: 1 };
+    const t = S.tornado(K, base, 'margem'), t2 = S.tornado(K, base, 'confirmado');
+    const a = S.monteCarlo(K, base, { pl1km: 3, n: 0.3, snr_thr: 1 }, 120, 0.95, 7), b = S.monteCarlo(K, base, { pl1km: 3, n: 0.3, snr_thr: 1 }, 120, 0.95, 7), c = S.monteCarlo(K, base, {}, 20, 0.95, 7);
+    console.log(JSON.stringify({ t: t.linhas.map(l => [l.id, l.baixo, l.alto, l.amplitude]), base: t.base, t2: t2.linhas.slice(0, 3).map(l => l.id), a, igual: JSON.stringify(a) === JSON.stringify(b), c }));
+    """, entrada=json.dumps(E.constantes()))
+    linhas = {l[0]: l for l in o["t"]}
+    assert len(linhas) == 11 and o["t"][0][3] >= o["t"][-1][3]                          # ordenado por amplitude
+    assert linhas["p_dbm"][3] == pytest.approx(6.0, abs=1e-6)                           # ±3 dB de potência = 6 dB de margem
+    assert linhas["offset_db"][3] == pytest.approx(12.0, abs=1e-6) and linhas["nf_db"][3] == pytest.approx(3.0, abs=1e-6)
+    assert linhas["pl1km"][3] == pytest.approx(8.0, abs=1e-6)                           # ±4 dB na perda = 8 dB
+    assert o["igual"] is True                                                           # mesma semente, mesmo resultado
+    assert o["a"]["margem"]["p5"] < o["a"]["margem"]["p50"] < o["a"]["margem"]["p95"] and 0 <= o["a"]["probAtingeAlvo"] <= 1
+    assert o["c"]["margem"]["p5"] == o["c"]["margem"]["p95"] == pytest.approx(o["base"], abs=1e-9)   # sem incerteza, sem espalhamento

@@ -1475,6 +1475,7 @@
     { id: "modos", t: "Modos", f: panelModos, need: ["modos"] }, { id: "malha", t: "Grupos e malha", f: panelMalha, need: ["T23", "T456"] },
     { id: "escalas", t: "Escalas e orçamento", f: panelEscalas, need: [], anyScale: true },
     { id: "estimativas", t: "Estimativas", f: panelEstimativas, need: [], anyScale: true },
+    { id: "sensib", t: "Sensibilidade", f: function (panel) { live = []; if (window.LeguaSensibilidadeUI && window.LeguaSensibilidade) window.LeguaSensibilidadeUI.painel(panel, DATA); else mount(panel, [el("p", { class: "note", text: "A aba de sensibilidade não carregou." })]); }, need: [], anyScale: true },
     { id: "medicoes", t: "Medições", f: function (panel) { live = []; if (window.LeguaMedicoesUI && window.LeguaMedicoes) window.LeguaMedicoesUI.painel(panel, DATA); else mount(panel, [el("p", { class: "note", text: "A aba de medições não carregou." })]); }, need: [], anyScale: true },
     { id: "pacote", t: "Pacotes", f: function (panel) { live = []; if (window.LeguaPacoteUI && window.LeguaPacote) window.LeguaPacoteUI.painel(panel, DATA); else mount(panel, [el("p", { class: "note", text: "O decodificador não carregou." })]); }, need: [], anyScale: true },
     { id: "calc", t: "Calculadoras", f: function (panel) { live = []; if (window.LeguaCalcUI && window.LeguaCalc) window.LeguaCalcUI.painel(panel, DATA); else mount(panel, [el("p", { class: "note", text: "As calculadoras não carregaram." })]); }, need: [], anyScale: true }
