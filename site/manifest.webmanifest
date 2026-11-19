@@ -1,0 +1,12 @@
+{
+  "name": "Légua · resultados e ferramentas LoRa",
+  "short_name": "Légua",
+  "description": "Resultados de simulação, calculadoras e testador de enlaces LoRa da Légua. Funciona offline depois da primeira visita.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f6f4",
+  "theme_color": "#2a78d6",
+  "icons": [{ "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

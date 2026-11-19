@@ -250,3 +250,19 @@ def test_especificacao_js_esta_em_dia_com_os_docs():
         fonte = open(os.path.join(RAIZ, d["arquivo"]), encoding="utf-8").read()
         n_titulos = len(_re.findall(r"^#{1,4}\s", fonte, flags=_re.M))
         assert len(d["secoes"]) == n_titulos and "<script" not in d["html"], d["id"]       # regenerar com tools/build_docs.py se falhar
+
+
+def test_pwa_service_worker_lista_todos_os_arquivos_e_nao_toca_em_outras_origens():
+    import re as _re
+    sw = open(os.path.join(SITE, "sw.js"), encoding="utf-8").read()
+    lista = _re.findall(r'"([^"]+)"', sw[sw.index("var ARQUIVOS"):sw.index("];", sw.index("var ARQUIVOS"))])
+    for a in lista:
+        assert a == "./" or os.path.exists(os.path.join(SITE, a)), f"sw.js lista um arquivo que não existe: {a}"
+    reais = {f for f in os.listdir(SITE) if f.endswith((".js", ".html", ".css", ".webmanifest", ".svg")) and f not in ("sw.js", "data.json")}
+    assert reais - set(lista) == set(), f"arquivos do site fora do cache offline: {sorted(reais - set(lista))}"
+    assert "url.origin !== self.location.origin" in sw and "return;" in sw                  # outras origens (tiles) nunca passam pelo cache
+    m = json.load(open(os.path.join(SITE, "manifest.webmanifest"), encoding="utf-8"))
+    assert m["start_url"] and m["display"] == "standalone" and m["icons"][0]["src"] == "icone.svg" and m["lang"] == "pt-BR"
+    for pagina in ("index.html", "enlace.html", "consolidado.html"):
+        h = open(os.path.join(SITE, pagina), encoding="utf-8").read()
+        assert 'rel="manifest"' in h and 'name="theme-color"' in h, pagina

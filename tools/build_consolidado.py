@@ -422,6 +422,9 @@ pagina = f"""<!doctype html>
 <title>Légua · Consolidado</title>
 <meta name="description" content="Consolidado dos resultados, das discussões e dos trabalhos futuros da simulação da Légua.">
 <link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2a78d6">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
 <style>
  .toc {{ columns: 2 260px; margin: 0 0 16px; padding-left: 20px; font-size: 14px; }}
  section h3 {{ font-size: 14px; margin: 14px 0 6px; color: var(--text-2); }}

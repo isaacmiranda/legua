@@ -113,6 +113,12 @@
     return n;
   }
 
+  /* uso offline: registra o service worker (só em https ou localhost; o sw.js guarda apenas arquivos do próprio site) */
+  try {
+    var nav = root.navigator, loc = root.location;
+    if (nav && nav.serviceWorker && loc && (loc.protocol === "https:" || loc.hostname === "localhost" || loc.hostname === "127.0.0.1")) nav.serviceWorker.register("sw.js").catch(function () { /* sem offline; o site segue normal */ });
+  } catch (e) { /* ignore */ }
+
   var api = { MAPA: MAPA, secaoDe: secaoDe, montar: montar, rodape: rodape, vizinhos: vizinhos, destino: destino };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.LeguaNav = api;
 })(typeof window !== "undefined" ? window : this);
