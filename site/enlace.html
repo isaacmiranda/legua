@@ -44,7 +44,8 @@
   </footer>
 </div>
 <script src="nav.js"></script>
-<script>LeguaNav.montar(document.getElementById("gnav"), { ativo: "enlace" });</script>
+<script src="evidencia.js"></script>
+<script>LeguaNav.montar(document.getElementById("gnav"), { ativo: "enlace" }); (function () { var f = LeguaEvidencia.faixa("enlace"), n = document.querySelector(".notice"); if (f && n) n.parentNode.insertBefore(f, n.nextSibling); })();</script>
 <script src="data.js"></script>
 <script src="estimator.js"></script>
 <script src="propagacao.js"></script>

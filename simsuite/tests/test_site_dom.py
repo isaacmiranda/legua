@@ -449,3 +449,48 @@ def test_usabilidade_siglas_avisos_recolhidos_restaurar_validar_e_desfazer(tmp_p
     assert o["restaura_plano"] and "Como usar em 3 passos" in o["ajuda_3passos"] and o["restaurou"] == "mapa"
     assert o["invalido"] >= 1 and "trocadas" in o["alerta"]                      # latitude -120 fora do intervalo, com longitude plausível
     assert o["desfazer_inicial"] is True and o["desfazer_habilitado"] is True and o["pontos_apos"] == 2 and o["pontos_desfeito"] == 1
+
+
+JS_DADOS = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const dir = process.argv[2], out = { erros: [] };
+function abre(arq, frag) {
+  const vc = new VirtualConsole(); vc.on("jsdomError", e => out.erros.push(arq + ": " + String(e.message || e)));
+  const html = fs.readFileSync(path.join(dir, arq), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+    (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+  return new JSDOM(html, { url: "http://localhost/" + arq + frag, runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true }).window;
+}
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const w = abre("index.html", "#campo"); await espera(800); const d = w.document;
+  out.barra = !!d.querySelector(".dados-aba");
+  out.botoes = [...d.querySelectorAll(".dados-aba button")].map(b => b.textContent);
+  out.area_escondida = d.querySelector(".citar-area").hidden;
+  d.getElementById("citar-abre").click(); out.area_visivel = !d.querySelector(".citar-area").hidden;
+  out.citacao = d.querySelector(".citar-area textarea").value;
+  out.evid = (d.querySelector("details.evidencia summary") || {}).textContent || "";
+  const e = abre("enlace.html", ""); await espera(500);
+  out.evid_enlace = (e.document.querySelector("details.evidencia summary") || {}).textContent || "";
+  const g = abre("index.html", "#guia"); await espera(600);
+  out.sem_barra_no_guia = !g.document.querySelector(".dados-aba");
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_barra_de_dados_e_faixa_de_evidencia(tmp_path):
+    f = tmp_path / "dados_dom.js"
+    f.write_text(JS_DADOS)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["barra"] and o["botoes"][:3] == ["Citar e reproduzir", "Dados brutos (JSON)", "Tabelas visíveis (CSV)"]
+    assert o["area_escondida"] is True and o["area_visivel"] is True and "Campo fixo" in o["citacao"] and "sem medição em hardware" in o["citacao"]
+    assert "Evidência: nível 1 de 3" in o["evid"] and "Evidência: nível 2 de 3" in o["evid_enlace"]
+    assert o["sem_barra_no_guia"]

@@ -1513,9 +1513,41 @@
         el("p", { class: "note", text: "Os números desta aba valem para o ambiente médio. Para um terreno específico (morro, mastro, vegetação), informe o perfil e veja a margem de cada modo." }),
         el("a", { class: "btn", href: "enlace.html", text: "Abrir o testador de enlaces" })]));
     }
+    var ev = window.LeguaEvidencia && !(miss.length && !t.anyScale) ? window.LeguaEvidencia.faixa(t.id) : null;
+    if (ev) panel.insertBefore(ev, panel.firstChild);
+    var bd = !(miss.length && !t.anyScale) ? barraDados(t) : null;
+    if (bd) panel.appendChild(bd);
     var passo = window.LeguaNav.rodape(t.id, function (id) { go(id, false); window.scrollTo(0, 0); });
     if (passo) panel.appendChild(passo);
     if (focus) panel.focus({ preventScroll: true });
+  }
+  /* barra "Citar e reproduzir / dados": citação e BibTeX, comando de reprodução, dados brutos da aba (JSON) e tabelas (CSV) */
+  function barraDados(t) {
+    if (!t.need || !t.need.length || !window.LeguaCitar) return null;
+    var C = window.LeguaCitar, sem = null;
+    t.need.forEach(function (c) { if (sem == null && d[c] && d[c].sementes != null) sem = d[c].sementes; });
+    var inp = { aba: t.t, abaId: t.id, escala: scale, cenarios: t.need, meta: DATA.meta, sementes: sem, url: location.href.split("#")[0] + "#" + t.id + (scale === "full" ? "/full" : "") };
+    var b = C.bloco(inp), aviso = el("span", { class: "sub", role: "status", "aria-live": "polite" });
+    var area = el("div", { class: "citar-area", hidden: "hidden", style: "margin-top:8px" });
+    function caixa(rot, txt) {
+      var ta = el("textarea", { readonly: "readonly", rows: String(Math.min(6, txt.split("\n").length + 1)), style: "width:100%;font:12px monospace", "aria-label": rot }); ta.value = txt;
+      var bt = el("button", { type: "button", class: "btn", text: "Copiar" }); bt.addEventListener("click", function () { copiar(txt, aviso); });
+      return el("div", { style: "margin:6px 0" }, [el("div", { class: "sub", text: rot }), ta, bt]);
+    }
+    area.appendChild(caixa("Citação (texto)", b.texto)); area.appendChild(caixa("BibTeX", b.bibtex)); area.appendChild(caixa("Para reproduzir estes números", b.comando));
+    function bt(txt, fn, id) { var x = el("button", { type: "button", class: "btn", text: txt }); if (id) x.id = id; x.addEventListener("click", fn); return x; }
+    var base = "legua-" + t.id + "-" + scale;
+    var barra = el("section", { class: "card sem-impressao dados-aba" }, [el("h2", { text: "Citar, reproduzir e baixar os dados desta aba" }),
+      el("div", { style: "display:flex;gap:8px;flex-wrap:wrap;align-items:center" }, [
+        bt("Citar e reproduzir", function () { area.hidden = !area.hidden; }, "citar-abre"),
+        bt("Dados brutos (JSON)", function () { aviso.textContent = baixar(base + ".json", "application/json", C.jsonDaAba(inp, d)) ? "JSON baixado." : "Não foi possível baixar."; }, "baixa-json"),
+        bt("Tabelas visíveis (CSV)", function () {
+          var proc = "Légua núcleo " + (DATA.meta.versao_nucleo || "?") + ", aba " + t.t + ", escala " + scale + ", commit " + (DATA.meta.commit || "?") + ", gerado em " + (DATA.meta.gerado_em || "?") + "; estimativa de simulação, sem medição em hardware";
+          var tabs = C.tabelasCsv(panel, proc);
+          if (!tabs.length) { aviso.textContent = "Esta aba não tem tabela visível; use o JSON."; return; }
+          aviso.textContent = baixar(base + ".csv", "text/csv;charset=utf-8", tabs.map(function (x) { return x.csv; }).join("\r\n")) ? tabs.length + " tabela(s) baixada(s)." : "Não foi possível baixar.";
+        }, "baixa-csv"), aviso]), area]);
+    return barra;
   }
   function drawScaleSwitch() {
     scaleEl.textContent = "";

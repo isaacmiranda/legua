@@ -140,7 +140,7 @@ def main(argv=None):
             commit += "+local"   # resultados gerados com código não commitado: marca, para não enganar
     except Exception:
         commit = None
-    saida = {"meta": {"gerado_em": datetime.date.today().isoformat(), "commit": commit},
+    saida = {"meta": {"gerado_em": datetime.date.today().isoformat(), "commit": commit, "versao_nucleo": open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "core", "VERSION")).read().strip(), "repositorio": "https://github.com/isaacmiranda/legua"},
              "escalas": escalas, "constantes": limpar(constantes()), "orcamento": limpar(orcamento(a.quick, a.full))}
     os.makedirs(os.path.dirname(a.saida) or ".", exist_ok=True)
     with open(a.saida, "w") as fh:
