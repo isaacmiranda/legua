@@ -192,3 +192,19 @@ a.tab[aria-current="page"] { color: var(--text); border-bottom-color: var(--acce
 .passo .btn { text-decoration: none; color: var(--text); }
 @media (max-width: 560px) { .gnav { position: static; } .gnav-secoes { order: 3; flex-basis: 100%; } }
 @media print { #gnav, .passo { display: none !important; } }
+
+/* testador de enlaces: mapa e perfil à esquerda, resposta e rádio no painel à direita (tela larga) */
+.layout-enlace { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.layout-enlace .col-a, .layout-enlace .col-b { display: contents; }
+.layout-enlace .c-terreno { order: 1; } .layout-enlace .c-resposta { order: 2; } .layout-enlace .c-perfil { order: 3; } .layout-enlace .c-radio { order: 4; }
+.layout-enlace > * > .card, .layout-enlace .c-resposta > .card, .layout-enlace .c-perfil > .card { margin-bottom: 0; }
+.stats.painel { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.stats.painel .stat:nth-child(1) .v, .stats.painel .stat:nth-child(2) .v { font-size: 28px; }
+@media (min-width: 1100px) {
+  .wrap:has(.layout-enlace) { max-width: 1320px; }
+  .layout-enlace { grid-template-columns: minmax(0, 1.55fr) minmax(340px, 1fr); }
+  .layout-enlace .col-a, .layout-enlace .col-b { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .layout-enlace .c-terreno, .layout-enlace .c-resposta, .layout-enlace .c-perfil, .layout-enlace .c-radio { order: 0; }
+}
+.layout-enlace .c-resposta, .layout-enlace .c-perfil { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.layout-enlace .c-resposta:empty, .layout-enlace .c-perfil:empty { display: none; }

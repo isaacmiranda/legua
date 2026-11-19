@@ -6,7 +6,7 @@
   var LE = window.LeguaEnlace.make(DATA.constantes), PR = window.LeguaPropagacao, TE = window.LeguaTerreno, TR = window.LeguaTerrarium;
   var app = document.getElementById("app");
 
-  var st = { terreno: "plano", d: 5.0, base: 100, morro_h: 60, morro_pos: 50, morro_w: 0.8, csv: "", hTx: 10, hRx: 10, k: "1.3333", p: 20, gTx: 2.15, gRx: 2.15, lTx: 0.5, lRx: 0.5,
+  var st = { terreno: "mapa", d: 5.0, base: 100, morro_h: 60, morro_pos: 50, morro_w: 0.8, csv: "", hTx: 10, hRx: 10, k: "1.3333", p: 20, gTx: 2.15, gRx: 2.15, lTx: 0.5, lRx: 0.5,
     extra: 0, latA: "", lonA: "", latB: "", lonB: "", grades: [], tiles: null, tilesMsg: "", consente: false, buscando: false, env: "rural_aberto", modelo: "p526", pontos: [], salto: 0, consenteMapa: false, sf: 10, bw: 125, cr: 1, alvo: 0.95, retries: 3, interval: 60, load: 1 };
   var PADRAO = JSON.parse(JSON.stringify(st));                 // estado inicial, para “Restaurar padrões”
   var CHAVES = ["terreno", "d", "base", "morro_h", "morro_pos", "morro_w", "hTx", "hRx", "k", "p", "gTx", "gRx", "lTx", "lRx", "extra", "env", "modelo", "sf", "bw", "cr", "alvo", "retries", "interval", "load"];
@@ -41,7 +41,7 @@
     function umN(k, ok) { var v = parseFloat(m[k]); if (ok.indexOf(v) >= 0) st[k] = v; }
     um("terreno", ["plano", "morro", "csv", "hgt", "terrarium", "mapa"]); um("env", Object.keys(DATA.constantes.envs)); um("modelo", ["p526", "j"]); um("k", ["1.3333", "1", "0.6667"]);
     umN("sf", [7, 8, 9, 10, 11, 12]); umN("bw", [125, 250, 500]); umN("cr", [1, 2, 3, 4]);
-    if (st.terreno === "csv" || st.terreno === "hgt" || st.terreno === "terrarium" || st.terreno === "mapa") st.terreno = "plano";   // CSV e coordenadas nunca vêm pela URL
+    if (st.terreno === "csv" || st.terreno === "hgt" || st.terreno === "terrarium" || st.terreno === "mapa") st.terreno = "mapa";   // CSV e coordenadas nunca vêm pela URL: abre no mapa, vazio
   }
   function sincroniza() { try { history.replaceState(null, "", "#" + consulta()); } catch (e) { /* ignore */ } }
 
@@ -147,7 +147,7 @@
 
   // ---- formulário
   var host = el("div"), campos = el("div", { class: "form" });
-  var hostRes = el("div"), hostDet = el("div"), camposR = el("div", { class: "form" });   // terreno/mapa, resposta, rádio, detalhes (nesta ordem)
+  var hostRes = el("div"), hostDet = el("div"), hostPerfil = el("div"), camposR = el("div", { class: "form" });   // terreno/mapa, resposta, rádio, detalhes (nesta ordem)
   function fld(rot, ctl, val) { return el("label", { class: "field" }, [el("span", {}, [rot + ": ", val || null]), ctl]); }
   function rng(chave, rot, passo, fmt) {
     var lim = NUM[chave], inp = el("input", { type: "range", min: lim[0], max: lim[1], step: passo, value: st[chave] }), out = el("span", { class: "val", text: fmt(st[chave]) });
@@ -360,7 +360,11 @@
 
   var ultimo = null;
   function desenha() {
-    hostRes.textContent = ""; hostDet.textContent = "";
+    hostRes.textContent = ""; hostDet.textContent = ""; hostPerfil.textContent = "";
+    if (st.terreno === "mapa" && st.pontos.filter(pontoOk).length < 2) {         // ainda sem enlace: convite, não erro
+      hostRes.appendChild(cartao("Resposta para este enlace", [el("p", { text: "Marque dois pontos no mapa (um clique em cada ponta) ou digite as coordenadas, e a resposta aparece aqui. Com três ou mais pontos você analisa uma cadeia de saltos." })]));
+      ultimo = null; sincroniza(); return;
+    }
     var pr = perfilAtual();
     if (pr.erro) { hostRes.appendChild(cartao("Perfil inválido", [el("p", { class: "note", text: pr.erro })], "warn-card")); ultimo = null; sincroniza(); return; }
     var inp = { perfil: pr.perfil, hTx: st.hTx, hRx: st.hRx, k: parseFloat(st.k), p_dbm: st.p, gTx: st.gTx, gRx: st.gRx, lTx: st.lTx, lRx: st.lRx, extra_db: st.extra, env: st.env,
@@ -395,9 +399,10 @@
           aviso.textContent = baixar("legua-enlace.json", "application/json", js) ? "JSON baixado." : "Não foi possível baixar.";
         }),
         btn("Imprimir", function () { window.print(); }), aviso])]);
-    var stats = el("div", { class: "stats" }, [stat(nf(A.perda.espaco_livre_db, 1) + " dB", "perda no espaço livre (915 MHz)"), stat(nf(A.perda.difracao_db, 1) + " dB", "perda por difração (Bullington)"),
-      stat(nf(A.perda.total_db, 1) + " dB", "perda total (com " + nf(A.perda.extra_db, 1) + " dB extras)"), stat(nf(A.rx_dbm, 1) + " dBm", "potência recebida"),
-      stat(nf(e.margem_db, 1) + " dB", "margem no modo " + modoTxt), stat(fr == null ? "–" : nf(100 * fr, 0) + "%", "folga mínima da 1ª zona de Fresnel")]);
+    var stats = el("div", { class: "stats painel" }, [stat(nf(e.margem_db, 1) + " dB", "margem no modo " + modoTxt), stat(nf(A.rx_dbm, 1) + " dBm", "potência recebida"),
+      stat(nf(D, 2) + " km", "distância"), stat(fr == null ? "–" : nf(100 * fr, 0) + "%", "folga mínima da 1ª zona de Fresnel"),
+      stat(nf(A.perda.total_db, 1) + " dB", "perda total (com " + nf(A.perda.extra_db, 1) + " dB extras)"), stat(nf(A.perda.difracao_db, 1) + " dB", "perda por difração (P.526)")]);
+    resposta.insertBefore(stats, resposta.querySelector(".controls"));
     var grafico = cartao("Perfil do enlace", []); desenhaPerfil(grafico, A);
     var linhasModos = A.modos.slice().sort(function (a, b) { return b.margem_db - a.margem_db; }).map(function (m) {
       return [nomeModo(m), nf(m.toa_dados_ms, 0) + " ms", nf(m.margem_db, 1) + " dB", pct(m.confirmado), mj(m.energia_mj_entregue), { pill: m.atinge ? "ok" : "bad", text: m.atinge ? "atinge" : "não atinge" }];
@@ -408,15 +413,20 @@
     var mapa = (st.terreno === "terrarium" || st.terreno === "mapa") && st.tiles ? cartaoMapa() : null;
     var rota = st.terreno === "mapa" && st.pontos.length > 2 ? cartaoRota(inp) : null;
     [resposta, rota].forEach(function (n) { if (n) hostRes.appendChild(n); });
-    [stats, grafico, mapa, tab, cont].forEach(function (n) { if (n) hostDet.appendChild(n); });
+    if (grafico) hostPerfil.appendChild(grafico);
+    [mapa, tab, cont].forEach(function (n) { if (n) hostDet.appendChild(n); });
     sincroniza();
   }
 
   // o tema é tratado por nav.js, comum às três páginas
   deConsulta((location.hash || "").slice(1));
-  app.appendChild(cartao("1. Terreno e pontos", [el("p", { class: "note", text: "Escolha como informar o terreno. Com “Mapa”, marque os pontos no mapa (dois = um enlace; três ou mais = cadeia de saltos); a resposta aparece logo abaixo, e os parâmetros do rádio vêm depois." }), campos], null));
-  app.appendChild(hostRes);
-  app.appendChild(cartao("2. Rádio, antenas e modo", [el("p", { class: "note", text: "Os campos abaixo atualizam a resposta na hora." }), camposR, (function () { var b = el("button", { type: "button", class: "btn sem-impressao", id: "restaura", text: "Restaurar padrões", title: "Volta todos os campos ao estado inicial (o mapa e a elevação baixada são descartados)" }); b.addEventListener("click", function () { Object.keys(PADRAO).forEach(function (k) { st[k] = JSON.parse(JSON.stringify(PADRAO[k])); }); monta(); agenda(); }); return b; })()], null));
+  /* Layout: mapa e perfil na coluna larga; resposta e rádio no painel ao lado (tela larga). Em tela estreita, uma coluna na
+   * ordem mapa, resposta, perfil, rádio. Os detalhes vêm embaixo, em largura total. */
+  var cTerreno = cartao("1. Terreno e pontos", [el("p", { class: "note", text: "Escolha como informar o terreno. Com “Mapa”, marque os pontos no mapa (dois = um enlace; três ou mais = cadeia de saltos); a resposta aparece logo abaixo, e os parâmetros do rádio vêm depois." }), campos], "c-terreno");
+  var cRadio = cartao("2. Rádio, antenas e modo", [el("p", { class: "note", text: "Os campos abaixo atualizam a resposta na hora." }), camposR, (function () { var b = el("button", { type: "button", class: "btn sem-impressao", id: "restaura", text: "Restaurar padrões", title: "Volta todos os campos ao estado inicial (o mapa e a elevação baixada são descartados)" }); b.addEventListener("click", function () { Object.keys(PADRAO).forEach(function (k) { st[k] = JSON.parse(JSON.stringify(PADRAO[k])); }); monta(); agenda(); }); return b; })()], "c-radio");
+  hostRes.classList.add("c-resposta"); hostPerfil.classList.add("c-perfil");
+  var layout = el("div", { class: "layout-enlace" }, [el("div", { class: "col-a" }, [cTerreno, hostPerfil]), el("div", { class: "col-b" }, [hostRes, cRadio])]);
+  app.appendChild(layout);
   app.appendChild(hostDet);
   app.appendChild(el("section", { class: "card" }, [el("h2", { text: "Entenda os números" }),
     el("dl", { class: "gloss" }, [

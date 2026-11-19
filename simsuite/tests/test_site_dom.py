@@ -92,6 +92,7 @@ setTimeout(() => {
   out.svg = !!d.querySelector("svg.perfil polygon");
   out.linhas = d.querySelectorAll("table tbody tr").length;
   out.frase = [...d.querySelectorAll(".card p")].map(p => p.textContent).find(t => /sinal chega/.test(t)) || "";
+  out.frase_vazia = [...d.querySelectorAll(".card p")].map(p => p.textContent).find(t => /Marque dois pontos/.test(t)) || "";
   if (process.argv[4]) {                                   // troca o terreno para CSV pela interface
     const s = d.querySelector("select"); s.value = "csv"; s.dispatchEvent(new w.Event("change"));
   }
@@ -133,7 +134,7 @@ def test_testador_de_enlaces_desenha_e_guarda_so_parametros(tmp_path):
 def test_testador_csv_colado_nao_vai_para_a_url(tmp_path):
     o = _roda_enlace(tmp_path, "#terreno=csv&d=4", csv="distancia_km;altitude_m\n0;100\n1;110\n2;180\n3;120\n4;100")
     assert not o["erros"], o["erros"]
-    assert "terreno=plano" in o["hash"]                           # o CSV nunca vem pela URL: cai em "plano"
+    assert "terreno=mapa" in o["hash"]                            # o CSV nunca vem pela URL: abre no mapa, vazio
     assert o["tem_textarea"] and "sinal chega" in o["frase2"] and "4,00 km" in o["frase2"]
     assert "terreno=csv" in o["hash2"] and "180" not in o["hash2"] and "distancia" not in o["hash2"]
     assert "Perfil inválido" not in o["apos_csv"]
@@ -143,7 +144,8 @@ def test_testador_csv_colado_nao_vai_para_a_url(tmp_path):
 def test_testador_parametros_invalidos_usam_o_padrao(tmp_path):
     o = _roda_enlace(tmp_path, "#d=9999&sf=3&p=abc&env=nao_existe&terreno=xyz")
     assert not o["erros"], o["erros"]
-    assert o["svg"] and "d=5" in o["hash"] and "sf=10" in o["hash"] and "terreno=plano" in o["hash"]
+    assert "d=5" in o["hash"] and "sf=10" in o["hash"] and "terreno=mapa" in o["hash"]      # inválidos viram o padrão: abre no mapa, sem enlace ainda
+    assert not o["svg"] and "Marque dois pontos" in o["frase_vazia"]
 
 
 @pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
@@ -157,7 +159,7 @@ def test_testador_csv_invalido_mostra_erro(tmp_path):
 def test_testador_hgt_pede_arquivo_e_nao_poe_coordenadas_na_url(tmp_path):
     o = _roda_enlace(tmp_path, "#terreno=hgt&d=4")
     assert not o["erros"], o["erros"]
-    assert "terreno=plano" in o["hash"]                              # coordenadas e grades nunca vêm pela URL
+    assert "terreno=mapa" in o["hash"]                                # coordenadas e grades nunca vêm pela URL
 
 
 @pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
@@ -221,7 +223,7 @@ def test_testador_terrarium_so_busca_com_consentimento_e_nao_poe_coordenadas_na_
     assert o["habilitado"] is True and len(o["urls"]) >= 1
     assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") and "22" not in u.split("terrarium/")[1].split("/")[0] for u in o["urls"])
     assert "Elevação pronta" in o["status"] and o["svg"]
-    assert "terreno=plano" in o["hash_inicial"]                                   # a URL nunca liga a busca de tiles sozinha
+    assert "terreno=mapa" in o["hash_inicial"]                                    # a URL nunca liga a busca de tiles sozinha
     for h in (o["hash_apos_escolher"], o["hash"]):
         assert "22.9" not in h and "43.2" not in h and "latA" not in h and "lonA" not in h   # coordenadas nunca na URL
 
@@ -348,8 +350,11 @@ const digita = (i, v) => { i.value = v; i.dispatchEvent(new w.Event("input")); }
   out.tem_selecao_salto = !!salto;
   if (salto) { salto.value = "1"; salto.dispatchEvent(new w.Event("change")); await espera(300); }
   out.detalhe = (card ? 1 : 0) && [...d.querySelectorAll(".card")].find(c => /Rota com/.test((c.querySelector("h2") || {}).textContent || "")).textContent.includes("B → C (em detalhe)");
-  out.ordem = [...d.querySelectorAll("#app > .card h2, #app > div > .card h2")].map(h => h.textContent);
-  out.mapa_no_primeiro = !!d.querySelector("#app > .card .mapa") && d.querySelector("#app > .card h2").textContent.startsWith("1.");
+  const titulos = (sel) => [...d.querySelectorAll(sel + " h2")].map(h => h.textContent);
+  out.col_a = titulos("#app .layout-enlace .col-a"); out.col_b = titulos("#app .layout-enlace .col-b");
+  out.mapa_no_primeiro = !!d.querySelector("#app .col-a > .card.c-terreno .mapa") && d.querySelector("#app .col-a h2").textContent.startsWith("1.");
+  out.stats_na_resposta = !!d.querySelector("#app .col-b .stats.painel");
+  out.layout_resp_antes_radio = d.querySelector("#app .col-b").firstElementChild.classList.contains("c-resposta");
   out.hash = w.location.hash;
   out.texto_pagina = d.getElementById("app").textContent;
   console.log(JSON.stringify(out)); process.exit(0);
@@ -368,7 +373,7 @@ def test_mapa_com_varios_pontos_rota_e_privacidade(tmp_path):
     assert r.returncode == 0, r.stderr
     o = json.loads(r.stdout.strip().splitlines()[-1])
     assert not o["erros"], o["erros"]
-    assert "terreno=plano" in o["hash_inicial"]                                   # a URL nunca liga o mapa nem leva pontos
+    assert "terreno=mapa" in o["hash_inicial"] and "latA" not in o["hash_inicial"]   # abre no mapa; a URL nunca leva pontos
     assert o["imgs_antes"] == 0 and o["aviso_visivel"]                            # sem consentimento, nenhum tile
     assert o["marcadores"] == 3 and "Rota com 2 saltos" in (o["titulo_rota_antes"] or "") and o["plano_aviso"]
     assert o["imgs_depois"] >= 4 and o["img_urls_ok"] and o["img_ref"] and o["atribuicao"]
@@ -378,8 +383,9 @@ def test_mapa_com_varios_pontos_rota_e_privacidade(tmp_path):
     assert "Salto mais fraco" in o["rota_texto"] and "Modos que atingem" in o["rota_texto"] + "Modos que atingem"
     assert o["tem_selecao_salto"] and o["detalhe"]
     assert o["mapa_no_primeiro"]                                                  # o mapa vem na frente, no primeiro cartão
-    ordem = o["ordem"]                                                            # terreno/mapa, resposta e rota, rádio, detalhes
-    assert ordem.index("1. Terreno e pontos") < ordem.index("Resposta para este enlace") < ordem.index("2. Rádio, antenas e modo") < ordem.index("Perfil do enlace"), ordem
+    assert o["col_a"][0] == "1. Terreno e pontos" and "Perfil do enlace" in o["col_a"]      # coluna larga: mapa e, abaixo, o perfil
+    assert o["col_b"][0] == "Resposta para este enlace" and "2. Rádio, antenas e modo" in o["col_b"]   # painel: resposta e depois o rádio
+    assert o["stats_na_resposta"] and o["layout_resp_antes_radio"]                   # números grandes dentro da resposta
     for sec in (o["hash"], o["rota_texto"]):
         assert "22.9" not in sec and "43.2" not in sec and "43.12" not in sec and "-22.85" not in sec   # coordenadas nunca na URL nem no resumo
     assert all(u.startswith("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/") for u in o["urls"]) and 1 <= len(o["urls"]) <= 8
@@ -440,6 +446,6 @@ def test_usabilidade_siglas_avisos_recolhidos_restaurar_validar_e_desfazer(tmp_p
     assert not o["erros"], o["erros"]
     assert o["tema"] in ("Tema: claro", "Tema: escuro")                         # o botão mostra o estado atual
     assert o["aviso_recolhido"] and o["abbr"] >= 1 and o["abbr_ok"] and not o["abbr_dup"]   # siglas com definição, uma vez por cartão
-    assert o["restaura_plano"] and "Como usar em 3 passos" in o["ajuda_3passos"] and o["restaurou"] == "plano"
+    assert o["restaura_plano"] and "Como usar em 3 passos" in o["ajuda_3passos"] and o["restaurou"] == "mapa"
     assert o["invalido"] >= 1 and "trocadas" in o["alerta"]                      # latitude -120 fora do intervalo, com longitude plausível
     assert o["desfazer_inicial"] is True and o["desfazer_habilitado"] is True and o["pontos_apos"] == 2 and o["pontos_desfeito"] == 1
