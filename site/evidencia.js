@@ -28,6 +28,7 @@
     pacote: { nivel: 1, itens: ["Decodificador e gerador iguais ao codec de referência nos 48 vetores (teste de paridade)", "MIC conferido é o de teste, não o AES-CMAC real"], ref: "docs/07" },
     medicoes: { nivel: 1, itens: ["Ajuste igual ao do numpy em dados sintéticos e arquivo aceito pelo importador do simulador", "O ajuste vale só para os seus dados: poucas medições ou pouca variação de distância dão incerteza grande"], ref: "docs/09 §4" },
     sensib: { nivel: 1, itens: ["Tornado e Monte Carlo sobre o estimador analítico, conferido contra o simulador", "As faixas de variação são suas; a incerteza real vem da bancada"], ref: "docs/09 §7" },
+    rastros: { nivel: 1, itens: ["Leitura e resumo conferidos contra a contagem em Python; localização removida por teste", "Mostra o que o rastro registrou, não o que o hardware fez fora do registro"], ref: "docs/08" },
     modos: { nivel: 1, itens: ["Tabela de modos conferida pelos testes de tempo no ar", "Perfil BR-2026: nao_verificado"], ref: "docs/05" },
     enlace: { nivel: 2, itens: ["Difração pela ITU-R P.526-16, comparada com o ITM da NTIA em 44 perfis (testador ~11 dB otimista em média)", "Sem medição de campo"], ref: "docs/09 §7.1" }
   };

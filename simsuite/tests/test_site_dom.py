@@ -640,3 +640,30 @@ def test_aba_sensibilidade_desenha_tornado_e_incerteza(tmp_path):
     assert not o["erros"], o["erros"]
     assert o["svg"] and o["barras"] >= 11 and "Maior efeito" in o["txt"] and "chance de atingir" in o["txt"]
     assert "de entrega confirmada" in o["txt2"] and "dB de margem" in o["txt"]
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_aba_rastros_linha_do_tempo_filtro_e_localizacao_removida(tmp_path):
+    js = JS_PACOTE.replace("#pacote", "#rastros").split("(async () => {")[0] + r"""(async () => {
+  await espera(900);
+  out.vazio = /Carregue um rastro/.test(d.getElementById("panel").textContent);
+  d.getElementById("ras-exemplo").click(); await espera(150);
+  out.svg = !!d.querySelector("#panel svg.perfil rect"); out.txt = d.getElementById("panel").textContent;
+  out.rects = d.querySelectorAll("#panel svg.perfil rect").length;
+  const ta = d.querySelector('textarea[aria-label="Rastro JSONL"]');
+  ta.value = '{"t":1,"node":1,"ev":"tx","lat":-3.7,"lon":-38.5}\n{"t":2,"node":1,"ev":"rx","gnss_fix":3}\n'; ta.dispatchEvent(new w.Event("input")); await espera(80);
+  out.aviso = d.getElementById("panel").textContent.includes("campos de localização removidos"); out.vazou = /-3\.7|-38\.5/.test(d.getElementById("panel").textContent);
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+    f = tmp_path / "ras_dom.js"
+    f.write_text(js)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["vazio"] and o["svg"] and o["rects"] >= 4 and "Rollbacks" in o["txt"] and "14 eventos" in o["txt"]
+    assert o["aviso"] and not o["vazou"]

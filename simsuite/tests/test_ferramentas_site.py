@@ -192,3 +192,39 @@ def test_sensibilidade_tornado_monte_carlo_e_determinismo():
     assert o["igual"] is True                                                           # mesma semente, mesmo resultado
     assert o["a"]["margem"]["p5"] < o["a"]["margem"]["p50"] < o["a"]["margem"]["p95"] and 0 <= o["a"]["probAtingeAlvo"] <= 1
     assert o["c"]["margem"]["p5"] == o["c"]["margem"]["p95"] == pytest.approx(o["base"], abs=1e-9)   # sem incerteza, sem espalhamento
+
+
+def _rastro_exemplo():
+    ev = [
+        {"v": 1, "t": 0.0, "node": 1, "ev": "modo", "modo": "SF10/125/FH", "estado": "BASE", "motivo": "boot"},
+        {"v": 1, "t": 0.0, "node": 2, "ev": "modo", "modo": "SF10/125/FH", "estado": "BASE", "motivo": "boot", "lat": -3.7, "lon": -38.5, "alt": 20},
+        {"v": 1, "t": 5.0, "node": 1, "ev": "tx", "tipo": "DATA", "seq": 1, "modo": "SF10/125/FH", "pwr": 14},
+        {"v": 1, "t": 5.4, "node": 2, "ev": "rx", "tipo": "DATA", "src": 1, "seq": 1, "rssi": -101.0, "snr": -5.0, "gps_fix": 3},
+        {"v": 1, "t": 60.0, "node": 1, "ev": "propose", "modo": "SF9/125/FH"},
+        {"v": 1, "t": 70.0, "node": 1, "ev": "modo", "modo": "SF9/125/FH", "estado": "VALIDANDO", "motivo": "commit"},
+        {"v": 1, "t": 70.0, "node": 2, "ev": "modo", "modo": "SF9/125/FH", "estado": "VALIDANDO", "motivo": "commit"},
+        {"v": 1, "t": 200.0, "node": 1, "ev": "alarme_rollback"},
+        {"v": 1, "t": 200.0, "node": 1, "ev": "modo", "modo": "SF10/125/FH", "estado": "BASE", "motivo": "rollback"},
+        {"v": 1, "t": 300.0, "node": 2, "ev": "reboot"},
+        {"v": 1, "t": 310.0, "node": 2, "ev": "rejeitado", "tipo": "DATA"},
+        {"v": 1, "t": 320.0, "node": 2, "ev": "resync", "arg": 0},
+    ]
+    return ev, "\n".join(json.dumps(e) for e in ev) + "\nlixo\n{\"t\": 1}\n"
+
+
+@precisa_node
+def test_rastros_resumo_igual_ao_python_e_remove_localizacao():
+    from collections import Counter
+    ev, texto = _rastro_exemplo()
+    o = _node(r"""
+    const R = require(process.argv[1] + '/rastros.js'), txt = require('fs').readFileSync(0, 'utf8');
+    const l = R.ler(txt), s = R.resumo(l.recs), f = R.filtrar(l.recs, { node: 2, ev: 'modo' });
+    console.log(JSON.stringify({ n: l.recs.length, avisos: l.avisos, removidos: l.removidos, cont: s.contagem, dur: s.duracao,
+      n1: s.nos['1'].modos.map(m => [m.t0, m.t1, m.modo, m.estado]), rb: s.nos['1'].rollbacks, rj: s.nos['2'].rejeitados, rs: s.nos['2'].resync, marcas: s.marcas.map(m => m.tipo),
+      f: f.length, jsonl: R.paraJsonl(l.recs), vazio: R.ler('lixo').erro }));
+    """, entrada=texto)
+    assert o["n"] == len(ev) and dict(o["cont"]) == dict(Counter(e["ev"] for e in ev)) and o["dur"] == 320.0
+    assert o["removidos"] == {"lat": 1, "lon": 1, "alt": 1, "gps_fix": 1} and any("localização removidos" in a for a in o["avisos"]) and any("2 linha(s) ignorada(s)" in a for a in o["avisos"])
+    assert "-3.7" not in o["jsonl"] and "-38.5" not in o["jsonl"] and "gps_fix" not in o["jsonl"] and '"lat"' not in o["jsonl"]          # localização nunca volta na exportação
+    assert o["n1"] == [[0.0, 70.0, "SF10/125/FH", "BASE"], [70.0, 200.0, "SF9/125/FH", "VALIDANDO"], [200.0, 320.0, "SF10/125/FH", "BASE"]]
+    assert o["rb"] == 1 and o["rj"] == 1 and o["rs"] == 1 and o["marcas"] == ["rollback", "reboot", "resync"] and o["f"] == 2 and "nenhum evento válido" in o["vazio"]

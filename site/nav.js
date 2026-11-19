@@ -17,7 +17,7 @@
     { id: "garantias", t: "Garantias", d: "O que foi provado e conferido: verificação formal, validação contra outros simuladores, segurança e regulação.",
       itens: [{ id: "formal", t: "Verificação formal" }, { id: "validacao", t: "Validação cruzada" }, { id: "seg", t: "Segurança e regulação" }] },
     { id: "ferramentas", t: "Ferramentas", d: "Para usar os resultados no seu caso: estimativas por modo e testador de enlaces com terreno.",
-      itens: [{ id: "estimativas", t: "Estimativas" }, { id: "calc", t: "Calculadoras" }, { id: "pacote", t: "Pacotes" }, { id: "medicoes", t: "Medições" }, { id: "sensib", t: "Sensibilidade" }, { id: "enlace", t: "Testador de enlaces", href: "enlace.html" }] },
+      itens: [{ id: "estimativas", t: "Estimativas" }, { id: "calc", t: "Calculadoras" }, { id: "pacote", t: "Pacotes" }, { id: "medicoes", t: "Medições" }, { id: "sensib", t: "Sensibilidade" }, { id: "rastros", t: "Rastros" }, { id: "enlace", t: "Testador de enlaces", href: "enlace.html" }] },
     { id: "referencia", t: "Referência", d: "Tabela de modos, escalas e orçamento de tempo, e o consolidado com discussões e trabalhos futuros.",
       itens: [{ id: "modos", t: "Modos" }, { id: "escalas", t: "Escalas e orçamento" }, { id: "consolidado", t: "Consolidado e trabalhos futuros", href: "consolidado.html" }] }
   ];
