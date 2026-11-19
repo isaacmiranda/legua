@@ -54,6 +54,7 @@ cartões, 9 tabelas). A sigla PDR aparece em 15 das 18 páginas e estava definid
 
 - **Verificar em navegador real** (e em celular): zoom por roda e por botões, arraste, toque, carregamento dos tiles do OSM
   e da AWS (CORS), contraste, tamanho dos alvos de toque (em telas de toque, botões, abas e controles do mapa passaram a ter 44 px por CSS `pointer: coarse`, em 19/11/2026; só verificado por leitura do CSS).
+- **Especificação no celular:** corrigido em 19/11/2026 (captura do usuário): índice e texto empilham abaixo de 760 px e os blocos de código rolam na horizontal.
 - **Dica de sigla ao toque:** feito em 19/11/2026: a sigla vira botão (toque ou Enter) e abre a definição logo abaixo; o `title` continua para o mouse. Não verificado em celular real.
 - **Densidade:** feito em 19/11/2026: a aba "Mecanismos (V, S)" foi dividida ("Estresses (X)" tem aba própria) e cada seção do consolidado ganhou "recolher" e "↑ Índice". Falta ver se a leitura melhorou (teste com pessoas).
 - **Teste com usuários:** cinco pessoas com a tarefa "descobrir se o enlace entre dois pontos fecha" revelariam mais do que

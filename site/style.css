@@ -219,3 +219,11 @@ a.tab[aria-current="page"] { color: var(--text); border-bottom-color: var(--acce
 }
 abbr[title] { cursor: help; }
 .sigla-dica { display: block; margin: 4px 0; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: 12px; }
+
+/* aba Especificação: em tela estreita, índice em cima e texto embaixo; blocos de código e tabelas rolam na horizontal */
+.spec-texto pre, .spec-texto table { max-width: 100%; overflow-x: auto; display: block; }
+.spec-texto pre { white-space: pre; }
+@media (max-width: 760px) {
+  .spec-leitor { grid-template-columns: minmax(0, 1fr) !important; }
+  .spec-leitor > nav { position: static !important; max-height: 30vh !important; }
+}
