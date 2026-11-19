@@ -98,7 +98,7 @@ setTimeout(() => {
   }
   const ta = d.querySelector("textarea");
   out.tem_textarea = !!ta;
-  if (ta) { ta.value = process.argv[4] || ""; ta.dispatchEvent(new p.Event("input")); }
+  if (ta) { ta.value = process.argv[4] || ""; ta.dispatchEvent(new w.Event("input")); }
   setTimeout(() => {
     out.apos_csv = [...d.querySelectorAll(".card h2")].map(h => h.textContent);
     out.frase2 = [...d.querySelectorAll(".card p")].map(p => p.textContent).find(t => /sinal chega/.test(t)) || "";
@@ -188,7 +188,7 @@ const campo = (rotulo) => [...d.querySelectorAll("input[type=text]")].find(i => 
   const s = d.querySelector("select"); s.value = "terrarium"; s.dispatchEvent(new w.Event("change"));
   await espera(100);
   out.hash_apos_escolher = w.location.hash;
-  const preenche = (r, v) => { const i = campo(r); i.value = v; i.dispatchEvent(new p.Event("input")); };
+  const preenche = (r, v) => { const i = campo(r); i.value = v; i.dispatchEvent(new w.Event("input")); };
   preenche("Latitude do ponto A", "-22.9"); preenche("Longitude do ponto A", "-43.2");
   preenche("Latitude do ponto B", "-22.9"); preenche("Longitude do ponto B", "-43.12");
   w.LeguaTerrariumBuscar = (url) => { out.urls.push(url); const x = new Float32Array(65536); x.fill(120); return Promise.resolve(x); };
@@ -307,7 +307,7 @@ const dom = new JSDOM(html, { url: "http://localhost/enlace.html#terreno=mapa", 
 const w = dom.window, d = w.document, out = { erros, urls: [] };
 const espera = (ms) => new Promise(r => setTimeout(r, ms));
 const inputs = (r) => [...d.querySelectorAll("input[type=text]")].filter(i => (i.getAttribute("aria-label") || "").startsWith(r));
-const digita = (i, v) => { i.value = v; i.dispatchEvent(new p.Event("input")); };
+const digita = (i, v) => { i.value = v; i.dispatchEvent(new w.Event("input")); };
 (async () => {
   await espera(500);
   out.hash_inicial = w.location.hash;
@@ -517,7 +517,7 @@ const espera = (ms) => new Promise(r => setTimeout(r, ms));
   out.secao = (d.querySelector(".gnav-sec[aria-current]") || {}).textContent; out.antes = v();
   const sf = d.querySelector('select[aria-label="Fator de espalhamento"]'); sf.value = "7"; sf.dispatchEvent(new w.Event("change")); await espera(100);
   out.depois = v();
-  const pl = d.querySelector('input[aria-label^="Carga útil"]'); pl.value = "9999"; pl.dispatchEvent(new p.Event("input")); await espera(50);
+  const pl = d.querySelector('input[aria-label^="Carga útil"]'); pl.value = "9999"; pl.dispatchEvent(new w.Event("input")); await espera(50);
   out.carga_limitada = w.LeguaCalcUI.estado.pl;                       // fora da faixa: limitada a 255
   d.querySelector('a.tab[href="index.html#estimativas"], button.tab[data-id="estimativas"]').click(); await espera(300);
   d.querySelector('button.tab[data-id="calc"]').click(); await espera(300);
@@ -558,9 +558,9 @@ const espera = (ms) => new Promise(r => setTimeout(r, ms));
   out.txt = d.getElementById("panel").textContent;
   out.linhas = d.querySelectorAll("#panel table tbody tr").length;
   const ta = d.querySelector('textarea[aria-label="Quadro em hexadecimal"]'); out.hex = ta.value;
-  ta.value = "02 00 zz"; ta.dispatchEvent(new p.Event("input")); await espera(50);
+  ta.value = "02 00 zz"; ta.dispatchEvent(new w.Event("input")); await espera(50);
   out.erro = d.getElementById("panel").textContent.includes("não decodificou");
-  ta.value = out.hex.slice(0, -2) + "00"; ta.dispatchEvent(new p.Event("input")); await espera(50);   // MIC adulterado
+  ta.value = out.hex.slice(0, -2) + "00"; ta.dispatchEvent(new w.Event("input")); await espera(50);   // MIC adulterado
   out.mic_ruim = d.getElementById("panel").textContent.includes("MIC de teste não confere");
   out.links = [...d.querySelectorAll('#panel a[href^="vetores/"]')].map(a => a.getAttribute("href"));
   console.log(JSON.stringify(out)); process.exit(0);
@@ -602,7 +602,7 @@ const espera = (ms) => new Promise(r => setTimeout(r, ms));
   const cal = JSON.parse(d.querySelector('textarea[aria-label="calibracao.json gerado"]').value);
   out.cal = { versao: cal.versao, canal: !!cal.constantes.canal, n: cal.constantes.canal.valor[Object.keys(cal.constantes.canal.valor)[0]].n, notas: cal.notas };
   out.botao = !!d.getElementById("med-baixa");
-  const ta = d.querySelector('textarea[aria-label="CSV de medições"]'); ta.value = "distancia_km;rssi_dbm;lat;lon\n1;-90;-3.7;-38.5"; ta.dispatchEvent(new p.Event("input")); await espera(80);
+  const ta = d.querySelector('textarea[aria-label="CSV de medições"]'); ta.value = "distancia_km;rssi_dbm;lat;lon\n1;-90;-3.7;-38.5"; ta.dispatchEvent(new w.Event("input")); await espera(80);
   out.recusa = d.getElementById("panel").textContent.includes("localização") && !d.querySelector('textarea[aria-label="calibracao.json gerado"]');
   console.log(JSON.stringify(out)); process.exit(0);
 })();
@@ -657,7 +657,7 @@ def test_aba_rastros_linha_do_tempo_filtro_e_localizacao_removida(tmp_path):
   out.svg = !!d.querySelector("#panel svg.perfil rect"); out.txt = d.getElementById("panel").textContent;
   out.rects = d.querySelectorAll("#panel svg.perfil rect").length;
   const ta = d.querySelector('textarea[aria-label="Rastro JSONL"]');
-  ta.value = '{"t":1,"node":1,"ev":"tx","lat":-3.7,"lon":-38.5}\n{"t":2,"node":1,"ev":"rx","gnss_fix":3}\n'; ta.dispatchEvent(new p.Event("input")); await espera(80);
+  ta.value = '{"t":1,"node":1,"ev":"tx","lat":-3.7,"lon":-38.5}\n{"t":2,"node":1,"ev":"rx","gnss_fix":3}\n'; ta.dispatchEvent(new w.Event("input")); await espera(80);
   out.aviso = d.getElementById("panel").textContent.includes("campos de localização removidos"); out.vazou = /-3\.7|-38\.5/.test(d.getElementById("panel").textContent);
   console.log(JSON.stringify(out)); process.exit(0);
 })();
@@ -684,12 +684,12 @@ def test_aba_especificacao_indice_busca_e_troca_de_documento(tmp_path):
   d.querySelector('button.tab[data-id="spec"]').click(); await espera(300);
   out.titulos = d.querySelectorAll(".spec-texto h2, .spec-texto h3").length; out.toc = d.querySelectorAll("nav[aria-label='Índice do documento'] a").length;
   out.tabela = !!d.querySelector(".spec-texto table");
-  const q = d.querySelector('input[aria-label="Buscar nos documentos"]'); q.value = "RESYNC nonce"; q.dispatchEvent(new p.Event("input")); await espera(200);
+  const q = d.querySelector('input[aria-label="Buscar nos documentos"]'); q.value = "RESYNC nonce"; q.dispatchEvent(new w.Event("input")); await espera(200);
   out.achou = [...d.querySelectorAll("#panel li a")].map(a => a.textContent).slice(0, 3);
   d.querySelector("#panel li a").click(); await espera(100);
   const sel = d.querySelector('select[aria-label="Documento"]'); sel.value = "08"; sel.dispatchEvent(new w.Event("change")); await espera(100);
   out.doc8 = (d.querySelector(".spec-texto h2") || {}).textContent;
-  q.value = "zzzxxyy"; q.dispatchEvent(new p.Event("input")); await espera(100); out.nada = /Nada encontrado/.test(d.getElementById("panel").textContent);
+  q.value = "zzzxxyy"; q.dispatchEvent(new w.Event("input")); await espera(100); out.nada = /Nada encontrado/.test(d.getElementById("panel").textContent);
   console.log(JSON.stringify(out)); process.exit(0);
 })();
 """
@@ -710,7 +710,7 @@ def test_aba_especificacao_indice_busca_e_troca_de_documento(tmp_path):
 def test_cobertura_em_area_so_baixa_ao_clicar_e_mostra_resumo(tmp_path):
     js = JS_ROTA.split("(async () => {")[0].replace("#terreno=mapa", "#terreno=mapa") + r"""(async () => {
   await espera(500);
-  const preenche = (r, v) => { const i = inputs(r)[0]; i.value = v; i.dispatchEvent(new p.Event("input")); };
+  const preenche = (r, v) => { const i = inputs(r)[0]; i.value = v; i.dispatchEvent(new w.Event("input")); };
   for (let k = 0; k < 2; k++) { d.getElementById("add-ponto").click(); await espera(30); }
   const la = inputs("Latitude do ponto"), lo = inputs("Longitude do ponto");
   digita(la[0], "-22.9"); digita(lo[0], "-43.2"); digita(la[1], "-22.9"); digita(lo[1], "-43.12"); await espera(300);
@@ -755,7 +755,7 @@ const espera = (ms) => new Promise(r => setTimeout(r, ms));
 (async () => {
   const w = abre("enlace.html", ""); await espera(700); const d = w.document;
   const campos = () => [...d.querySelectorAll("input,select")].map(i => i.type === "checkbox" ? i.checked : i.value);
-  const dig = (i, v) => { i.value = v; i.dispatchEvent(new p.Event("input")); };
+  const dig = (i, v) => { i.value = v; i.dispatchEvent(new w.Event("input")); };
   const ent = (r) => [...d.querySelectorAll("input[type=text]")].filter(i => (i.getAttribute("aria-label") || "").startsWith(r));
   for (let k = 0; k < 2; k++) { d.getElementById("add-ponto").click(); await espera(30); }
   dig(ent("Latitude")[0], "-22.9"); dig(ent("Longitude")[0], "-43.2"); dig(ent("Latitude")[1], "-22.9"); dig(ent("Longitude")[1], "-43.12"); await espera(300);
