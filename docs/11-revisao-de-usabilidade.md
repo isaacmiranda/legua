@@ -40,10 +40,10 @@ cartões, 9 tabelas). A sigla PDR aparece em 15 das 18 páginas e estava definid
 | 4 | | Dois jeitos de consentir (caixa no mapa, caixa na elevação) com textos diferentes | 2 | **Corrigido**: um botão com o efeito escrito ("Ativar mapa-base", "Buscar elevação") e "O que é enviado?" recolhido |
 | 5 | Prevenção de erros | Latitude/longitude aceitas sem checagem até o cálculo falhar | 3 | **Corrigido**: campo marcado como inválido na hora, com aviso (inclui "parece trocada") |
 | 5 | | Consentimento por caixa que o usuário não lia | 2 | **Corrigido**: a ação (clique) é o consentimento, com o texto na própria ação |
-| 5 | | Latitude e longitude trocadas **dentro** do intervalo (ex.: −43 e −22) não são detectáveis | 2 | **Aberto**: só o mapa mostra o erro; o mapa-base ajuda a perceber |
+| 5 | | Latitude e longitude trocadas **dentro** do intervalo (ex.: −43 e −22) não são detectáveis | 2 | **Corrigido em parte (19/11/2026)**: se o ponto cai fora do Brasil e, com os valores trocados, cairia dentro, aparece um aviso. Para pontos fora do Brasil de propósito, ou trocados dentro do Brasil, continua só o mapa mostrando o erro |
 | 6 | Reconhecimento | A aba e a subseção são lembradas; o modo escolhido aparece no cartão | 0 | ok |
 | 7 | Flexibilidade | Mapa com teclado (setas, + −, Enter), roda, duplo clique e botões; links com estado | 0 | ok (jsdom) |
-| 7 | | Sem exemplo pronto no modo "Mapa" | 1 | **Aberto** (coordenada de exemplo exigiria escolher um lugar real) |
+| 7 | | Sem exemplo pronto no modo "Mapa" | 1 | **Corrigido (19/11/2026)**: botão "Usar exemplo" com dois pontos ilustrativos em Fortaleza (marcos públicos, sem dado de campo) |
 | 8 | Minimalismo | Avisos de 4 a 7 linhas no topo de `index` e `enlace`, sempre abertos | 3 | **Corrigido**: uma linha e "O que isso significa" recolhido (a ressalva regulatória continua à mão) |
 | 8 | | "Mecanismos (V, S)" com 10 cartões e 12,8 mil caracteres; consolidado com 33 mil | 2 | **Aberto**: dividir ou recolher seções; no consolidado, "voltar ao índice" por seção |
 | 9 | Recuperação de erros | Falha de rede na elevação só dizia o que deu errado | 3 | **Corrigido**: causas comuns e saídas (tentar de novo, CSV, `.hgt`); o botão vira "Tentar de novo" |

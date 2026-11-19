@@ -192,7 +192,10 @@
             else if (lo.value.trim() && !(Math.abs(b) <= 180)) m = "A longitude vai de −180 a 180.";
             la.setAttribute("aria-invalid", String(!!m && /latitude/i.test(m))); lo.setAttribute("aria-invalid", String(!!m && /longitude/i.test(m)));
             la.style.borderColor = la.getAttribute("aria-invalid") === "true" ? "var(--bad)" : ""; lo.style.borderColor = lo.getAttribute("aria-invalid") === "true" ? "var(--bad)" : "";
-            dica.textContent = m;
+            dica.textContent = m; dica.style.color = "var(--bad)";
+            if (!m && isFinite(a) && isFinite(b) && !(a >= -34 && a <= 6 && b >= -74 && b <= -34) && b >= -34 && b <= 6 && a >= -74 && a <= -34) {
+              dica.textContent = "Fora do Brasil, mas com os valores trocados cairia no Brasil: confira se latitude e longitude não estão invertidas."; dica.style.color = "var(--warn, #b45309)";
+            }
           }
           function mudou() { st.pontos[i] = { lat: Pf(la.value), lon: Pf(lo.value) }; valida(); sinc(); agenda(); }
           la.addEventListener("input", mudou); lo.addEventListener("input", mudou);
@@ -205,6 +208,8 @@
         var ops = el("div", { class: "controls sem-impressao", style: "display:flex;gap:8px;flex-wrap:wrap;margin-top:8px" });
         function ob(txt, fn, id) { var b = el("button", { type: "button", class: "btn", text: txt }); if (id) b.id = id; b.addEventListener("click", fn); ops.appendChild(b); }
         ob("Adicionar ponto digitando", function () { if (st.pontos.length < window.LeguaMapa.MAX_PONTOS) { snap(); st.pontos.push({ lat: NaN, lon: NaN }); listaPontos(); } }, "add-ponto");
+        ob("Usar exemplo", function () { snap(); st.pontos = [{ lat: -3.7275, lon: -38.5270 }, { lat: -3.7175, lon: -38.4700 }]; st.salto = 0; sinc(); mapaObj.enquadrar(); listaPontos(); monta(); }, "usa-exemplo");
+        ops.lastChild.title = "Dois pontos ilustrativos em Fortaleza (Praça do Ferreira e Farol do Mucuripe), só para ver a ferramenta funcionando";
         ob("Inverter a ordem", function () { snap(); st.pontos.reverse(); sinc(); listaPontos(); agenda(); });
         ob("Enquadrar no mapa", function () { mapaObj.enquadrar(); });
         ob("Desfazer", function () { if (!hist.length) return; st.pontos = hist.pop(); sinc(); listaPontos(); monta(); }, "desfaz-ponto");
