@@ -102,7 +102,12 @@ def test_cli_valida_e_a_suite_rotula_o_resultado(tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
     d = json.load(open(saida / "modos.json"))
     assert d["calibracao"] == "teste-sintetico"
-    sem = json.load(open(os.path.join(RAIZ, "simsuite", "results", "modos.json")))
+    base = tmp_path / "base"                                          # a mesma rodada sem calibração (não depende de results/ versionado)
+    r = subprocess.run([sys.executable, "-m", "simsuite.run_suite", "--escala", "quick", "--so", "modos", "--procs", "1", "--saida", str(base)],
+                       capture_output=True, text=True, env=env, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    sem = json.load(open(base / "modos.json"))
+    assert "calibracao" not in sem
     assert d["resultado"]["modos"] != sem["resultado"]["modos"], "o orçamento dos modos deveria mudar com a calibração"
 
 
