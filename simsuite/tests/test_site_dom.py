@@ -576,3 +576,43 @@ def test_aba_pacotes_decodifica_mostra_erros_e_oferece_os_vetores(tmp_path):
     assert o["vazio"] and o["linhas"] >= 10 and "MIC de teste confere" in o["txt"] and "DATA" in o["txt"] and len(o["hex"]) == 48
     assert o["erro"] and o["mic_ruim"] and o["links"] == ["vetores/frames.txt", "vetores/mic.txt"]
     assert os.path.exists(os.path.join(RAIZ, "site", "vetores", "frames.txt"))
+
+
+JS_MED = r"""
+const { JSDOM, VirtualConsole } = require("jsdom");
+const path = require("path"), fs = require("fs");
+const dir = process.argv[2], out = { erros: [] };
+const vc = new VirtualConsole(); vc.on("jsdomError", e => out.erros.push(String(e.message || e)));
+const html = fs.readFileSync(path.join(dir, "index.html"), "utf8").replace(/<script src="([^"]+)"><\/script>/g,
+  (_m, f) => "<script>" + fs.readFileSync(path.join(dir, f), "utf8").replace(/<\/script/g, "<\\/script") + "</script>");
+const w = new JSDOM(html, { url: "http://localhost/index.html#medicoes", runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true }).window, d = w.document;
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  await espera(900);
+  out.vazio = /o ajuste aparece aqui/.test(d.getElementById("panel").textContent);
+  d.getElementById("med-exemplo").click(); await espera(150);
+  const txt = d.getElementById("panel").textContent;
+  out.pill = /perda de percurso/.test(txt) && /30 medições/.test(txt); out.svg = !!d.querySelector("#panel svg.perfil circle");
+  const cal = JSON.parse(d.querySelector('textarea[aria-label="calibracao.json gerado"]').value);
+  out.cal = { versao: cal.versao, canal: !!cal.constantes.canal, n: cal.constantes.canal.valor[Object.keys(cal.constantes.canal.valor)[0]].n, notas: cal.notas };
+  out.botao = !!d.getElementById("med-baixa");
+  const ta = d.querySelector('textarea[aria-label="CSV de medições"]'); ta.value = "distancia_km;rssi_dbm;lat;lon\n1;-90;-3.7;-38.5"; ta.dispatchEvent(new w.Event("input")); await espera(80);
+  out.recusa = d.getElementById("panel").textContent.includes("localização") && !d.querySelector('textarea[aria-label="calibracao.json gerado"]');
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_aba_medicoes_ajusta_gera_calibracao_e_recusa_localizacao(tmp_path):
+    f = tmp_path / "med_dom.js"
+    f.write_text(JS_MED)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["vazio"] and o["pill"] and o["svg"] and o["botao"] and o["recusa"]
+    assert o["cal"]["versao"] == 1 and o["cal"]["canal"] and 3.0 < o["cal"]["n"] < 4.2 and "sem coordenadas" in o["cal"]["notas"]

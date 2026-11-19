@@ -109,3 +109,65 @@ def test_gerador_de_pacotes_igual_ao_wire_py_e_erros_claros():
     assert o["corpo"][0] == "seq=5" and "payload (9 B)=010203040506070809" in o["corpo"]
     assert "hexadecimal" in o["erros"][0] and "ímpar" in o["erros"][1] and "curto" in o["erros"][2] and "versão" in o["erros"][3] and "bytes" in o["erros"][4]
     assert "leva 12 bytes" in o["erros"][5] and "inválido" in o["erros"][6] and any("reservados" in a for a in o["adv"])
+
+
+def _medicoes_sinteticas(seed=3):
+    import math
+    import random
+    r = random.Random(seed)
+    csv = ["distancia_km;rssi_dbm;potencia_dbm"]
+    pts = []
+    for d in (0.2, 0.3, 0.5, 0.8, 1.2, 1.8, 2.5, 3.5, 5.0, 7.0) * 3:
+        pl = 112.0 + 10 * 3.6 * math.log10(d) + r.gauss(0, 3.0)
+        rssi = 14 + 0.0 - pl
+        rssi = round(rssi, 2); pts.append((d, rssi)); csv.append(f"{d};{rssi:.2f};14")
+    return "\n".join(csv), pts
+
+
+@precisa_node
+def test_ajuste_de_percurso_igual_ao_numpy_e_calibracao_valida_no_importador(tmp_path):
+    import numpy as np
+    from simsuite.analysis import calibracao as CAL
+    csv, pts = _medicoes_sinteticas()
+    o = _node(r"""
+    const M = require(process.argv[1] + '/medicoes.js'), csv = require('fs').readFileSync(0, 'utf8');
+    const l = M.lerCsv(csv), a = M.ajustePercurso(l.linhas, { p: 14, ganhos: 0 });
+    const cal = M.gerarCalibracao({ id: 'teste-medido', data: '2026-11-19', hardware: 'x', firmware: 'core-v0.1.1', ambiente: 'rural_aberto', percurso: a, limiar: { porSf: {} }, perOffsetDb: 2.5 });
+    console.log(JSON.stringify({ n: l.linhas.length, a: { pl1km: a.pl1km, n: a.n, sigma: a.sigma, se_n: a.se_n, r2: a.r2 }, cal: cal.obj, avisos: a.avisos }));
+    """, entrada=csv)
+    x = np.array([10 * np.log10(d) for d, _ in pts])
+    y = np.array([14 - r for _, r in pts])
+    n_np, pl_np = np.polyfit(x, y, 1)
+    assert o["n"] == 30 and o["a"]["n"] == pytest.approx(n_np, abs=1e-9) and o["a"]["pl1km"] == pytest.approx(pl_np, abs=1e-9)
+    res = y - (pl_np + n_np * x)
+    assert o["a"]["sigma"] == pytest.approx(np.sqrt(np.sum(res ** 2) / 28), abs=1e-9)
+    assert 3.2 < o["a"]["n"] < 4.0 and 109 < o["a"]["pl1km"] < 115 and o["a"]["r2"] > 0.9
+    cal = o["cal"]
+    CAL.validar(cal)                                                  # o importador do simulador aceita o arquivo gerado no navegador
+    assert any("de n =" in cal["notas"] or "erro-padrão de n" in cal["notas"] for _ in [0]) and "coordenadas" in cal["notas"]
+    assert cal["constantes"]["canal"]["valor"]["rural_aberto"]["n"] == pytest.approx(n_np, abs=0.006)
+
+
+@precisa_node
+def test_limiar_de_snr_recupera_o_centro_e_recusa_localizacao_e_dados_ruins():
+    import math
+    import random
+    r = random.Random(5)
+    linhas = ["snr_db;pdr;sf"]
+    for snr in [x * 0.5 for x in range(-50, -6)]:                    # SF10: centro verdadeiro em -12,5 dB
+        p = 1 / (1 + math.exp(-(snr + 12.5) / 0.6))
+        linhas.append(f"{snr};{min(1, max(0, p + r.gauss(0, 0.03))):.3f};10")
+    linhas_ruins = ["snr_db;pdr;sf", "-10;0.5;10", "-12;0.6;10"]
+    o = _node(r"""
+    const M = require(process.argv[1] + '/medicoes.js'), V = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+    const l = M.lerCsv(V.ok.join('\n')), a = M.ajusteLimiar(l.linhas), pouco = M.ajusteLimiar(M.lerCsv(V.ruins.join('\n')).linhas);
+    console.log(JSON.stringify({ c: a.porSf[10].c, s: a.porSf[10].s, se: a.porSf[10].se_c, erros_pouco: pouco.erros,
+      gps: M.lerCsv('distancia_km;rssi_dbm;lat;lon\n1;-90;-3.7;-38.5').erro, gnss: M.lerCsv('d_km,rssi,gnss_fix\n1,-90,3').erro, sem_d: M.lerCsv('rssi_dbm\n-90').erro,
+      vazio: M.lerCsv('').erro, curto: M.ajustePercurso([{ d: 1, rssi: -90 }, { d: 2, rssi: -95 }], { p: 14, ganhos: 0 }).erro, igual: M.ajustePercurso([{ d: 1, rssi: -90 }, { d: 1, rssi: -91 }, { d: 1, rssi: -92 }], { p: 14, ganhos: 0 }).erro,
+      pct: M.lerCsv('distancia_km;pdr\n1;85\n2;50').linhas.map(x => x.pdr), virgula: M.lerCsv('distancia_km;rssi_dbm\n1,5;-90,5').linhas[0] }));
+    """, entrada=json.dumps({"ok": linhas, "ruins": linhas_ruins}))
+    assert o["c"] == pytest.approx(-12.5, abs=0.4) and o["s"] == pytest.approx(0.6, abs=0.3) and 0 < o["se"] < 0.5
+    assert "SF10" in o["erros_pouco"][0] and "ao menos 6" in o["erros_pouco"][0]
+    assert "localização" in o["gps"] and "localização" in o["gnss"] and "distância" in o["sem_d"] and "cole um CSV" in o["vazio"]
+    assert "3 medições" in o["curto"] and "mesma distância" in o["igual"]
+    assert o["pct"] == [0.85, 0.5] and o["virgula"]["d"] == 1.5 and o["virgula"]["rssi"] == -90.5
