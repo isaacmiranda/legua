@@ -667,3 +667,34 @@ def test_aba_rastros_linha_do_tempo_filtro_e_localizacao_removida(tmp_path):
     assert not o["erros"], o["erros"]
     assert o["vazio"] and o["svg"] and o["rects"] >= 4 and "Rollbacks" in o["txt"] and "14 eventos" in o["txt"]
     assert o["aviso"] and not o["vazou"]
+
+
+@pytest.mark.skipif(not _tem_jsdom(), reason="sem node/jsdom")
+def test_aba_especificacao_indice_busca_e_troca_de_documento(tmp_path):
+    js = JS_PACOTE.replace("#pacote", "#guia").split("(async () => {")[0] + r"""(async () => {
+  await espera(700);
+  w.eval(fs.readFileSync(path.join(dir, "especificacao.js"), "utf8"));
+  [...d.querySelectorAll("#tabs button, .gnav-sec")].find(b => b.textContent === "Referência").click(); await espera(150);
+  d.querySelector('button.tab[data-id="spec"]').click(); await espera(300);
+  out.titulos = d.querySelectorAll(".spec-texto h2, .spec-texto h3").length; out.toc = d.querySelectorAll("nav[aria-label='Índice do documento'] a").length;
+  out.tabela = !!d.querySelector(".spec-texto table");
+  const q = d.querySelector('input[aria-label="Buscar nos documentos"]'); q.value = "RESYNC nonce"; q.dispatchEvent(new w.Event("input")); await espera(200);
+  out.achou = [...d.querySelectorAll("#panel li a")].map(a => a.textContent).slice(0, 3);
+  d.querySelector("#panel li a").click(); await espera(100);
+  const sel = d.querySelector('select[aria-label="Documento"]'); sel.value = "08"; sel.dispatchEvent(new w.Event("change")); await espera(100);
+  out.doc8 = (d.querySelector(".spec-texto h2") || {}).textContent;
+  q.value = "zzzxxyy"; q.dispatchEvent(new w.Event("input")); await espera(100); out.nada = /Nada encontrado/.test(d.getElementById("panel").textContent);
+  console.log(JSON.stringify(out)); process.exit(0);
+})();
+"""
+    f = tmp_path / "spec_dom.js"
+    f.write_text(js)
+    env = dict(os.environ)
+    p = subprocess.run(["node", "-e", "console.log(require.resolve('jsdom'))"], capture_output=True, text=True, cwd=RAIZ)
+    env["NODE_PATH"] = p.stdout.strip().split("/node_modules/")[0] + "/node_modules"
+    r = subprocess.run(["node", str(f), os.path.join(RAIZ, "site")], capture_output=True, text=True, timeout=170, env=env, cwd=RAIZ)
+    assert r.returncode == 0, r.stderr
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not o["erros"], o["erros"]
+    assert o["titulos"] >= 5 and o["toc"] >= 5 and o["tabela"] and o["achou"] and "docs/07" in o["achou"][0] + " ".join(o["achou"])
+    assert o["doc8"] and o["nada"]

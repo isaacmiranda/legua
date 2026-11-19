@@ -228,3 +228,25 @@ def test_rastros_resumo_igual_ao_python_e_remove_localizacao():
     assert "-3.7" not in o["jsonl"] and "-38.5" not in o["jsonl"] and "gps_fix" not in o["jsonl"] and '"lat"' not in o["jsonl"]          # localização nunca volta na exportação
     assert o["n1"] == [[0.0, 70.0, "SF10/125/FH", "BASE"], [70.0, 200.0, "SF9/125/FH", "VALIDANDO"], [200.0, 320.0, "SF10/125/FH", "BASE"]]
     assert o["rb"] == 1 and o["rj"] == 1 and o["rs"] == 1 and o["marcas"] == ["rollback", "reboot", "resync"] and o["f"] == 2 and "nenhum evento válido" in o["vazio"]
+
+
+def test_conversor_de_docs_escapa_e_gera_estrutura():
+    import sys
+    sys.path.insert(0, os.path.join(RAIZ, "tools"))
+    import build_docs as B
+    h, s = B.converter("# Título <b>\n\nTexto **forte** e `a<b` com [link](https://x.y/z) e [mal](javascript:alert(1)).\n\n| A | B |\n|---|---|\n| 1 | <script> |\n\n- um\n- dois\n\n```\n<x>&\n```\n\n## Título <b>\n")
+    assert "<script>" not in h and "&lt;script&gt;" in h and "<code>a&lt;b</code>" in h and "<b>forte</b>" in h
+    assert 'href="https://x.y/z"' in h and "javascript:" not in h.replace("[mal](javascript:alert(1))", "") or 'href="javascript' not in h
+    assert "<table>" in h and "<ul><li>um</li><li>dois</li></ul>" in h and "&lt;x&gt;&amp;" in h
+    assert [x["id"] for x in s] == ["titulo-b", "titulo-b-2"]                              # ids únicos
+
+
+def test_especificacao_js_esta_em_dia_com_os_docs():
+    import re as _re
+    js = open(os.path.join(SITE, "especificacao.js"), encoding="utf-8").read()
+    docs = json.loads(js[js.index("=") + 1:js.rindex(";")])
+    assert [d["id"] for d in docs] == ["07", "08", "05", "06", "09", "11"]
+    for d in docs:
+        fonte = open(os.path.join(RAIZ, d["arquivo"]), encoding="utf-8").read()
+        n_titulos = len(_re.findall(r"^#{1,4}\s", fonte, flags=_re.M))
+        assert len(d["secoes"]) == n_titulos and "<script" not in d["html"], d["id"]       # regenerar com tools/build_docs.py se falhar
